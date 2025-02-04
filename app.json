@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ShiaPrayerLeb",
+    "name": "مواقيت الصلاة للشيعة",
     "slug": "ShiaPrayerLeb",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -19,10 +19,16 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.hnjm123.ShiaPrayerLeb"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b4745e4f-821a-43fc-88a2-9db8fb06d98b"
+      }
     }
   }
 }
