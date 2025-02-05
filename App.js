@@ -13,22 +13,20 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
+import moment from 'moment-hijri';
 import prayerData from './assets/prayer_times.json';
 
 export default function App() {
+  const [language, setLanguage] = useState("ar");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentPrayer, setCurrentPrayer] = useState(null);
   const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [language, setLanguage] = useState("en");
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
 
-  // Use a ref to skip saving on the initial render
   const isInitialMount = useRef(true);
 
-  // Animated value for sliding the card when switching days.
   const animation = useRef(new Animated.Value(0)).current;
-  // Reference for the timeout to update the upcoming prayer.
   const upcomingTimer = useRef(null);
 
   const translations = {
@@ -62,7 +60,6 @@ export default function App() {
     },
   };
 
-  // Load saved settings on component mount.
   useEffect(() => {
     (async () => {
       try {
@@ -83,7 +80,6 @@ export default function App() {
     })();
   }, []);
 
-  // Update AsyncStorage and RTL layout when language changes.
   useEffect(() => {
     (async () => {
       try {
@@ -96,10 +92,8 @@ export default function App() {
     I18nManager.forceRTL(language === "ar");
   }, [language]);
 
-  // Update AsyncStorage when dark mode setting changes.
   useEffect(() => {
     if (isInitialMount.current) {
-      // Skip saving on initial mount to avoid overwriting loaded settings.
       isInitialMount.current = false;
     } else {
       (async () => {
@@ -123,7 +117,6 @@ export default function App() {
     imsak: 'cloudy-night',
   };
 
-  // Helper: Get today's index by matching today's date.
   const getTodayIndex = () => {
     const today = new Date();
     const formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
@@ -140,14 +133,12 @@ export default function App() {
     }
   }, []);
 
-  // Helper: Convert a prayer time string (HH:MM) into a Date object for today.
   const parsePrayerTime = (timeStr) => {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
   };
 
-  // Helper: Determine the key for the upcoming prayer based on current time.
   const getUpcomingPrayerKey = () => {
     if (!currentPrayer) return null;
     const now = new Date();
@@ -161,7 +152,6 @@ export default function App() {
     return null;
   };
 
-  // Set up a timeout to update the upcoming prayer exactly when the next prayer time is reached.
   useEffect(() => {
     if (currentPrayer && currentIndex === getTodayIndex()) {
       if (upcomingTimer.current) {
@@ -182,7 +172,6 @@ export default function App() {
             upcomingTimer.current = setTimeout(updateUpcomingPrayer, msUntilPrayer + 500);
           }
         } else {
-          // All prayers for today have passed.
           setUpcomingPrayerKey(null);
         }
       };
@@ -197,10 +186,9 @@ export default function App() {
     }
   }, [currentPrayer, currentIndex]);
 
-  // Animate the transition when switching days.
   const animateTransition = (newIndex, direction) => {
     Animated.timing(animation, {
-      toValue: -direction * 300, // slide out
+      toValue: -direction * 300, 
       duration: 200,
       useNativeDriver: true,
     }).start(() => {
@@ -288,6 +276,8 @@ export default function App() {
     );
   }
 
+  const hijriDate = moment(currentPrayer.date, "D/M/YYYY").format('iD iMMMM iYYYY');
+
   return (
     <SafeAreaView
       style={[
@@ -304,6 +294,9 @@ export default function App() {
         <View style={[styles.card, isDarkMode && styles.darkCard]}>
           <Text style={[styles.date, isDarkMode && styles.darkDate]}>
             {currentPrayer.date} — ({translations[language].day} {currentPrayer.day_number})
+          </Text>
+          <Text style={[styles.hijriDate, isDarkMode && styles.darkHijriDate]}>
+            {hijriDate}
           </Text>
           <ScrollView contentContainerStyle={styles.prayerContainer}>
             {renderPrayerRow('fajr', currentPrayer.fajr)}
@@ -391,12 +384,22 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 22,
     fontWeight: '600',
-    marginBottom: 15,
+    marginBottom: 5,
     textAlign: 'center',
     color: '#007AFF',
   },
   darkDate: {
     color: '#66CCFF',
+  },
+  hijriDate: {
+    fontSize: 18,
+    fontWeight: '500',
+    textAlign: 'center',
+    color: '#555',
+    marginBottom: 15,
+  },
+  darkHijriDate: {
+    color: '#CCC',
   },
   prayerContainer: {
     paddingBottom: 20,
