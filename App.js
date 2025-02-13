@@ -9,6 +9,7 @@ import {
   Animated,
   StatusBar,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,15 +17,23 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import moment from 'moment-hijri';
 import prayerData from './assets/prayer_times.json';
 import * as Notifications from 'expo-notifications';
+import dailyQuotes from './data/quotes';
+
 
 export default function App() {
   const [language, setLanguage] = useState("ar");
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [currentPrayer, setCurrentPrayer] = useState(null);
-  const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
   const [scheduledNotifications, setScheduledNotifications] = useState({});
+
+  const [selectedLocation, setSelectedLocation] = useState("beirut");
+  const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
+
+  const [isQuoteModalVisible, setIsQuoteModalVisible] = useState(false);
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentPrayer, setCurrentPrayer] = useState(null);
+  const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
 
   const isInitialMount = useRef(true);
   const animation = useRef(new Animated.Value(0)).current;
@@ -32,8 +41,7 @@ export default function App() {
 
   const translations = {
     en: {
-      prayerTimes:
-        "Prayer Times according to the opinion of His Eminence Imam Khamenei (Beirut)",
+      prayerTimes: "According to the opinion of His Eminence Imam Khamenei",
       loading: "Loading...",
       day: "Day",
       fajr: "Morning",
@@ -44,10 +52,12 @@ export default function App() {
       isha: "Isha",
       imsak: "Imsak",
       upcoming: "Upcoming",
+      selectLocation: "Select Location",
+      dailyQuote: "Daily Quote",
+      close: "Close",
     },
     ar: {
-      prayerTimes:
-        "مواقيت صلاة مدينة بيروت طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
+      prayerTimes: "طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
       loading: "جار التحميل...",
       day: "اليوم",
       fajr: "الصبح",
@@ -58,8 +68,24 @@ export default function App() {
       isha: "العشاء",
       imsak: "الإمساك",
       upcoming: "القادم",
+      selectLocation: "اختر المنطقة",
+      dailyQuote: "اقتباس اليوم",
+      close: "إغلاق",
     },
   };
+
+  const locationNames = {
+    beirut: { en: "Beirut", ar: "بيروت" },
+    tyre: { en: "Tyre", ar: "صور" },
+    saida: { en: "Saida", ar: "صيدا" },
+    baalbek: { en: "Baalbek", ar: "بعلبك" },
+    hermel: { en: "Hermel", ar: "الهرمل" },
+    tripoli: { en: "Tripoli", ar: "طرابلس" },
+    "nabatieh-bintjbeil": { en: "Nabatieh-Bint Jbeil", ar: "النبطية-بنت جبيل" },
+  };
+
+const todayQuoteIndex = new Date().getDate() % dailyQuotes.length;
+const dailyQuote = dailyQuotes[todayQuoteIndex][language];
 
   useEffect(() => {
     (async () => {
@@ -75,12 +101,16 @@ export default function App() {
       try {
         const savedLanguage = await AsyncStorage.getItem('language');
         const savedDarkMode = await AsyncStorage.getItem('isDarkMode');
-        console.log("Loaded settings:", { savedLanguage, savedDarkMode });
+        const savedLocation = await AsyncStorage.getItem('selectedLocation');
+        console.log("Loaded settings:", { savedLanguage, savedDarkMode, savedLocation });
         if (savedLanguage !== null) {
           setLanguage(savedLanguage);
         }
         if (savedDarkMode !== null) {
           setIsDarkMode(savedDarkMode === 'true');
+        }
+        if (savedLocation !== null) {
+          setSelectedLocation(savedLocation);
         }
       } catch (error) {
         console.error("Error loading settings: ", error);
@@ -140,6 +170,17 @@ export default function App() {
     })();
   }, [scheduledNotifications]);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        await AsyncStorage.setItem('selectedLocation', selectedLocation);
+        console.log("Saved location:", selectedLocation);
+      } catch (error) {
+        console.error("Error saving location:", error);
+      }
+    })();
+  }, [selectedLocation]);
+
   const prayerIcons = {
     fajr: 'cloudy-night',
     shuruq: 'partly-sunny',
@@ -150,21 +191,28 @@ export default function App() {
     imsak: 'cloudy-night',
   };
 
-  const getTodayIndex = () => {
+  const locationData = prayerData[selectedLocation] || [];
+
+  const getTodayIndex = (data) => {
     const today = new Date();
-    const formattedDate = moment(today).format('DD/MM/YYYY'); 
-    return prayerData.findIndex(item => item.date === formattedDate);
+    const formattedDate = moment(today).format('DD/MM/YYYY');
+    return data.findIndex(item => item.date === formattedDate);
   };
 
   useEffect(() => {
-    const index = getTodayIndex();
-    if (index !== -1) {
-      setCurrentIndex(index);
-      setCurrentPrayer(prayerData[index]);
+    if (locationData.length > 0) {
+      const todayIndex = getTodayIndex(locationData);
+      if (todayIndex !== -1) {
+        setCurrentIndex(todayIndex);
+        setCurrentPrayer(locationData[todayIndex]);
+      } else {
+        setCurrentIndex(0);
+        setCurrentPrayer(locationData[0]);
+      }
     } else {
-      setCurrentPrayer(prayerData[0]);
+      setCurrentPrayer(null);
     }
-  }, []);
+  }, [selectedLocation, locationData]);
 
   const parsePrayerTime = (timeStr) => {
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -186,7 +234,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (currentPrayer && currentIndex === getTodayIndex()) {
+    if (currentPrayer && currentIndex === getTodayIndex(locationData)) {
       if (upcomingTimer.current) {
         clearTimeout(upcomingTimer.current);
       }
@@ -217,16 +265,16 @@ export default function App() {
     } else {
       setUpcomingPrayerKey(null);
     }
-  }, [currentPrayer, currentIndex]);
+  }, [currentPrayer, currentIndex, locationData]);
 
   const animateTransition = (newIndex, direction) => {
     Animated.timing(animation, {
-      toValue: -direction * 300, 
+      toValue: -direction * 300,
       duration: 200,
       useNativeDriver: true,
     }).start(() => {
       setCurrentIndex(newIndex);
-      setCurrentPrayer(prayerData[newIndex]);
+      setCurrentPrayer(locationData[newIndex]);
       animation.setValue(direction * 300);
       Animated.timing(animation, {
         toValue: 0,
@@ -244,7 +292,7 @@ export default function App() {
   };
 
   const handleNext = () => {
-    if (currentIndex < prayerData.length - 1) {
+    if (currentIndex < locationData.length - 1) {
       const newIndex = currentIndex + 1;
       animateTransition(newIndex, 1);
     }
@@ -255,7 +303,7 @@ export default function App() {
   };
 
   const goToToday = () => {
-    const todayIndex = getTodayIndex();
+    const todayIndex = getTodayIndex(locationData);
     if (todayIndex !== -1 && todayIndex !== currentIndex) {
       const direction = todayIndex > currentIndex ? 1 : -1;
       animateTransition(todayIndex, direction);
@@ -266,7 +314,7 @@ export default function App() {
     setLanguage(prev => (prev === "en" ? "ar" : "en"));
   };
 
-  const isToday = currentIndex === getTodayIndex();
+  const isToday = currentIndex === getTodayIndex(locationData);
 
   const schedulePrayerNotification = async (prayerKey, timeString) => {
     const [hour, minute] = timeString.split(':').map(Number);
@@ -352,6 +400,11 @@ export default function App() {
     );
   }
 
+  // Use the mapped location name based on the selected language
+  const displayLocation = locationNames[selectedLocation]
+    ? locationNames[selectedLocation][language]
+    : selectedLocation;
+
   const hijriDate = moment(currentPrayer.date, "D/M/YYYY").format('iD iMMMM iYYYY');
 
   return (
@@ -366,14 +419,30 @@ export default function App() {
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
         {translations[language].prayerTimes}
       </Text>
+      
       <Animated.View style={{ transform: [{ translateX: animation }] }}>
-        <View style={[styles.card, isDarkMode && styles.darkCard]}>
+        <View style={[styles.card, isDarkMode && styles.darkCard, { position: 'relative' }]}>
+          <TouchableOpacity
+            onPress={() => setIsQuoteModalVisible(true)}
+            style={styles.infoButton}
+          >
+            <Icon
+              name="information-circle-outline"
+              size={24}
+              color={isDarkMode ? "#66CCFF" : "#007AFF"}
+            />
+          </TouchableOpacity>
           <Text style={[styles.date, isDarkMode && styles.darkDate]}>
             {currentPrayer.date} — ({translations[language].day} {currentPrayer.day_number})
           </Text>
-          <Text style={[styles.hijriDate, isDarkMode && styles.darkHijriDate]}>
-            {hijriDate}
-          </Text>
+          <View style={styles.dateRow}>
+            <Text style={[styles.hijriDate, isDarkMode && styles.darkHijriDate]}>
+              {hijriDate}
+            </Text>
+            <Text style={[styles.locationLabel, isDarkMode && styles.darkLocationLabel]}>
+              {" - " + displayLocation}
+            </Text>
+          </View>
           <ScrollView contentContainerStyle={styles.prayerContainer}>
             {renderPrayerRow('imsak', currentPrayer.imsak)}
             {renderPrayerRow('fajr', currentPrayer.fajr)}
@@ -406,14 +475,78 @@ export default function App() {
         <TouchableOpacity onPress={toggleLanguage}>
           <Icon name="language-outline" size={50} color="#007AFF" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleNext} disabled={currentIndex === prayerData.length - 1}>
+        <TouchableOpacity onPress={() => setIsLocationModalVisible(true)}>
+          <Icon name="location-outline" size={50} color="#007AFF" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleNext} disabled={currentIndex === locationData.length - 1}>
           <Icon
             name="arrow-forward-circle"
             size={60}
-            color={currentIndex === prayerData.length - 1 ? '#ccc' : '#007AFF'}
+            color={currentIndex === locationData.length - 1 ? '#ccc' : '#007AFF'}
           />
         </TouchableOpacity>
       </View>
+      
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isQuoteModalVisible}
+        onRequestClose={() => setIsQuoteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDarkMode && styles.darkModalContent]}>
+            <Text style={[styles.modalTitle, isDarkMode && styles.darkModalTitle]}>
+              {translations[language].dailyQuote}
+            </Text>
+            <Text style={[styles.quoteModalText, isDarkMode && styles.darkQuoteModalText]}>
+              {dailyQuote}
+            </Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setIsQuoteModalVisible(false)}
+            >
+              <Text style={[styles.closeButtonText, isDarkMode && styles.darkCloseButtonText]}>
+                {translations[language].close}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isLocationModalVisible}
+        onRequestClose={() => setIsLocationModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDarkMode && styles.darkModalContent]}>
+            <Text style={[styles.modalTitle, isDarkMode && styles.darkModalTitle]}>
+              {translations[language].selectLocation}
+            </Text>
+            {Object.keys(prayerData).map((loc) => {
+              const locDisplay = locationNames[loc] ? locationNames[loc][language] : loc;
+              return (
+                <TouchableOpacity
+                  key={loc}
+                  style={styles.locationOption}
+                  onPress={() => {
+                    setSelectedLocation(loc);
+                    setIsLocationModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.locationOptionText, isDarkMode && styles.darkLocationOptionText]}>
+                    {locDisplay}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity style={styles.closeButton} onPress={() => setIsLocationModalVisible(false)}>
+              <Text style={[styles.closeButtonText, isDarkMode && styles.darkCloseButtonText]}>X</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -433,9 +566,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#EAEFF2',
   },
   header: {
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: '700',
-    marginBottom: 20,
+    marginBottom: 10,
     color: '#333',
     textAlign: 'center',
     marginTop: 20,
@@ -467,15 +600,29 @@ const styles = StyleSheet.create({
   darkDate: {
     color: '#66CCFF',
   },
+  dateRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
   hijriDate: {
     fontSize: 18,
     fontWeight: '500',
     textAlign: 'center',
     color: '#555',
-    marginBottom: 15,
   },
   darkHijriDate: {
     color: '#CCC',
+  },
+  locationLabel: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#007AFF',
+    marginLeft: 5,
+  },
+  darkLocationLabel: {
+    color: '#66CCFF',
   },
   prayerContainer: {
     paddingBottom: 20,
@@ -562,5 +709,73 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginBottom: 30,
     alignItems: 'center',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+  },
+  darkModalContent: {
+    backgroundColor: '#444',
+  },
+  modalTitle: {
+    fontSize: 20,
+    marginBottom: 20,
+    color: '#333',
+  },
+  darkModalTitle: {
+    color: '#FFF',
+  },
+  locationOption: {
+    paddingVertical: 10,
+    width: '100%',
+    alignItems: 'center',
+    borderBottomColor: '#ccc',
+    borderBottomWidth: 1,
+  },
+  locationOptionText: {
+    fontSize: 18,
+    color: '#007AFF',
+  },
+  darkLocationOptionText: {
+    color: '#66CCFF',
+  },
+  closeButton: {
+    marginTop: 20,
+    backgroundColor: '#007AFF',
+    borderRadius: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 15,
+  },
+  closeButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+  },
+  darkCloseButtonText: {
+    color: '#FFF',
+  },
+  infoButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 1,
+  },
+  quoteModalText: {
+    fontSize: 16,
+    color: '#007AFF',
+    textAlign: 'center',
+    marginVertical: 10,
+  },
+  darkQuoteModalText: {
+    color: '#66CCFF',
   },
 });
