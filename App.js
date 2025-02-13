@@ -8,13 +8,14 @@ import {
   I18nManager,
   Animated,
   StatusBar,
-  ActivityIndicator, 
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import moment from 'moment-hijri';
 import prayerData from './assets/prayer_times.json';
+import * as Notifications from 'expo-notifications';
 
 export default function App() {
   const [language, setLanguage] = useState("ar");
@@ -23,9 +24,9 @@ export default function App() {
   const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
+  const [scheduledNotifications, setScheduledNotifications] = useState({});
 
   const isInitialMount = useRef(true);
-
   const animation = useRef(new Animated.Value(0)).current;
   const upcomingTimer = useRef(null);
 
@@ -62,6 +63,15 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Permission for notifications not granted!');
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
       try {
         const savedLanguage = await AsyncStorage.getItem('language');
         const savedDarkMode = await AsyncStorage.getItem('isDarkMode');
@@ -76,6 +86,19 @@ export default function App() {
         console.error("Error loading settings: ", error);
       } finally {
         setIsSettingsLoaded(true);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const savedNotifications = await AsyncStorage.getItem('scheduledNotifications');
+        if (savedNotifications !== null) {
+          setScheduledNotifications(JSON.parse(savedNotifications));
+        }
+      } catch (error) {
+        console.error("Error loading scheduled notifications:", error);
       }
     })();
   }, []);
@@ -107,6 +130,16 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        await AsyncStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+      } catch (error) {
+        console.error("Error saving scheduled notifications:", error);
+      }
+    })();
+  }, [scheduledNotifications]);
+
   const prayerIcons = {
     fajr: 'cloudy-night',
     shuruq: 'partly-sunny',
@@ -119,7 +152,7 @@ export default function App() {
 
   const getTodayIndex = () => {
     const today = new Date();
-    const formattedDate = moment(today).format('DD/MM/YYYY'); // e.g. "07/05/2025"
+    const formattedDate = moment(today).format('DD/MM/YYYY'); 
     return prayerData.findIndex(item => item.date === formattedDate);
   };
 
@@ -235,6 +268,41 @@ export default function App() {
 
   const isToday = currentIndex === getTodayIndex();
 
+  const schedulePrayerNotification = async (prayerKey, timeString) => {
+    const [hour, minute] = timeString.split(':').map(Number);
+    try {
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: translations[language].prayerTimes,
+          body: `It's time for ${translations[language][prayerKey]} prayer.`,
+          sound: true,
+        },
+        trigger: {
+          hour,
+          minute,
+          repeats: true,
+        },
+      });
+      return notificationId;
+    } catch (error) {
+      console.error("Error scheduling notification:", error);
+      return null;
+    }
+  };
+
+  const handleNotificationToggle = async (prayerKey) => {
+    if (scheduledNotifications[prayerKey]) {
+      await Notifications.cancelScheduledNotificationAsync(scheduledNotifications[prayerKey]);
+      setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: null }));
+    } else {
+      const timeString = currentPrayer[prayerKey];
+      const notificationId = await schedulePrayerNotification(prayerKey, timeString);
+      if (notificationId) {
+        setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: notificationId }));
+      }
+    }
+  };
+
   const renderPrayerRow = (key, value) => {
     const iconName = prayerIcons[key];
     const isUpcoming = isToday && key === upcomingPrayerKey;
@@ -253,6 +321,14 @@ export default function App() {
         <Text style={[styles.value, isDarkMode && styles.darkValue]}>
           {value}
         </Text>
+        <TouchableOpacity onPress={() => handleNotificationToggle(key)}>
+          <Icon
+            name={scheduledNotifications[key] ? "notifications" : "notifications-outline"}
+            size={24}
+            color={isDarkMode ? "#FFA500" : "#007AFF"}
+            style={{ marginLeft: 10 }}
+          />
+        </TouchableOpacity>
         {isUpcoming && (
           <View style={styles.ribbon}>
             <Text style={styles.ribbonText}>
@@ -299,13 +375,13 @@ export default function App() {
             {hijriDate}
           </Text>
           <ScrollView contentContainerStyle={styles.prayerContainer}>
+            {renderPrayerRow('imsak', currentPrayer.imsak)}
             {renderPrayerRow('fajr', currentPrayer.fajr)}
             {renderPrayerRow('shuruq', currentPrayer.shuruq)}
             {renderPrayerRow('dhuhr', currentPrayer.dhuhr)}
             {renderPrayerRow('asr', currentPrayer.asr)}
             {renderPrayerRow('maghrib', currentPrayer.maghrib)}
             {renderPrayerRow('isha', currentPrayer.isha)}
-            {renderPrayerRow('imsak', currentPrayer.imsak)}
           </ScrollView>
         </View>
       </Animated.View>
