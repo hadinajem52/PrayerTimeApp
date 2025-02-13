@@ -119,7 +119,7 @@ export default function App() {
 
   const getTodayIndex = () => {
     const today = new Date();
-    const formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
+    const formattedDate = moment(today).format('DD/MM/YYYY'); // e.g. "07/05/2025"
     return prayerData.findIndex(item => item.date === formattedDate);
   };
 
