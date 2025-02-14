@@ -19,6 +19,14 @@ import prayerData from './assets/prayer_times.json';
 import * as Notifications from 'expo-notifications';
 import dailyQuotes from './data/quotes';
 
+// Configure notifications handling (optional customization)
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function App() {
   const [language, setLanguage] = useState("ar");
@@ -28,7 +36,6 @@ export default function App() {
 
   const [selectedLocation, setSelectedLocation] = useState("beirut");
   const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
-
   const [isQuoteModalVisible, setIsQuoteModalVisible] = useState(false);
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -84,18 +91,35 @@ export default function App() {
     "nabatieh-bintjbeil": { en: "Nabatieh-Bint Jbeil", ar: "النبطية-بنت جبيل" },
   };
 
-const todayQuoteIndex = new Date().getDate() % dailyQuotes.length;
-const dailyQuote = dailyQuotes[todayQuoteIndex][language];
+  const todayQuoteIndex = new Date().getDate() % dailyQuotes.length;
+  const dailyQuote = dailyQuotes[todayQuoteIndex][language];
 
-  useEffect(() => {
-    (async () => {
+  // Function to register for push notifications and get Expo push token
+  const registerForPushNotificationsAsync = async () => {
+    // Check existing permissions
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    // Ask for permission if not already granted
+    if (existingStatus !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        alert('Permission for notifications not granted!');
-      }
-    })();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      alert('Permission for notifications not granted!');
+      return;
+    }
+    // Get the token that identifies this device
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    console.log("Expo Push Token:", tokenData.data);
+    // You can send this token to your backend server if needed.
+  };
+
+  // Register for push notifications when the app loads
+  useEffect(() => {
+    registerForPushNotificationsAsync();
   }, []);
 
+  // Load settings from AsyncStorage
   useEffect(() => {
     (async () => {
       try {
@@ -120,6 +144,7 @@ const dailyQuote = dailyQuotes[todayQuoteIndex][language];
     })();
   }, []);
 
+  // Load scheduled notifications from AsyncStorage
   useEffect(() => {
     (async () => {
       try {
@@ -133,6 +158,7 @@ const dailyQuote = dailyQuotes[todayQuoteIndex][language];
     })();
   }, []);
 
+  // Save language changes to AsyncStorage
   useEffect(() => {
     (async () => {
       try {
@@ -145,6 +171,7 @@ const dailyQuote = dailyQuotes[todayQuoteIndex][language];
     I18nManager.forceRTL(language === "ar");
   }, [language]);
 
+  // Save dark mode changes to AsyncStorage
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -160,6 +187,7 @@ const dailyQuote = dailyQuotes[todayQuoteIndex][language];
     }
   }, [isDarkMode]);
 
+  // Save scheduled notifications to AsyncStorage
   useEffect(() => {
     (async () => {
       try {
@@ -170,13 +198,14 @@ const dailyQuote = dailyQuotes[todayQuoteIndex][language];
     })();
   }, [scheduledNotifications]);
 
+  // Save selected location to AsyncStorage
   useEffect(() => {
     (async () => {
       try {
         await AsyncStorage.setItem('selectedLocation', selectedLocation);
         console.log("Saved location:", selectedLocation);
       } catch (error) {
-        console.error("Error saving location:", error);
+        console.error("Error saving location: ", error);
       }
     })();
   }, [selectedLocation]);
