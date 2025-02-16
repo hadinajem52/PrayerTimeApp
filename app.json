@@ -18,6 +18,7 @@
     },
     "android": {
       "googleServicesFile": "./google-services.json",
+      "bundleIdentifier": "com.hnjm123.ShiaPrayerLeb",
 
       "versionCode": 6 , 
 
@@ -35,6 +36,19 @@
         "projectId": "8dbb9a8c-7250-41a6-a264-df416556a461"
       }
     },
+    "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "@react-native-firebase/crashlytics",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
+    ],
     "owner": "hhhhjjj"
   }
 }

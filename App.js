@@ -10,42 +10,36 @@ import {
   StatusBar,
   ActivityIndicator,
   Modal,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import moment from 'moment-hijri';
 import prayerData from './assets/prayer_times.json';
-import * as Notifications from 'expo-notifications';
 import dailyQuotes from './data/quotes';
+import messaging from '@react-native-firebase/messaging';
+import { storePrayerTime } from './savePrayerTime';
 
-// Configure notifications handling (optional customization)
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
 
 export default function App() {
   const [language, setLanguage] = useState("ar");
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
   const [scheduledNotifications, setScheduledNotifications] = useState({});
-
   const [selectedLocation, setSelectedLocation] = useState("beirut");
   const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
   const [isQuoteModalVisible, setIsQuoteModalVisible] = useState(false);
-
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentPrayer, setCurrentPrayer] = useState(null);
   const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
+  const [deviceToken, setDeviceToken] = useState(null); // store FCM token
 
   const isInitialMount = useRef(true);
   const animation = useRef(new Animated.Value(0)).current;
   const upcomingTimer = useRef(null);
 
+  // Translations and location names
   const translations = {
     en: {
       prayerTimes: "According to the opinion of His Eminence Imam Khamenei",
@@ -94,29 +88,33 @@ export default function App() {
   const todayQuoteIndex = new Date().getDate() % dailyQuotes.length;
   const dailyQuote = dailyQuotes[todayQuoteIndex][language];
 
-  // Function to register for push notifications and get Expo push token
+  // Firebase Messaging: request permission and get FCM token
   const registerForPushNotificationsAsync = async () => {
-    // Check existing permissions
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    // Ask for permission if not already granted
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+    try {
+      const authStatus = await messaging().requestPermission();
+      const enabled =
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      if (!enabled) {
+        Alert.alert('Permission for notifications not granted!');
+        return;
+      }
+      const token = await messaging().getToken();
+      console.log("FCM Token:", token);
+      setDeviceToken(token);
+      // Optionally, send the token to your backend for scheduling notifications
+    } catch (error) {
+      console.error("Error registering for FCM:", error);
     }
-    if (finalStatus !== 'granted') {
-      alert('Permission for notifications not granted!');
-      return;
-    }
-    // Get the token that identifies this device
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    console.log("Expo Push Token:", tokenData.data);
-    // You can send this token to your backend server if needed.
   };
 
-  // Register for push notifications when the app loads
   useEffect(() => {
     registerForPushNotificationsAsync();
+    // Listen for messages when app is in foreground
+    const unsubscribe = messaging().onMessage(async remoteMessage => {
+      Alert.alert("New Notification", JSON.stringify(remoteMessage.notification));
+    });
+    return unsubscribe;
   }, []);
 
   // Load settings from AsyncStorage
@@ -158,7 +156,7 @@ export default function App() {
     })();
   }, []);
 
-  // Save language changes to AsyncStorage
+  // Save language to AsyncStorage and adjust RTL
   useEffect(() => {
     (async () => {
       try {
@@ -171,7 +169,7 @@ export default function App() {
     I18nManager.forceRTL(language === "ar");
   }, [language]);
 
-  // Save dark mode changes to AsyncStorage
+  // Save dark mode to AsyncStorage (skip on initial mount)
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -181,7 +179,7 @@ export default function App() {
           await AsyncStorage.setItem('isDarkMode', isDarkMode.toString());
           console.log("Saved dark mode:", isDarkMode);
         } catch (error) {
-          console.error("Error saving dark mode setting: ", error);
+          console.error("Error saving dark mode:", error);
         }
       })();
     }
@@ -205,11 +203,12 @@ export default function App() {
         await AsyncStorage.setItem('selectedLocation', selectedLocation);
         console.log("Saved location:", selectedLocation);
       } catch (error) {
-        console.error("Error saving location: ", error);
+        console.error("Error saving location:", error);
       }
     })();
   }, [selectedLocation]);
 
+  // Prayer icons mapping
   const prayerIcons = {
     fajr: 'cloudy-night',
     shuruq: 'partly-sunny',
@@ -345,40 +344,45 @@ export default function App() {
 
   const isToday = currentIndex === getTodayIndex(locationData);
 
+  // This function now sends scheduling info to your backend which should schedule an FCM push notification.
   const schedulePrayerNotification = async (prayerKey, timeString) => {
     const [hour, minute] = timeString.split(':').map(Number);
     try {
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: translations[language].prayerTimes,
-          body: `It's time for ${translations[language][prayerKey]} prayer.`,
-          sound: true,
-        },
-        trigger: {
+      const response = await fetch('https://your-backend.example.com/scheduleNotification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prayerKey,
           hour,
           minute,
-          repeats: true,
-        },
+          token: deviceToken,
+        }),
       });
-      return notificationId;
+      const data = await response.json();
+      return data.notificationId;
     } catch (error) {
-      console.error("Error scheduling notification:", error);
+      console.error("Error scheduling Firebase notification:", error);
       return null;
     }
   };
 
   const handleNotificationToggle = async (prayerKey) => {
     if (scheduledNotifications[prayerKey]) {
-      await Notifications.cancelScheduledNotificationAsync(scheduledNotifications[prayerKey]);
-      setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: null }));
+      // If notification is already scheduled, remove it.
+      // (You might also implement deletion of the corresponding Firestore document here.)
+      setScheduledNotifications(prev => ({ ...prev, [prayerKey]: null }));
+      Alert.alert("Notification cancelled for " + translations[language][prayerKey]);
     } else {
       const timeString = currentPrayer[prayerKey];
-      const notificationId = await schedulePrayerNotification(prayerKey, timeString);
-      if (notificationId) {
-        setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: notificationId }));
+      // Call our Firestore helper to store the prayer time.
+      const docId = await storePrayerTime(prayerKey, timeString, deviceToken);
+      if (docId) {
+        setScheduledNotifications(prev => ({ ...prev, [prayerKey]: docId }));
+        Alert.alert("تم جدولة الإشعار لـ " + translations[language][prayerKey]);
       }
     }
   };
+  
 
   const renderPrayerRow = (key, value) => {
     const iconName = prayerIcons[key];
@@ -429,7 +433,6 @@ export default function App() {
     );
   }
 
-  // Use the mapped location name based on the selected language
   const displayLocation = locationNames[selectedLocation]
     ? locationNames[selectedLocation][language]
     : selectedLocation;
@@ -448,18 +451,10 @@ export default function App() {
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
         {translations[language].prayerTimes}
       </Text>
-      
       <Animated.View style={{ transform: [{ translateX: animation }] }}>
         <View style={[styles.card, isDarkMode && styles.darkCard, { position: 'relative' }]}>
-          <TouchableOpacity
-            onPress={() => setIsQuoteModalVisible(true)}
-            style={styles.infoButton}
-          >
-            <Icon
-              name="information-circle-outline"
-              size={24}
-              color={isDarkMode ? "#66CCFF" : "#007AFF"}
-            />
+          <TouchableOpacity onPress={() => setIsQuoteModalVisible(true)} style={styles.infoButton}>
+            <Icon name="information-circle-outline" size={24} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
           </TouchableOpacity>
           <Text style={[styles.date, isDarkMode && styles.darkDate]}>
             {currentPrayer.date} — ({translations[language].day} {currentPrayer.day_number})
@@ -515,7 +510,6 @@ export default function App() {
           />
         </TouchableOpacity>
       </View>
-      
       <Modal
         animationType="fade"
         transparent={true}
@@ -530,10 +524,7 @@ export default function App() {
             <Text style={[styles.quoteModalText, isDarkMode && styles.darkQuoteModalText]}>
               {dailyQuote}
             </Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setIsQuoteModalVisible(false)}
-            >
+            <TouchableOpacity style={styles.closeButton} onPress={() => setIsQuoteModalVisible(false)}>
               <Text style={[styles.closeButtonText, isDarkMode && styles.darkCloseButtonText]}>
                 {translations[language].close}
               </Text>
@@ -541,7 +532,6 @@ export default function App() {
           </View>
         </View>
       </Modal>
-      
       <Modal
         animationType="slide"
         transparent={true}
