@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "150749699048",
+    "project_id": "shiaaprayerleb",
+    "storage_bucket": "shiaaprayerleb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:150749699048:android:a990311e3a8ea2a4c9e25d",
+        "android_client_info": {
+          "package_name": "com.hnjm123.ShiaPrayerLeb"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnKAs_kh1VgNp96roswXA3H7EhWp7VD6c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
