@@ -18,8 +18,6 @@
     },
     "android": {
       "googleServicesFile": "./google-services.json",
-      "bundleIdentifier": "com.hnjm123.ShiaPrayerLeb",
-
       "versionCode": 6 , 
 
       "adaptiveIcon": {
