@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+  useCallback,
+} from 'react';
 import {
   StyleSheet,
   Text,
@@ -20,6 +26,9 @@ import prayerData from './assets/prayer_times.json';
 import dailyQuotes from './data/quotes';
 import messaging from '@react-native-firebase/messaging';
 import { storePrayerTime } from './savePrayerTime';
+
+// Import the QiblaCompass component
+import QiblaCompass from './QiblaCompass';
 
 /* --- Static Constants --- */
 const TRANSLATIONS = {
@@ -127,6 +136,7 @@ const PrayerRow = React.memo(
 
 /* --- Main App Component --- */
 export default function App() {
+  // Existing states
   const [language, setLanguage] = useState("ar");
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
@@ -138,6 +148,9 @@ export default function App() {
   const [currentPrayer, setCurrentPrayer] = useState(null);
   const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
   const [deviceToken, setDeviceToken] = useState(null);
+  
+  // New state for showing Qibla Compass
+  const [isCompassVisible, setIsCompassVisible] = useState(false);
 
   // Refs for animation and timers
   const isInitialMount = useRef(true);
@@ -412,11 +425,10 @@ export default function App() {
     async (prayerKey) => {
       if (scheduledNotifications[prayerKey]) {
         setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: null }));
-        console.log("Notification cancelled for", prayerKey); // Added console log
+        console.log("Notification cancelled for", prayerKey);
         Alert.alert(
           "تم إلغاء الإشعار لـ " + TRANSLATIONS[language][prayerKey]
-      );
-      
+        );
       } else {
         const timeString = currentPrayer[prayerKey];
         const docId = await storePrayerTime(prayerKey, timeString, deviceToken);
@@ -428,7 +440,6 @@ export default function App() {
     },
     [currentPrayer, deviceToken, scheduledNotifications, language]
   );
-  
 
   // Derived values for display
   const displayLocation = useMemo(() => {
@@ -544,6 +555,10 @@ export default function App() {
         <TouchableOpacity onPress={() => setIsLocationModalVisible(true)}>
           <Icon name="location-outline" size={50} color="#007AFF" />
         </TouchableOpacity>
+        {/* New button to open the Qibla Compass */}
+        <TouchableOpacity onPress={() => setIsCompassVisible(true)}>
+          <Icon name="compass-outline" size={50} color="#007AFF" />
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={handleNext}
           disabled={currentIndex === locationData.length - 1}
@@ -555,6 +570,7 @@ export default function App() {
           />
         </TouchableOpacity>
       </View>
+      {/* Daily Quote Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -580,6 +596,7 @@ export default function App() {
           </View>
         </View>
       </Modal>
+      {/* Location Selection Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -621,9 +638,26 @@ export default function App() {
           </View>
         </View>
       </Modal>
+      {/* Qibla Compass Modal */}
+     {/* Qibla Compass Modal */}
+<Modal
+  animationType="slide"
+  transparent={false}
+  visible={isCompassVisible}
+  onRequestClose={() => setIsCompassVisible(false)}
+>
+  <QiblaCompass 
+    isDarkMode={isDarkMode} 
+    language={language} 
+    onClose={() => setIsCompassVisible(false)}
+  />
+</Modal>
+
     </SafeAreaView>
   );
 }
+
+/* --- Styles --- */
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -852,3 +886,4 @@ const styles = StyleSheet.create({
     color: '#66CCFF',
   },
 });
+
