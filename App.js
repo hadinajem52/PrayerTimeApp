@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,7 +10,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Modal,
-  Alert
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,7 +21,111 @@ import dailyQuotes from './data/quotes';
 import messaging from '@react-native-firebase/messaging';
 import { storePrayerTime } from './savePrayerTime';
 
+/* --- Static Constants --- */
+const TRANSLATIONS = {
+  en: {
+    prayerTimes: "According to the opinion of His Eminence Imam Khamenei",
+    loading: "Loading...",
+    day: "Day",
+    fajr: "Morning",
+    shuruq: "Shuruq",
+    dhuhr: "Dhuhr",
+    asr: "Asr",
+    maghrib: "Maghrib",
+    isha: "Isha",
+    imsak: "Imsak",
+    upcoming: "Upcoming",
+    selectLocation: "Select Location",
+    dailyQuote: "Daily Quote",
+    close: "Close",
+  },
+  ar: {
+    prayerTimes: "طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
+    loading: "جار التحميل...",
+    day: "اليوم",
+    fajr: "الصبح",
+    shuruq: "الشروق",
+    dhuhr: "الظهر",
+    asr: "العصر",
+    maghrib: "المغرب",
+    isha: "العشاء",
+    imsak: "الإمساك",
+    upcoming: "القادم",
+    selectLocation: "اختر المنطقة",
+    dailyQuote: "اقتباس اليوم",
+    close: "إغلاق",
+  },
+};
 
+const LOCATION_NAMES = {
+  beirut: { en: "Beirut", ar: "بيروت" },
+  tyre: { en: "Tyre", ar: "صور" },
+  saida: { en: "Saida", ar: "صيدا" },
+  baalbek: { en: "Baalbek", ar: "بعلبك" },
+  hermel: { en: "Hermel", ar: "الهرمل" },
+  tripoli: { en: "Tripoli", ar: "طرابلس" },
+  "nabatieh-bintjbeil": { en: "Nabatieh-Bint Jbeil", ar: "النبطية-بنت جبيل" },
+};
+
+const PRAYER_ICONS = {
+  fajr: 'cloudy-night',
+  shuruq: 'partly-sunny',
+  dhuhr: 'sunny',
+  asr: 'sunny',
+  maghrib: 'moon',
+  isha: 'moon',
+  imsak: 'cloudy-night',
+};
+
+/* --- Memoized PrayerRow Component --- */
+const PrayerRow = React.memo(
+  ({
+    prayerKey,
+    time,
+    label,
+    iconName,
+    isUpcoming,
+    isScheduled,
+    onToggleNotification,
+    isDarkMode,
+    upcomingLabel,
+  }) => {
+    const upcomingStyle = isDarkMode
+      ? styles.upcomingPrayerDark
+      : styles.upcomingPrayerLight;
+    return (
+      <View style={[styles.prayerRow, isUpcoming && upcomingStyle]}>
+        <Icon
+          name={iconName}
+          size={24}
+          color={isDarkMode ? "#FFA500" : "#007AFF"}
+          style={styles.prayerIcon}
+        />
+        <Text style={[styles.label, isDarkMode && styles.darkLabel]}>
+          {label}
+        </Text>
+        <Text style={[styles.value, isDarkMode && styles.darkValue]}>
+          {time}
+        </Text>
+        <TouchableOpacity onPress={() => onToggleNotification(prayerKey)}>
+          <Icon
+            name={isScheduled ? "notifications" : "notifications-outline"}
+            size={24}
+            color={isDarkMode ? "#FFA500" : "#007AFF"}
+            style={{ marginLeft: 10 }}
+          />
+        </TouchableOpacity>
+        {isUpcoming && (
+          <View style={styles.ribbon}>
+            <Text style={styles.ribbonText}>{upcomingLabel}</Text>
+          </View>
+        )}
+      </View>
+    );
+  }
+);
+
+/* --- Main App Component --- */
 export default function App() {
   const [language, setLanguage] = useState("ar");
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -33,91 +137,82 @@ export default function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentPrayer, setCurrentPrayer] = useState(null);
   const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
-  const [deviceToken, setDeviceToken] = useState(null); // store FCM token
+  const [deviceToken, setDeviceToken] = useState(null);
 
+  // Refs for animation and timers
   const isInitialMount = useRef(true);
   const animation = useRef(new Animated.Value(0)).current;
   const upcomingTimer = useRef(null);
 
-  // Translations and location names
-  const translations = {
-    en: {
-      prayerTimes: "According to the opinion of His Eminence Imam Khamenei",
-      loading: "Loading...",
-      day: "Day",
-      fajr: "Morning",
-      shuruq: "Shuruq",
-      dhuhr: "Dhuhr",
-      asr: "Asr",
-      maghrib: "Maghrib",
-      isha: "Isha",
-      imsak: "Imsak",
-      upcoming: "Upcoming",
-      selectLocation: "Select Location",
-      dailyQuote: "Daily Quote",
-      close: "Close",
-    },
-    ar: {
-      prayerTimes: "طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
-      loading: "جار التحميل...",
-      day: "اليوم",
-      fajr: "الصبح",
-      shuruq: "الشروق",
-      dhuhr: "الظهر",
-      asr: "العصر",
-      maghrib: "المغرب",
-      isha: "العشاء",
-      imsak: "الإمساك",
-      upcoming: "القادم",
-      selectLocation: "اختر المنطقة",
-      dailyQuote: "اقتباس اليوم",
-      close: "إغلاق",
-    },
-  };
+  // Memoized location data based on selected location
+  const locationData = useMemo(() => {
+    return prayerData[selectedLocation] || [];
+  }, [selectedLocation]);
 
-  const locationNames = {
-    beirut: { en: "Beirut", ar: "بيروت" },
-    tyre: { en: "Tyre", ar: "صور" },
-    saida: { en: "Saida", ar: "صيدا" },
-    baalbek: { en: "Baalbek", ar: "بعلبك" },
-    hermel: { en: "Hermel", ar: "الهرمل" },
-    tripoli: { en: "Tripoli", ar: "طرابلس" },
-    "nabatieh-bintjbeil": { en: "Nabatieh-Bint Jbeil", ar: "النبطية-بنت جبيل" },
-  };
+  // Daily quote based on the current day and language
+  const dailyQuote = useMemo(() => {
+    const todayIndex = new Date().getDate() % dailyQuotes.length;
+    return dailyQuotes[todayIndex][language];
+  }, [language]);
 
-  const todayQuoteIndex = new Date().getDate() % dailyQuotes.length;
-  const dailyQuote = dailyQuotes[todayQuoteIndex][language];
+  /* --- Utility Functions --- */
 
-  // Firebase Messaging: request permission and get FCM token
-  const registerForPushNotificationsAsync = async () => {
-    try {
-      const authStatus = await messaging().requestPermission();
-      const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-      if (!enabled) {
-        Alert.alert('Permission for notifications not granted!');
-        return;
+  // Returns the index of today's prayer data from the provided data array.
+  const getTodayIndex = useCallback((data) => {
+    const today = new Date();
+    const formattedDate = moment(today).format('DD/MM/YYYY');
+    return data.findIndex((item) => item.date === formattedDate);
+  }, []);
+
+  // Converts a time string "HH:mm" to a Date object for today.
+  const parsePrayerTime = useCallback((timeStr) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+  }, []);
+
+  // Determines the upcoming prayer key based on the current time.
+  const getUpcomingPrayerKey = useCallback(() => {
+    if (!currentPrayer) return null;
+    const now = new Date();
+    const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    for (let key of prayerOrder) {
+      const prayerTime = parsePrayerTime(currentPrayer[key]);
+      if (now < prayerTime) {
+        return key;
       }
-      const token = await messaging().getToken();
-      console.log("FCM Token:", token);
-      setDeviceToken(token);
-      // Optionally, send the token to your backend for scheduling notifications
-    } catch (error) {
-      console.error("Error registering for FCM:", error);
     }
-  };
+    return null;
+  }, [currentPrayer, parsePrayerTime]);
 
+  /* --- Firebase Messaging Setup --- */
   useEffect(() => {
+    const registerForPushNotificationsAsync = async () => {
+      try {
+        const authStatus = await messaging().requestPermission();
+        const enabled =
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+        if (!enabled) {
+          Alert.alert('Permission for notifications not granted!');
+          return;
+        }
+        const token = await messaging().getToken();
+        console.log("FCM Token:", token);
+        setDeviceToken(token);
+      } catch (error) {
+        console.error("Error registering for FCM:", error);
+      }
+    };
     registerForPushNotificationsAsync();
-    // Listen for messages when app is in foreground
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
+
+    const unsubscribe = messaging().onMessage(async (remoteMessage) => {
       Alert.alert("New Notification", JSON.stringify(remoteMessage.notification));
     });
     return unsubscribe;
   }, []);
 
-  // Load settings from AsyncStorage
+  /* --- AsyncStorage: Load Settings --- */
   useEffect(() => {
     (async () => {
       try {
@@ -142,7 +237,7 @@ export default function App() {
     })();
   }, []);
 
-  // Load scheduled notifications from AsyncStorage
+  /* --- AsyncStorage: Load Scheduled Notifications --- */
   useEffect(() => {
     (async () => {
       try {
@@ -156,7 +251,7 @@ export default function App() {
     })();
   }, []);
 
-  // Save language to AsyncStorage and adjust RTL
+  /* --- AsyncStorage: Save Settings --- */
   useEffect(() => {
     (async () => {
       try {
@@ -169,7 +264,6 @@ export default function App() {
     I18nManager.forceRTL(language === "ar");
   }, [language]);
 
-  // Save dark mode to AsyncStorage (skip on initial mount)
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -185,7 +279,6 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  // Save scheduled notifications to AsyncStorage
   useEffect(() => {
     (async () => {
       try {
@@ -196,7 +289,6 @@ export default function App() {
     })();
   }, [scheduledNotifications]);
 
-  // Save selected location to AsyncStorage
   useEffect(() => {
     (async () => {
       try {
@@ -208,31 +300,13 @@ export default function App() {
     })();
   }, [selectedLocation]);
 
-  // Prayer icons mapping
-  const prayerIcons = {
-    fajr: 'cloudy-night',
-    shuruq: 'partly-sunny',
-    dhuhr: 'sunny',
-    asr: 'sunny',
-    maghrib: 'moon',
-    isha: 'moon',
-    imsak: 'cloudy-night',
-  };
-
-  const locationData = prayerData[selectedLocation] || [];
-
-  const getTodayIndex = (data) => {
-    const today = new Date();
-    const formattedDate = moment(today).format('DD/MM/YYYY');
-    return data.findIndex(item => item.date === formattedDate);
-  };
-
+  /* --- Update Current Prayer Data --- */
   useEffect(() => {
     if (locationData.length > 0) {
-      const todayIndex = getTodayIndex(locationData);
-      if (todayIndex !== -1) {
-        setCurrentIndex(todayIndex);
-        setCurrentPrayer(locationData[todayIndex]);
+      const todayIdx = getTodayIndex(locationData);
+      if (todayIdx !== -1) {
+        setCurrentIndex(todayIdx);
+        setCurrentPrayer(locationData[todayIdx]);
       } else {
         setCurrentIndex(0);
         setCurrentPrayer(locationData[0]);
@@ -240,27 +314,9 @@ export default function App() {
     } else {
       setCurrentPrayer(null);
     }
-  }, [selectedLocation, locationData]);
+  }, [selectedLocation, locationData, getTodayIndex]);
 
-  const parsePrayerTime = (timeStr) => {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
-  };
-
-  const getUpcomingPrayerKey = () => {
-    if (!currentPrayer) return null;
-    const now = new Date();
-    const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha'];
-    for (let key of prayerOrder) {
-      const prayerTime = parsePrayerTime(currentPrayer[key]);
-      if (now < prayerTime) {
-        return key;
-      }
-    }
-    return null;
-  };
-
+  /* --- Upcoming Prayer Timer --- */
   useEffect(() => {
     if (currentPrayer && currentIndex === getTodayIndex(locationData)) {
       if (upcomingTimer.current) {
@@ -293,171 +349,148 @@ export default function App() {
     } else {
       setUpcomingPrayerKey(null);
     }
-  }, [currentPrayer, currentIndex, locationData]);
+  }, [
+    currentPrayer,
+    currentIndex,
+    locationData,
+    getTodayIndex,
+    getUpcomingPrayerKey,
+    parsePrayerTime,
+  ]);
 
-  const animateTransition = (newIndex, direction) => {
-    Animated.timing(animation, {
-      toValue: -direction * 300,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setCurrentIndex(newIndex);
-      setCurrentPrayer(locationData[newIndex]);
-      animation.setValue(direction * 300);
+  /* --- Animation Transition --- */
+  const animateTransition = useCallback(
+    (newIndex, direction) => {
       Animated.timing(animation, {
-        toValue: 0,
+        toValue: -direction * 300,
         duration: 200,
         useNativeDriver: true,
-      }).start();
-    });
-  };
-
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      const newIndex = currentIndex - 1;
-      animateTransition(newIndex, -1);
-    }
-  };
-
-  const handleNext = () => {
-    if (currentIndex < locationData.length - 1) {
-      const newIndex = currentIndex + 1;
-      animateTransition(newIndex, 1);
-    }
-  };
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(prev => !prev);
-  };
-
-  const goToToday = () => {
-    const todayIndex = getTodayIndex(locationData);
-    if (todayIndex !== -1 && todayIndex !== currentIndex) {
-      const direction = todayIndex > currentIndex ? 1 : -1;
-      animateTransition(todayIndex, direction);
-    }
-  };
-
-  const toggleLanguage = () => {
-    setLanguage(prev => (prev === "en" ? "ar" : "en"));
-  };
-
-  const isToday = currentIndex === getTodayIndex(locationData);
-
-  // This function now sends scheduling info to your backend which should schedule an FCM push notification.
-  const schedulePrayerNotification = async (prayerKey, timeString) => {
-    const [hour, minute] = timeString.split(':').map(Number);
-    try {
-      const response = await fetch('https://your-backend.example.com/scheduleNotification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prayerKey,
-          hour,
-          minute,
-          token: deviceToken,
-        }),
+      }).start(() => {
+        setCurrentIndex(newIndex);
+        setCurrentPrayer(locationData[newIndex]);
+        animation.setValue(direction * 300);
+        Animated.timing(animation, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
       });
-      const data = await response.json();
-      return data.notificationId;
-    } catch (error) {
-      console.error("Error scheduling Firebase notification:", error);
-      return null;
-    }
-  };
+    },
+    [animation, locationData]
+  );
 
-  const handleNotificationToggle = async (prayerKey) => {
-    if (scheduledNotifications[prayerKey]) {
-      // If notification is already scheduled, remove it.
-      // (You might also implement deletion of the corresponding Firestore document here.)
-      setScheduledNotifications(prev => ({ ...prev, [prayerKey]: null }));
-      Alert.alert("Notification cancelled for " + translations[language][prayerKey]);
-    } else {
-      const timeString = currentPrayer[prayerKey];
-      // Call our Firestore helper to store the prayer time.
-      const docId = await storePrayerTime(prayerKey, timeString, deviceToken);
-      if (docId) {
-        setScheduledNotifications(prev => ({ ...prev, [prayerKey]: docId }));
-        Alert.alert("تم جدولة الإشعار لـ " + translations[language][prayerKey]);
-      }
+  /* --- Navigation & Toggle Handlers --- */
+  const handlePrevious = useCallback(() => {
+    if (currentIndex > 0) {
+      animateTransition(currentIndex - 1, -1);
     }
-  };
+  }, [currentIndex, animateTransition]);
+
+  const handleNext = useCallback(() => {
+    if (currentIndex < locationData.length - 1) {
+      animateTransition(currentIndex + 1, 1);
+    }
+  }, [currentIndex, locationData, animateTransition]);
+
+  const goToToday = useCallback(() => {
+    const todayIdx = getTodayIndex(locationData);
+    if (todayIdx !== -1 && todayIdx !== currentIndex) {
+      const direction = todayIdx > currentIndex ? 1 : -1;
+      animateTransition(todayIdx, direction);
+    }
+  }, [currentIndex, locationData, getTodayIndex, animateTransition]);
+
+  const toggleDarkMode = useCallback(() => {
+    setIsDarkMode((prev) => !prev);
+  }, []);
+
+  const toggleLanguage = useCallback(() => {
+    setLanguage((prev) => (prev === "en" ? "ar" : "en"));
+  }, []);
+
+  const handleNotificationToggle = useCallback(
+    async (prayerKey) => {
+      if (scheduledNotifications[prayerKey]) {
+        setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: null }));
+        console.log("Notification cancelled for", prayerKey); // Added console log
+        Alert.alert(
+          "تم إلغاء الإشعار لـ " + TRANSLATIONS[language][prayerKey]
+      );
+      
+      } else {
+        const timeString = currentPrayer[prayerKey];
+        const docId = await storePrayerTime(prayerKey, timeString, deviceToken);
+        if (docId) {
+          setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: docId }));
+          Alert.alert("تم جدولة الإشعار لـ " + TRANSLATIONS[language][prayerKey]);
+        }
+      }
+    },
+    [currentPrayer, deviceToken, scheduledNotifications, language]
+  );
   
 
-  const renderPrayerRow = (key, value) => {
-    const iconName = prayerIcons[key];
-    const isUpcoming = isToday && key === upcomingPrayerKey;
-    const upcomingStyle = isDarkMode ? styles.upcomingPrayerDark : styles.upcomingPrayerLight;
-    return (
-      <View key={key} style={[styles.prayerRow, isUpcoming && upcomingStyle]}>
-        <Icon
-          name={iconName}
-          size={24}
-          color={isDarkMode ? "#FFA500" : "#007AFF"}
-          style={styles.prayerIcon}
-        />
-        <Text style={[styles.label, isDarkMode && styles.darkLabel]}>
-          {translations[language][key]}
-        </Text>
-        <Text style={[styles.value, isDarkMode && styles.darkValue]}>
-          {value}
-        </Text>
-        <TouchableOpacity onPress={() => handleNotificationToggle(key)}>
-          <Icon
-            name={scheduledNotifications[key] ? "notifications" : "notifications-outline"}
-            size={24}
-            color={isDarkMode ? "#FFA500" : "#007AFF"}
-            style={{ marginLeft: 10 }}
-          />
-        </TouchableOpacity>
-        {isUpcoming && (
-          <View style={styles.ribbon}>
-            <Text style={styles.ribbonText}>
-              {translations[language].upcoming}
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  };
+  // Derived values for display
+  const displayLocation = useMemo(() => {
+    return LOCATION_NAMES[selectedLocation]
+      ? LOCATION_NAMES[selectedLocation][language]
+      : selectedLocation;
+  }, [selectedLocation, language]);
 
+  const hijriDate = useMemo(() => {
+    if (currentPrayer && currentPrayer.date) {
+      return moment(currentPrayer.date, "D/M/YYYY").format("iD iMMMM iYYYY");
+    }
+    return "";
+  }, [currentPrayer]);
+
+  const isToday = useMemo(() => {
+    return currentIndex === getTodayIndex(locationData);
+  }, [currentIndex, locationData, getTodayIndex]);
+
+  /* --- Render Loading Screen if Settings or Data Not Ready --- */
   if (!isSettingsLoaded || !currentPrayer) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, isDarkMode && styles.darkContainer]}>
+      <SafeAreaView
+        style={[styles.loadingContainer, isDarkMode && styles.darkContainer]}
+      >
         <StatusBar translucent backgroundColor="transparent" />
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
-          {translations[language].loading}
+          {TRANSLATIONS[language].loading}
         </Text>
       </SafeAreaView>
     );
   }
 
-  const displayLocation = locationNames[selectedLocation]
-    ? locationNames[selectedLocation][language]
-    : selectedLocation;
-
-  const hijriDate = moment(currentPrayer.date, "D/M/YYYY").format('iD iMMMM iYYYY');
-
+  /* --- Main Render --- */
   return (
     <SafeAreaView
       style={[
         styles.safeArea,
         isDarkMode && styles.darkContainer,
-        { direction: language === "ar" ? 'rtl' : 'ltr' },
+        { direction: language === "ar" ? "rtl" : "ltr" },
       ]}
     >
       <StatusBar translucent backgroundColor="transparent" />
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
-        {translations[language].prayerTimes}
+        {TRANSLATIONS[language].prayerTimes}
       </Text>
       <Animated.View style={{ transform: [{ translateX: animation }] }}>
-        <View style={[styles.card, isDarkMode && styles.darkCard, { position: 'relative' }]}>
-          <TouchableOpacity onPress={() => setIsQuoteModalVisible(true)} style={styles.infoButton}>
-            <Icon name="information-circle-outline" size={24} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
+        <View style={[styles.card, isDarkMode && styles.darkCard, { position: "relative" }]}>
+          <TouchableOpacity
+            onPress={() => setIsQuoteModalVisible(true)}
+            style={styles.infoButton}
+          >
+            <Icon
+              name="information-circle-outline"
+              size={24}
+              color={isDarkMode ? "#66CCFF" : "#007AFF"}
+            />
           </TouchableOpacity>
           <Text style={[styles.date, isDarkMode && styles.darkDate]}>
-            {currentPrayer.date} — ({translations[language].day} {currentPrayer.day_number})
+            {currentPrayer.date} — ({TRANSLATIONS[language].day}{" "}
+            {currentPrayer.day_number})
           </Text>
           <View style={styles.dateRow}>
             <Text style={[styles.hijriDate, isDarkMode && styles.darkHijriDate]}>
@@ -468,13 +501,22 @@ export default function App() {
             </Text>
           </View>
           <ScrollView contentContainerStyle={styles.prayerContainer}>
-            {renderPrayerRow('imsak', currentPrayer.imsak)}
-            {renderPrayerRow('fajr', currentPrayer.fajr)}
-            {renderPrayerRow('shuruq', currentPrayer.shuruq)}
-            {renderPrayerRow('dhuhr', currentPrayer.dhuhr)}
-            {renderPrayerRow('asr', currentPrayer.asr)}
-            {renderPrayerRow('maghrib', currentPrayer.maghrib)}
-            {renderPrayerRow('isha', currentPrayer.isha)}
+            {["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha"].map(
+              (key) => (
+                <PrayerRow
+                  key={key}
+                  prayerKey={key}
+                  time={currentPrayer[key]}
+                  label={TRANSLATIONS[language][key]}
+                  iconName={PRAYER_ICONS[key]}
+                  isUpcoming={isToday && key === upcomingPrayerKey}
+                  isScheduled={!!scheduledNotifications[key]}
+                  onToggleNotification={handleNotificationToggle}
+                  isDarkMode={isDarkMode}
+                  upcomingLabel={TRANSLATIONS[language].upcoming}
+                />
+              )
+            )}
           </ScrollView>
         </View>
       </Animated.View>
@@ -483,7 +525,7 @@ export default function App() {
           <Icon
             name="arrow-back-circle"
             size={60}
-            color={currentIndex === 0 ? '#ccc' : '#007AFF'}
+            color={currentIndex === 0 ? "#ccc" : "#007AFF"}
           />
         </TouchableOpacity>
         <TouchableOpacity onPress={goToToday}>
@@ -502,11 +544,14 @@ export default function App() {
         <TouchableOpacity onPress={() => setIsLocationModalVisible(true)}>
           <Icon name="location-outline" size={50} color="#007AFF" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleNext} disabled={currentIndex === locationData.length - 1}>
+        <TouchableOpacity
+          onPress={handleNext}
+          disabled={currentIndex === locationData.length - 1}
+        >
           <Icon
             name="arrow-forward-circle"
             size={60}
-            color={currentIndex === locationData.length - 1 ? '#ccc' : '#007AFF'}
+            color={currentIndex === locationData.length - 1 ? "#ccc" : "#007AFF"}
           />
         </TouchableOpacity>
       </View>
@@ -519,14 +564,17 @@ export default function App() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, isDarkMode && styles.darkModalContent]}>
             <Text style={[styles.modalTitle, isDarkMode && styles.darkModalTitle]}>
-              {translations[language].dailyQuote}
+              {TRANSLATIONS[language].dailyQuote}
             </Text>
             <Text style={[styles.quoteModalText, isDarkMode && styles.darkQuoteModalText]}>
               {dailyQuote}
             </Text>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setIsQuoteModalVisible(false)}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setIsQuoteModalVisible(false)}
+            >
               <Text style={[styles.closeButtonText, isDarkMode && styles.darkCloseButtonText]}>
-                {translations[language].close}
+                {TRANSLATIONS[language].close}
               </Text>
             </TouchableOpacity>
           </View>
@@ -541,10 +589,12 @@ export default function App() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, isDarkMode && styles.darkModalContent]}>
             <Text style={[styles.modalTitle, isDarkMode && styles.darkModalTitle]}>
-              {translations[language].selectLocation}
+              {TRANSLATIONS[language].selectLocation}
             </Text>
             {Object.keys(prayerData).map((loc) => {
-              const locDisplay = locationNames[loc] ? locationNames[loc][language] : loc;
+              const locDisplay = LOCATION_NAMES[loc]
+                ? LOCATION_NAMES[loc][language]
+                : loc;
               return (
                 <TouchableOpacity
                   key={loc}
@@ -560,8 +610,13 @@ export default function App() {
                 </TouchableOpacity>
               );
             })}
-            <TouchableOpacity style={styles.closeButton} onPress={() => setIsLocationModalVisible(false)}>
-              <Text style={[styles.closeButtonText, isDarkMode && styles.darkCloseButtonText]}>X</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setIsLocationModalVisible(false)}
+            >
+              <Text style={[styles.closeButtonText, isDarkMode && styles.darkCloseButtonText]}>
+                X
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -569,7 +624,6 @@ export default function App() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
