@@ -19,14 +19,6 @@ async function getOrCreateUserId() {
   }
 }
 
-/**
- * Stores the prayer time in Firestore.
- *
- * @param {string} prayerKey 
- * @param {string} timeString 
- * @param {string} deviceToken 
- * @returns {Promise<string|null>} 
- */
 export async function storePrayerTime(prayerKey, timeString, deviceToken) {
   // Validate required parameters
   if (!prayerKey || !timeString || !deviceToken) {

@@ -20,6 +20,7 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
       deviceHeading: "Device Heading",
       qiblaDirection: "Qibla Direction",
       rotateNeedle: "Rotate Needle by",
+      flatSurfaceNotice: "For improved accuracy, please place your phone on a flat surface.",
       close: "Close",
     },
     ar: {
@@ -27,6 +28,7 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
       deviceHeading: "اتجاه الجهاز",
       qiblaDirection: "اتجاه القبلة",
       rotateNeedle: "تدوير الإبرة بمقدار",
+      flatSurfaceNotice: "للحصول على دقة أفضل، يرجى وضع هاتفك على سطح مستوٍ.",
       close: "إغلاق",
     },
   };
@@ -37,17 +39,19 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
 
   // Start compass sensor updates
   useEffect(() => {
-    const degree_update_rate = 1; // Update every 3°
+    const degree_update_rate = 1; // Update when heading changes by at least 1°
     CompassHeading.start(degree_update_rate, ({ heading }) => {
+      // Optionally, adjust for magnetic declination here if needed.
       setDeviceHeading(heading);
     });
     return () => {
       CompassHeading.stop();
     };
-  }, []);
+  }, [location]);
 
-  // Request location permission and get current location
+  // Request location permission and continuously watch location changes
   useEffect(() => {
+    let watchId;
     const requestLocationPermission = async () => {
       try {
         if (Platform.OS === 'android') {
@@ -64,12 +68,17 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
             return;
           }
         }
-        Geolocation.getCurrentPosition(
+        watchId = Geolocation.watchPosition(
           (position) => {
             setLocation(position.coords);
           },
           (error) => console.error(error),
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+          {
+            enableHighAccuracy: true,
+            distanceFilter: 1, // update when user moves at least 1 meter
+            interval: 5000,
+            fastestInterval: 2000,
+          }
         );
       } catch (err) {
         console.warn(err);
@@ -77,9 +86,15 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
     };
 
     requestLocationPermission();
+
+    return () => {
+      if (watchId !== undefined) {
+        Geolocation.clearWatch(watchId);
+      }
+    };
   }, []);
 
-  // Calculate Qibla bearing once we have location
+  // Calculate Qibla bearing once we have location (or when it changes)
   useEffect(() => {
     if (location) {
       const { latitude, longitude } = location;
@@ -103,15 +118,13 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
     const Δλ = toRad(lon2 - lon1);
 
     const y = Math.sin(Δλ) * Math.cos(φ2);
-    const x =
-      Math.cos(φ1) * Math.sin(φ2) -
-      Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
     const bearing = (toDeg(Math.atan2(y, x)) + 360) % 360;
     return bearing;
   };
 
-  // Calculate the rotation angle for the compass needle
-  const rotation = qiblaDirection - deviceHeading;
+  // Calculate the rotation angle for the compass needle and normalize it
+  const rotation = ((qiblaDirection - deviceHeading) + 360) % 360;
 
   return (
     <SafeAreaView
@@ -130,6 +143,13 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
         </TouchableOpacity>
         <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
           {TRANSLATIONS[language].qiblaCompass}
+        </Text>
+        {/* Notices for improved accuracy */}
+        <Text style={[styles.noticeText, isDarkMode && styles.darkNoticeText]}>
+          {TRANSLATIONS[language].flatSurfaceNotice}
+        </Text>
+        <Text style={[styles.noticeText, isDarkMode && styles.darkNoticeText]}>
+          {TRANSLATIONS[language].additionalNotice}
         </Text>
         <View style={styles.infoContainer}>
           <Text style={[styles.infoText, isDarkMode && styles.darkInfoText]}>
@@ -209,6 +229,15 @@ const styles = StyleSheet.create({
   },
   darkHeader: {
     color: '#66CCFF',
+  },
+  noticeText: {
+    fontSize: 14,
+    color: '#555',
+    textAlign: 'center',
+    marginVertical: 3,
+  },
+  darkNoticeText: {
+    color: '#AAA',
   },
   infoContainer: {
     marginVertical: 10,

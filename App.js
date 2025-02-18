@@ -1,3 +1,4 @@
+
 import React, {
   useEffect,
   useState,
@@ -26,6 +27,7 @@ import prayerData from './assets/prayer_times.json';
 import dailyQuotes from './data/quotes';
 import messaging from '@react-native-firebase/messaging';
 import { storePrayerTime } from './savePrayerTime';
+import { cancelPrayerTime } from './cancelPrayerTime'; // Cancellation function
 
 // Import the QiblaCompass component
 import QiblaCompass from './QiblaCompass';
@@ -47,6 +49,10 @@ const TRANSLATIONS = {
     selectLocation: "Select Location",
     dailyQuote: "Daily Quote",
     close: "Close",
+    changeLocationMessage:
+      "Changing location will cancel notifications for the current location. Do you want to proceed?",
+    ok: "OK",
+    cancel: "Cancel",
   },
   ar: {
     prayerTimes: "طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
@@ -63,6 +69,10 @@ const TRANSLATIONS = {
     selectLocation: "اختر المنطقة",
     dailyQuote: "اقتباس اليوم",
     close: "إغلاق",
+    changeLocationMessage:
+      "تغيير المنطقة سيقوم بإلغاء جميع الإشعارات الخاصة بموقعك الحالي. هل تريد المتابعة؟",
+    ok: "موافق",
+    cancel: "إلغاء",
   },
 };
 
@@ -148,7 +158,7 @@ export default function App() {
   const [currentPrayer, setCurrentPrayer] = useState(null);
   const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
   const [deviceToken, setDeviceToken] = useState(null);
-  
+
   // New state for showing Qibla Compass
   const [isCompassVisible, setIsCompassVisible] = useState(false);
 
@@ -170,21 +180,18 @@ export default function App() {
 
   /* --- Utility Functions --- */
 
-  // Returns the index of today's prayer data from the provided data array.
   const getTodayIndex = useCallback((data) => {
     const today = new Date();
     const formattedDate = moment(today).format('DD/MM/YYYY');
     return data.findIndex((item) => item.date === formattedDate);
   }, []);
 
-  // Converts a time string "HH:mm" to a Date object for today.
   const parsePrayerTime = useCallback((timeStr) => {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
   }, []);
 
-  // Determines the upcoming prayer key based on the current time.
   const getUpcomingPrayerKey = useCallback(() => {
     if (!currentPrayer) return null;
     const now = new Date();
@@ -225,7 +232,7 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  /* --- AsyncStorage: Load Settings --- */
+  /* --- AsyncStorage: Load & Save Settings and Notifications --- */
   useEffect(() => {
     (async () => {
       try {
@@ -250,7 +257,6 @@ export default function App() {
     })();
   }, []);
 
-  /* --- AsyncStorage: Load Scheduled Notifications --- */
   useEffect(() => {
     (async () => {
       try {
@@ -264,7 +270,6 @@ export default function App() {
     })();
   }, []);
 
-  /* --- AsyncStorage: Save Settings --- */
   useEffect(() => {
     (async () => {
       try {
@@ -421,14 +426,57 @@ export default function App() {
     setLanguage((prev) => (prev === "en" ? "ar" : "en"));
   }, []);
 
+  // Cancel all notifications for the current location
+  const cancelAllNotifications = async () => {
+    const keys = Object.keys(scheduledNotifications);
+    for (const key of keys) {
+      if (scheduledNotifications[key]) {
+        await cancelPrayerTime(scheduledNotifications[key]);
+      }
+    }
+    setScheduledNotifications({});
+  };
+
+  // Handle location changes with confirmation if notifications are scheduled
+  const handleLocationChange = (newLocation) => {
+    if (Object.values(scheduledNotifications).some(val => val)) {
+      Alert.alert(
+        TRANSLATIONS[language].selectLocation,
+        TRANSLATIONS[language].changeLocationMessage,
+        [
+          {
+            text: TRANSLATIONS[language].cancel,
+            style: "cancel",
+            onPress: () => {},
+          },
+          {
+            text: TRANSLATIONS[language].ok,
+            onPress: async () => {
+              await cancelAllNotifications();
+              setSelectedLocation(newLocation);
+              setIsLocationModalVisible(false);
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    } else {
+      setSelectedLocation(newLocation);
+      setIsLocationModalVisible(false);
+    }
+  };
+
   const handleNotificationToggle = useCallback(
     async (prayerKey) => {
       if (scheduledNotifications[prayerKey]) {
-        setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: null }));
-        console.log("Notification cancelled for", prayerKey);
-        Alert.alert(
-          "تم إلغاء الإشعار لـ " + TRANSLATIONS[language][prayerKey]
-        );
+        const success = await cancelPrayerTime(scheduledNotifications[prayerKey]);
+        if (success) {
+          setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: null }));
+          console.log("Notification cancelled for", prayerKey);
+          Alert.alert("تم إلغاء الإشعار لـ " + TRANSLATIONS[language][prayerKey]);
+        } else {
+          Alert.alert("Failed to cancel notification for " + TRANSLATIONS[language][prayerKey]);
+        }
       } else {
         const timeString = currentPrayer[prayerKey];
         const docId = await storePrayerTime(prayerKey, timeString, deviceToken);
@@ -441,7 +489,6 @@ export default function App() {
     [currentPrayer, deviceToken, scheduledNotifications, language]
   );
 
-  // Derived values for display
   const displayLocation = useMemo(() => {
     return LOCATION_NAMES[selectedLocation]
       ? LOCATION_NAMES[selectedLocation][language]
@@ -459,7 +506,6 @@ export default function App() {
     return currentIndex === getTodayIndex(locationData);
   }, [currentIndex, locationData, getTodayIndex]);
 
-  /* --- Render Loading Screen if Settings or Data Not Ready --- */
   if (!isSettingsLoaded || !currentPrayer) {
     return (
       <SafeAreaView
@@ -474,7 +520,6 @@ export default function App() {
     );
   }
 
-  /* --- Main Render --- */
   return (
     <SafeAreaView
       style={[
@@ -555,7 +600,6 @@ export default function App() {
         <TouchableOpacity onPress={() => setIsLocationModalVisible(true)}>
           <Icon name="location-outline" size={50} color="#007AFF" />
         </TouchableOpacity>
-        {/* New button to open the Qibla Compass */}
         <TouchableOpacity onPress={() => setIsCompassVisible(true)}>
           <Icon name="compass-outline" size={50} color="#007AFF" />
         </TouchableOpacity>
@@ -570,7 +614,6 @@ export default function App() {
           />
         </TouchableOpacity>
       </View>
-      {/* Daily Quote Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -596,7 +639,6 @@ export default function App() {
           </View>
         </View>
       </Modal>
-      {/* Location Selection Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -616,10 +658,7 @@ export default function App() {
                 <TouchableOpacity
                   key={loc}
                   style={styles.locationOption}
-                  onPress={() => {
-                    setSelectedLocation(loc);
-                    setIsLocationModalVisible(false);
-                  }}
+                  onPress={() => handleLocationChange(loc)}
                 >
                   <Text style={[styles.locationOptionText, isDarkMode && styles.darkLocationOptionText]}>
                     {locDisplay}
@@ -638,21 +677,18 @@ export default function App() {
           </View>
         </View>
       </Modal>
-      {/* Qibla Compass Modal */}
-     {/* Qibla Compass Modal */}
-<Modal
-  animationType="slide"
-  transparent={false}
-  visible={isCompassVisible}
-  onRequestClose={() => setIsCompassVisible(false)}
->
-  <QiblaCompass 
-    isDarkMode={isDarkMode} 
-    language={language} 
-    onClose={() => setIsCompassVisible(false)}
-  />
-</Modal>
-
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={isCompassVisible}
+        onRequestClose={() => setIsCompassVisible(false)}
+      >
+        <QiblaCompass 
+          isDarkMode={isDarkMode} 
+          language={language} 
+          onClose={() => setIsCompassVisible(false)}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }
