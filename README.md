@@ -1,4 +1,4 @@
-# Prayer Times & Qibla Compass App
+![WhatsApp Image 2025-02-18 at 14 55 22_211345ac](https://github.com/user-attachments/assets/0f34a650-263e-4836-9b86-980852600186)# Prayer Times & Qibla Compass App
 
 A React Native application that provides accurate Islamic prayer times, daily inspirational quotes, and a Qibla Compass to help users find the direction of the Kaaba. The app supports both English and Arabic, offers dark/light mode, and utilizes Firebase push notifications.
 
@@ -26,8 +26,10 @@ A React Native application that provides accurate Islamic prayer times, daily in
   User preferences (language, theme, selected location) are saved locally using AsyncStorage.
 
 ## Screenshots
-
-*(Add screenshots of your app here)*
+![WhatsApp Image 2025-02-18 at 14 55 19_7341a138](https://github.com/user-attachments/assets/8e4e1cc3-5cf4-427d-9927-b2846b2b6ccf)
+![WhatsApp Image 2025-02-18 at 14 55 19_0e32d28f](https://github.com/user-attachments/assets/bf57939b-0a74-4f08-8d5a-54bb579478db)
+![WhatsApp Image 2025-02-18 at 14 55 21_3b5dd101](https://github.com/user-attachments/assets/0b03e51d-da05-4804-9061-230693b41af0)
+![WhatsApp Image 2025-02-18 at 14 55 22_211345ac](https://github.com/user-attachments/assets/32e7b377-e1b3-4055-aad7-4149caace5f2)
 
 ## Technologies Used
 
