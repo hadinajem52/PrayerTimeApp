@@ -4,7 +4,7 @@ import { db } from './firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
 
-async function getOrCreateUserId() {
+export async function getOrCreateUserId() { // <-- Added 'export' here
   try {
     let userId = await AsyncStorage.getItem('userId');
     if (!userId) {
