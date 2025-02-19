@@ -1,4 +1,3 @@
-
 import React, {
   useEffect,
   useState,
@@ -18,6 +17,8 @@ import {
   ActivityIndicator,
   Modal,
   Alert,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -27,10 +28,41 @@ import prayerData from './assets/prayer_times.json';
 import dailyQuotes from './data/quotes';
 import messaging from '@react-native-firebase/messaging';
 import { storePrayerTime } from './savePrayerTime';
-import { cancelPrayerTime } from './cancelPrayerTime'; // Cancellation function
-
-// Import the QiblaCompass component
+import { cancelPrayerTime } from './cancelPrayerTime';
 import QiblaCompass from './QiblaCompass';
+import { useFetchScheduledNotifications } from './useFetchScheduledNotifications';
+
+/* --- OS Notification Permission Request --- */
+const requestOSNotificationPermission = async () => {
+  if (Platform.OS === 'android' && Platform.Version >= 33) {
+    try {
+      const result = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+        {
+          title: 'Allow Notifications',
+          message:
+            'This app uses notifications to remind you about prayer times. Please allow notifications.',
+          buttonPositive: 'Allow',
+          buttonNegative: 'Deny',
+        }
+      );
+
+      if (result === PermissionsAndroid.RESULTS.GRANTED) {
+        console.log('Notification permission granted');
+      } else {
+        console.log('Notification permission denied');
+        Alert.alert(
+          'Notifications Disabled',
+          'Without notification permissions, you might miss important reminders.'
+        );
+      }
+    } catch (error) {
+      console.warn('Notification permission error:', error);
+    }
+  } else {
+    console.log('Notification permission automatically granted on this Android version or not applicable.');
+  }
+};
 
 /* --- Static Constants --- */
 const TRANSLATIONS = {
@@ -112,6 +144,7 @@ const PrayerRow = React.memo(
     const upcomingStyle = isDarkMode
       ? styles.upcomingPrayerDark
       : styles.upcomingPrayerLight;
+    console.log(`PrayerRow: ${prayerKey} scheduled?`, isScheduled);
     return (
       <View style={[styles.prayerRow, isUpcoming && upcomingStyle]}>
         <Icon
@@ -146,7 +179,7 @@ const PrayerRow = React.memo(
 
 /* --- Main App Component --- */
 export default function App() {
-  // Existing states
+  // State declarations
   const [language, setLanguage] = useState("ar");
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
@@ -158,8 +191,6 @@ export default function App() {
   const [currentPrayer, setCurrentPrayer] = useState(null);
   const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
   const [deviceToken, setDeviceToken] = useState(null);
-
-  // New state for showing Qibla Compass
   const [isCompassVisible, setIsCompassVisible] = useState(false);
 
   // Refs for animation and timers
@@ -178,8 +209,10 @@ export default function App() {
     return dailyQuotes[todayIndex][language];
   }, [language]);
 
-  /* --- Utility Functions --- */
+  /* --- Custom Hook: Fetch Scheduled Notifications from Firestore --- */
+  useFetchScheduledNotifications(setScheduledNotifications);
 
+  /* --- Utility Functions --- */
   const getTodayIndex = useCallback((data) => {
     const today = new Date();
     const formattedDate = moment(today).format('DD/MM/YYYY');
@@ -204,6 +237,11 @@ export default function App() {
     }
     return null;
   }, [currentPrayer, parsePrayerTime]);
+
+  /* --- Request OS Notification Permission on First Launch --- */
+  useEffect(() => {
+    requestOSNotificationPermission();
+  }, []);
 
   /* --- Firebase Messaging Setup --- */
   useEffect(() => {
@@ -232,7 +270,7 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  /* --- AsyncStorage: Load & Save Settings and Notifications --- */
+  /* --- AsyncStorage: Load & Save Settings (excluding notifications) --- */
   useEffect(() => {
     (async () => {
       try {
@@ -253,19 +291,6 @@ export default function App() {
         console.error("Error loading settings: ", error);
       } finally {
         setIsSettingsLoaded(true);
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const savedNotifications = await AsyncStorage.getItem('scheduledNotifications');
-        if (savedNotifications !== null) {
-          setScheduledNotifications(JSON.parse(savedNotifications));
-        }
-      } catch (error) {
-        console.error("Error loading scheduled notifications:", error);
       }
     })();
   }, []);
@@ -297,10 +322,12 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  // Optionally still saving scheduled notifications locally (if needed)
   useEffect(() => {
     (async () => {
       try {
         await AsyncStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+        console.log("Saved scheduled notifications:", scheduledNotifications);
       } catch (error) {
         console.error("Error saving scheduled notifications:", error);
       }
@@ -468,7 +495,9 @@ export default function App() {
 
   const handleNotificationToggle = useCallback(
     async (prayerKey) => {
+      console.log(`Toggling notification for prayer: ${prayerKey}`);
       if (scheduledNotifications[prayerKey]) {
+        console.log(`Notification already scheduled for ${prayerKey}, cancelling...`);
         const success = await cancelPrayerTime(scheduledNotifications[prayerKey]);
         if (success) {
           setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: null }));
@@ -478,10 +507,12 @@ export default function App() {
           Alert.alert("Failed to cancel notification for " + TRANSLATIONS[language][prayerKey]);
         }
       } else {
+        console.log(`Scheduling notification for ${prayerKey}...`);
         const timeString = currentPrayer[prayerKey];
         const docId = await storePrayerTime(prayerKey, timeString, deviceToken);
         if (docId) {
           setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: docId }));
+          console.log(`Notification scheduled for ${prayerKey} with docId: ${docId}`);
           Alert.alert("تم جدولة الإشعار لـ " + TRANSLATIONS[language][prayerKey]);
         }
       }
@@ -558,20 +589,23 @@ export default function App() {
           </View>
           <ScrollView contentContainerStyle={styles.prayerContainer}>
             {["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha"].map(
-              (key) => (
-                <PrayerRow
-                  key={key}
-                  prayerKey={key}
-                  time={currentPrayer[key]}
-                  label={TRANSLATIONS[language][key]}
-                  iconName={PRAYER_ICONS[key]}
-                  isUpcoming={isToday && key === upcomingPrayerKey}
-                  isScheduled={!!scheduledNotifications[key]}
-                  onToggleNotification={handleNotificationToggle}
-                  isDarkMode={isDarkMode}
-                  upcomingLabel={TRANSLATIONS[language].upcoming}
-                />
-              )
+              (key) => {
+                console.log(`Rendering prayer ${key}: scheduled =`, !!scheduledNotifications[key]);
+                return (
+                  <PrayerRow
+                    key={key}
+                    prayerKey={key}
+                    time={currentPrayer[key]}
+                    label={TRANSLATIONS[language][key]}
+                    iconName={PRAYER_ICONS[key]}
+                    isUpcoming={isToday && key === upcomingPrayerKey}
+                    isScheduled={!!scheduledNotifications[key]}
+                    onToggleNotification={handleNotificationToggle}
+                    isDarkMode={isDarkMode}
+                    upcomingLabel={TRANSLATIONS[language].upcoming}
+                  />
+                );
+              }
             )}
           </ScrollView>
         </View>
@@ -603,10 +637,7 @@ export default function App() {
         <TouchableOpacity onPress={() => setIsCompassVisible(true)}>
           <Icon name="compass-outline" size={50} color="#007AFF" />
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleNext}
-          disabled={currentIndex === locationData.length - 1}
-        >
+        <TouchableOpacity onPress={handleNext} disabled={currentIndex === locationData.length - 1}>
           <Icon
             name="arrow-forward-circle"
             size={60}
@@ -922,4 +953,3 @@ const styles = StyleSheet.create({
     color: '#66CCFF',
   },
 });
-
