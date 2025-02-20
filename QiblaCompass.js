@@ -290,6 +290,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
     marginBottom: 20,
+    minHeight: 590, // Increased height for more space at the bottom
   },
   darkCard: {
     backgroundColor: '#333',
