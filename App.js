@@ -740,7 +740,7 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   darkLocationLabel: {
-    color: '#66CCFF',
+    color: '#FFA500',
   },
   prayerContainer: {
     paddingBottom: 20,
