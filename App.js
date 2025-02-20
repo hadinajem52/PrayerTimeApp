@@ -1,10 +1,4 @@
-import React, {
-  useEffect,
-  useState,
-  useRef,
-  useMemo,
-  useCallback,
-} from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -26,43 +20,14 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import moment from 'moment-hijri';
 import prayerData from './assets/prayer_times.json';
 import dailyQuotes from './data/quotes';
-import messaging from '@react-native-firebase/messaging';
-import { storePrayerTime } from './savePrayerTime';
-import { cancelPrayerTime } from './cancelPrayerTime';
 import QiblaCompass from './QiblaCompass';
-import { useFetchScheduledNotifications } from './useFetchScheduledNotifications';
 
-/* --- OS Notification Permission Request --- */
-const requestOSNotificationPermission = async () => {
-  if (Platform.OS === 'android' && Platform.Version >= 33) {
-    try {
-      const result = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-        {
-          title: 'Allow Notifications',
-          message:
-            'This app uses notifications to remind you about prayer times. Please allow notifications.',
-          buttonPositive: 'Allow',
-          buttonNegative: 'Deny',
-        }
-      );
-
-      if (result === PermissionsAndroid.RESULTS.GRANTED) {
-        console.log('Notification permission granted');
-      } else {
-        console.log('Notification permission denied');
-        Alert.alert(
-          'Notifications Disabled',
-          'Without notification permissions, you might miss important reminders.'
-        );
-      }
-    } catch (error) {
-      console.warn('Notification permission error:', error);
-    }
-  } else {
-    console.log('Notification permission automatically granted on this Android version or not applicable.');
-  }
-};
+import {
+  scheduleLocalNotification,
+  cancelLocalNotification,
+  scheduleNotificationsForUpcomingPeriod,
+  cancelAllNotifications,
+} from './notificationsender';
 
 /* --- Static Constants --- */
 const TRANSLATIONS = {
@@ -136,7 +101,7 @@ const PrayerRow = React.memo(
     label,
     iconName,
     isUpcoming,
-    isScheduled,
+    isEnabled,
     onToggleNotification,
     isDarkMode,
     upcomingLabel,
@@ -144,7 +109,7 @@ const PrayerRow = React.memo(
     const upcomingStyle = isDarkMode
       ? styles.upcomingPrayerDark
       : styles.upcomingPrayerLight;
-    console.log(`PrayerRow: ${prayerKey} scheduled?`, isScheduled);
+    console.log(`PrayerRow: ${prayerKey} enabled =`, isEnabled);
     return (
       <View style={[styles.prayerRow, isUpcoming && upcomingStyle]}>
         <Icon
@@ -161,7 +126,7 @@ const PrayerRow = React.memo(
         </Text>
         <TouchableOpacity onPress={() => onToggleNotification(prayerKey)}>
           <Icon
-            name={isScheduled ? "notifications" : "notifications-outline"}
+            name={isEnabled ? "notifications" : "notifications-outline"}
             size={24}
             color={isDarkMode ? "#FFA500" : "#007AFF"}
             style={{ marginLeft: 10 }}
@@ -184,14 +149,25 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
   const [scheduledNotifications, setScheduledNotifications] = useState({});
+  const [upcomingNotificationIds, setUpcomingNotificationIds] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState("beirut");
   const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
   const [isQuoteModalVisible, setIsQuoteModalVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentPrayer, setCurrentPrayer] = useState(null);
   const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
-  const [deviceToken, setDeviceToken] = useState(null);
   const [isCompassVisible, setIsCompassVisible] = useState(false);
+
+  // Global enabled-prayer state (persisted via AsyncStorage)
+  const [enabledPrayers, setEnabledPrayers] = useState({
+    imsak: false,
+    fajr: false,
+    shuruq: false,
+    dhuhr: false,
+    asr: false,
+    maghrib: false,
+    isha: false,
+  });
 
   // Refs for animation and timers
   const isInitialMount = useRef(true);
@@ -209,9 +185,6 @@ export default function App() {
     return dailyQuotes[todayIndex][language];
   }, [language]);
 
-  /* --- Custom Hook: Fetch Scheduled Notifications from Firestore --- */
-  useFetchScheduledNotifications(setScheduledNotifications);
-
   /* --- Utility Functions --- */
   const getTodayIndex = useCallback((data) => {
     const today = new Date();
@@ -219,6 +192,7 @@ export default function App() {
     return data.findIndex((item) => item.date === formattedDate);
   }, []);
 
+  // Parse a prayer time string (e.g., "5:19") into a Date object for today
   const parsePrayerTime = useCallback((timeStr) => {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const now = new Date();
@@ -238,46 +212,46 @@ export default function App() {
     return null;
   }, [currentPrayer, parsePrayerTime]);
 
-  /* --- Request OS Notification Permission on First Launch --- */
-  useEffect(() => {
-    requestOSNotificationPermission();
-  }, []);
-
-  /* --- Firebase Messaging Setup --- */
-  useEffect(() => {
-    const registerForPushNotificationsAsync = async () => {
+  /* --- OS Notification Permission Request --- */
+  const requestOSNotificationPermission = async () => {
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
       try {
-        const authStatus = await messaging().requestPermission();
-        const enabled =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-        if (!enabled) {
-          Alert.alert('Permission for notifications not granted!');
-          return;
+        const result = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+          {
+            title: 'Allow Notifications',
+            message:
+              'This app uses notifications to remind you about prayer times. Please allow notifications.',
+            buttonPositive: 'Allow',
+            buttonNegative: 'Deny',
+          }
+        );
+        if (result === PermissionsAndroid.RESULTS.GRANTED) {
+          console.log('Notification permission granted');
+        } else {
+          console.log('Notification permission denied');
+          Alert.alert(
+            'Notifications Disabled',
+            'Without notification permissions, you might miss important reminders.'
+          );
         }
-        const token = await messaging().getToken();
-        console.log("FCM Token:", token);
-        setDeviceToken(token);
       } catch (error) {
-        console.error("Error registering for FCM:", error);
+        console.warn('Notification permission error:', error);
       }
-    };
-    registerForPushNotificationsAsync();
+    } else {
+      console.log('Notification permission automatically granted on this Android version or not applicable.');
+    }
+  };
 
-    const unsubscribe = messaging().onMessage(async (remoteMessage) => {
-      Alert.alert("New Notification", JSON.stringify(remoteMessage.notification));
-    });
-    return unsubscribe;
-  }, []);
-
-  /* --- AsyncStorage: Load & Save Settings (excluding notifications) --- */
+  /* --- AsyncStorage: Load & Save Settings (including enabledPrayers) --- */
   useEffect(() => {
     (async () => {
       try {
         const savedLanguage = await AsyncStorage.getItem('language');
         const savedDarkMode = await AsyncStorage.getItem('isDarkMode');
         const savedLocation = await AsyncStorage.getItem('selectedLocation');
-        console.log("Loaded settings:", { savedLanguage, savedDarkMode, savedLocation });
+        const savedEnabledPrayers = await AsyncStorage.getItem('enabledPrayers');
+        console.log("Loaded settings:", { savedLanguage, savedDarkMode, savedLocation, savedEnabledPrayers });
         if (savedLanguage !== null) {
           setLanguage(savedLanguage);
         }
@@ -286,6 +260,9 @@ export default function App() {
         }
         if (savedLocation !== null) {
           setSelectedLocation(savedLocation);
+        }
+        if (savedEnabledPrayers !== null) {
+          setEnabledPrayers(JSON.parse(savedEnabledPrayers));
         }
       } catch (error) {
         console.error("Error loading settings: ", error);
@@ -322,7 +299,19 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  // Optionally still saving scheduled notifications locally (if needed)
+  // Persist enabledPrayers only after settings are loaded
+  useEffect(() => {
+    if (!isSettingsLoaded) return;
+    (async () => {
+      try {
+        await AsyncStorage.setItem('enabledPrayers', JSON.stringify(enabledPrayers));
+      } catch (error) {
+        console.error("Error saving enabledPrayers: ", error);
+      }
+    })();
+  }, [enabledPrayers, isSettingsLoaded]);
+
+  // Save scheduled (current day) notifications locally if needed
   useEffect(() => {
     (async () => {
       try {
@@ -344,6 +333,23 @@ export default function App() {
       }
     })();
   }, [selectedLocation]);
+
+  /* --- Schedule Upcoming Notifications for the Next 30 Days Based on Enabled Prayers --- */
+  useEffect(() => {
+    if (isSettingsLoaded && selectedLocation) {
+      // Cancel previous upcoming notifications if any
+      if (upcomingNotificationIds.length > 0) {
+        cancelAllNotifications(upcomingNotificationIds);
+        setUpcomingNotificationIds([]);
+      }
+      scheduleNotificationsForUpcomingPeriod(selectedLocation, enabledPrayers)
+        .then((ids) => {
+          console.log("Scheduled upcoming notifications:", ids);
+          setUpcomingNotificationIds(ids);
+        })
+        .catch((err) => console.error("Error scheduling upcoming notifications:", err));
+    }
+  }, [isSettingsLoaded, selectedLocation, enabledPrayers]);
 
   /* --- Update Current Prayer Data --- */
   useEffect(() => {
@@ -367,11 +373,9 @@ export default function App() {
       if (upcomingTimer.current) {
         clearTimeout(upcomingTimer.current);
       }
-
       const updateUpcomingPrayer = () => {
         const upcoming = getUpcomingPrayerKey();
         setUpcomingPrayerKey(upcoming);
-
         if (upcoming) {
           const prayerTime = parsePrayerTime(currentPrayer[upcoming]);
           const now = new Date();
@@ -385,9 +389,7 @@ export default function App() {
           setUpcomingPrayerKey(null);
         }
       };
-
       updateUpcomingPrayer();
-
       return () => {
         if (upcomingTimer.current) clearTimeout(upcomingTimer.current);
       };
@@ -453,20 +455,42 @@ export default function App() {
     setLanguage((prev) => (prev === "en" ? "ar" : "en"));
   }, []);
 
-  // Cancel all notifications for the current location
-  const cancelAllNotifications = async () => {
-    const keys = Object.keys(scheduledNotifications);
-    for (const key of keys) {
-      if (scheduledNotifications[key]) {
-        await cancelPrayerTime(scheduledNotifications[key]);
+  // Toggle notification for a single prayer on the current day and update global preference
+  const handleNotificationToggle = useCallback(
+    async (prayerKey) => {
+      console.log(`Toggling notification for prayer: ${prayerKey}`);
+      if (enabledPrayers[prayerKey]) {
+        // Disable: cancel current day's notification if it exists
+        if (scheduledNotifications[prayerKey]) {
+          await cancelLocalNotification(scheduledNotifications[prayerKey]);
+          setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: null }));
+        }
+        setEnabledPrayers((prev) => ({ ...prev, [prayerKey]: false }));
+        Alert.alert("تم إلغاء الإشعار لـ " + TRANSLATIONS[language][prayerKey]);
+      } else {
+        // Enable: schedule notification for current day if the time is still in the future
+        const timeStr = currentPrayer[prayerKey];
+        if (timeStr) {
+          const prayerTime = parsePrayerTime(timeStr);
+          if (prayerTime > new Date()) {
+            const notificationId = `${prayerKey}-${currentPrayer.date}`;
+            await scheduleLocalNotification(notificationId, prayerKey, prayerTime);
+            setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: notificationId }));
+          }
+        }
+        setEnabledPrayers((prev) => ({ ...prev, [prayerKey]: true }));
+        Alert.alert("تم جدولة الإشعار لـ " + TRANSLATIONS[language][prayerKey]);
       }
-    }
-    setScheduledNotifications({});
-  };
+    },
+    [currentPrayer, enabledPrayers, scheduledNotifications, language, parsePrayerTime]
+  );
 
-  // Handle location changes with confirmation if notifications are scheduled
+  // Handle location changes with confirmation if notifications are scheduled (both current day and upcoming)
   const handleLocationChange = (newLocation) => {
-    if (Object.values(scheduledNotifications).some(val => val)) {
+    if (
+      Object.values(scheduledNotifications).some(val => val) ||
+      upcomingNotificationIds.length > 0
+    ) {
       Alert.alert(
         TRANSLATIONS[language].selectLocation,
         TRANSLATIONS[language].changeLocationMessage,
@@ -479,7 +503,12 @@ export default function App() {
           {
             text: TRANSLATIONS[language].ok,
             onPress: async () => {
-              await cancelAllNotifications();
+              // Cancel all current notifications
+              await cancelAllNotifications(Object.values(scheduledNotifications).filter(Boolean));
+              await cancelAllNotifications(upcomingNotificationIds);
+              // Clear notification states and update location
+              setScheduledNotifications({});
+              setUpcomingNotificationIds([]);
               setSelectedLocation(newLocation);
               setIsLocationModalVisible(false);
             },
@@ -492,33 +521,6 @@ export default function App() {
       setIsLocationModalVisible(false);
     }
   };
-
-  const handleNotificationToggle = useCallback(
-    async (prayerKey) => {
-      console.log(`Toggling notification for prayer: ${prayerKey}`);
-      if (scheduledNotifications[prayerKey]) {
-        console.log(`Notification already scheduled for ${prayerKey}, cancelling...`);
-        const success = await cancelPrayerTime(scheduledNotifications[prayerKey]);
-        if (success) {
-          setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: null }));
-          console.log("Notification cancelled for", prayerKey);
-          Alert.alert("تم إلغاء الإشعار لـ " + TRANSLATIONS[language][prayerKey]);
-        } else {
-          Alert.alert("Failed to cancel notification for " + TRANSLATIONS[language][prayerKey]);
-        }
-      } else {
-        console.log(`Scheduling notification for ${prayerKey}...`);
-        const timeString = currentPrayer[prayerKey];
-        const docId = await storePrayerTime(prayerKey, timeString, deviceToken);
-        if (docId) {
-          setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: docId }));
-          console.log(`Notification scheduled for ${prayerKey} with docId: ${docId}`);
-          Alert.alert("تم جدولة الإشعار لـ " + TRANSLATIONS[language][prayerKey]);
-        }
-      }
-    },
-    [currentPrayer, deviceToken, scheduledNotifications, language]
-  );
 
   const displayLocation = useMemo(() => {
     return LOCATION_NAMES[selectedLocation]
@@ -537,11 +539,14 @@ export default function App() {
     return currentIndex === getTodayIndex(locationData);
   }, [currentIndex, locationData, getTodayIndex]);
 
+  // Request OS notification permission on first launch
+  useEffect(() => {
+    requestOSNotificationPermission();
+  }, []);
+
   if (!isSettingsLoaded || !currentPrayer) {
     return (
-      <SafeAreaView
-        style={[styles.loadingContainer, isDarkMode && styles.darkContainer]}
-      >
+      <SafeAreaView style={[styles.loadingContainer, isDarkMode && styles.darkContainer]}>
         <StatusBar translucent backgroundColor="transparent" />
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
@@ -552,32 +557,18 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView
-      style={[
-        styles.safeArea,
-        isDarkMode && styles.darkContainer,
-        { direction: language === "ar" ? "rtl" : "ltr" },
-      ]}
-    >
+    <SafeAreaView style={[styles.safeArea, isDarkMode && styles.darkContainer, { direction: language === "ar" ? "rtl" : "ltr" }]}>
       <StatusBar translucent backgroundColor="transparent" />
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
         {TRANSLATIONS[language].prayerTimes}
       </Text>
       <Animated.View style={{ transform: [{ translateX: animation }] }}>
         <View style={[styles.card, isDarkMode && styles.darkCard, { position: "relative" }]}>
-          <TouchableOpacity
-            onPress={() => setIsQuoteModalVisible(true)}
-            style={styles.infoButton}
-          >
-            <Icon
-              name="information-circle-outline"
-              size={24}
-              color={isDarkMode ? "#66CCFF" : "#007AFF"}
-            />
+          <TouchableOpacity onPress={() => setIsQuoteModalVisible(true)} style={styles.infoButton}>
+            <Icon name="information-circle-outline" size={24} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
           </TouchableOpacity>
           <Text style={[styles.date, isDarkMode && styles.darkDate]}>
-            {currentPrayer.date} — ({TRANSLATIONS[language].day}{" "}
-            {currentPrayer.day_number})
+            {currentPrayer.date} — ({TRANSLATIONS[language].day} {currentPrayer.day_number})
           </Text>
           <View style={styles.dateRow}>
             <Text style={[styles.hijriDate, isDarkMode && styles.darkHijriDate]}>
@@ -588,45 +579,35 @@ export default function App() {
             </Text>
           </View>
           <ScrollView contentContainerStyle={styles.prayerContainer}>
-            {["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha"].map(
-              (key) => {
-                console.log(`Rendering prayer ${key}: scheduled =`, !!scheduledNotifications[key]);
-                return (
-                  <PrayerRow
-                    key={key}
-                    prayerKey={key}
-                    time={currentPrayer[key]}
-                    label={TRANSLATIONS[language][key]}
-                    iconName={PRAYER_ICONS[key]}
-                    isUpcoming={isToday && key === upcomingPrayerKey}
-                    isScheduled={!!scheduledNotifications[key]}
-                    onToggleNotification={handleNotificationToggle}
-                    isDarkMode={isDarkMode}
-                    upcomingLabel={TRANSLATIONS[language].upcoming}
-                  />
-                );
-              }
-            )}
+            {["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha"].map((key) => {
+              console.log(`Rendering prayer ${key}: enabled =`, enabledPrayers[key]);
+              return (
+                <PrayerRow
+                  key={key}
+                  prayerKey={key}
+                  time={currentPrayer[key]}
+                  label={TRANSLATIONS[language][key]}
+                  iconName={PRAYER_ICONS[key]}
+                  isUpcoming={isToday && key === upcomingPrayerKey}
+                  isEnabled={enabledPrayers[key]}
+                  onToggleNotification={handleNotificationToggle}
+                  isDarkMode={isDarkMode}
+                  upcomingLabel={TRANSLATIONS[language].upcoming}
+                />
+              );
+            })}
           </ScrollView>
         </View>
       </Animated.View>
       <View style={[styles.navigation, { direction: "ltr" }]}>
         <TouchableOpacity onPress={handlePrevious} disabled={currentIndex === 0}>
-          <Icon
-            name="arrow-back-circle"
-            size={60}
-            color={currentIndex === 0 ? "#ccc" : "#007AFF"}
-          />
+          <Icon name="arrow-back-circle" size={60} color={currentIndex === 0 ? "#ccc" : "#007AFF"} />
         </TouchableOpacity>
         <TouchableOpacity onPress={goToToday}>
           <Icon name="today-outline" size={50} color="#007AFF" />
         </TouchableOpacity>
         <TouchableOpacity onPress={toggleDarkMode}>
-          <Icon
-            name={isDarkMode ? "sunny-outline" : "moon-outline"}
-            size={50}
-            color={isDarkMode ? "#FFA500" : "#007AFF"}
-          />
+          <Icon name={isDarkMode ? "sunny-outline" : "moon-outline"} size={50} color={isDarkMode ? "#FFA500" : "#007AFF"} />
         </TouchableOpacity>
         <TouchableOpacity onPress={toggleLanguage}>
           <Icon name="language-outline" size={50} color="#007AFF" />
@@ -638,19 +619,10 @@ export default function App() {
           <Icon name="compass-outline" size={50} color="#007AFF" />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleNext} disabled={currentIndex === locationData.length - 1}>
-          <Icon
-            name="arrow-forward-circle"
-            size={60}
-            color={currentIndex === locationData.length - 1 ? "#ccc" : "#007AFF"}
-          />
+          <Icon name="arrow-forward-circle" size={60} color={currentIndex === locationData.length - 1 ? "#ccc" : "#007AFF"} />
         </TouchableOpacity>
       </View>
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={isQuoteModalVisible}
-        onRequestClose={() => setIsQuoteModalVisible(false)}
-      >
+      <Modal animationType="fade" transparent={true} visible={isQuoteModalVisible} onRequestClose={() => setIsQuoteModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, isDarkMode && styles.darkModalContent]}>
             <Text style={[styles.modalTitle, isDarkMode && styles.darkModalTitle]}>
@@ -659,10 +631,7 @@ export default function App() {
             <Text style={[styles.quoteModalText, isDarkMode && styles.darkQuoteModalText]}>
               {dailyQuote}
             </Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setIsQuoteModalVisible(false)}
-            >
+            <TouchableOpacity style={styles.closeButton} onPress={() => setIsQuoteModalVisible(false)}>
               <Text style={[styles.closeButtonText, isDarkMode && styles.darkCloseButtonText]}>
                 {TRANSLATIONS[language].close}
               </Text>
@@ -670,55 +639,30 @@ export default function App() {
           </View>
         </View>
       </Modal>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isLocationModalVisible}
-        onRequestClose={() => setIsLocationModalVisible(false)}
-      >
+      <Modal animationType="slide" transparent={true} visible={isLocationModalVisible} onRequestClose={() => setIsLocationModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, isDarkMode && styles.darkModalContent]}>
             <Text style={[styles.modalTitle, isDarkMode && styles.darkModalTitle]}>
               {TRANSLATIONS[language].selectLocation}
             </Text>
             {Object.keys(prayerData).map((loc) => {
-              const locDisplay = LOCATION_NAMES[loc]
-                ? LOCATION_NAMES[loc][language]
-                : loc;
+              const locDisplay = LOCATION_NAMES[loc] ? LOCATION_NAMES[loc][language] : loc;
               return (
-                <TouchableOpacity
-                  key={loc}
-                  style={styles.locationOption}
-                  onPress={() => handleLocationChange(loc)}
-                >
+                <TouchableOpacity key={loc} style={styles.locationOption} onPress={() => handleLocationChange(loc)}>
                   <Text style={[styles.locationOptionText, isDarkMode && styles.darkLocationOptionText]}>
                     {locDisplay}
                   </Text>
                 </TouchableOpacity>
               );
             })}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setIsLocationModalVisible(false)}
-            >
-              <Text style={[styles.closeButtonText, isDarkMode && styles.darkCloseButtonText]}>
-                X
-              </Text>
+            <TouchableOpacity style={styles.closeButton} onPress={() => setIsLocationModalVisible(false)}>
+              <Text style={[styles.closeButtonText, isDarkMode && styles.darkCloseButtonText]}>X</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-      <Modal
-        animationType="slide"
-        transparent={false}
-        visible={isCompassVisible}
-        onRequestClose={() => setIsCompassVisible(false)}
-      >
-        <QiblaCompass 
-          isDarkMode={isDarkMode} 
-          language={language} 
-          onClose={() => setIsCompassVisible(false)}
-        />
+      <Modal animationType="slide" transparent={false} visible={isCompassVisible} onRequestClose={() => setIsCompassVisible(false)}>
+        <QiblaCompass isDarkMode={isDarkMode} language={language} onClose={() => setIsCompassVisible(false)} />
       </Modal>
     </SafeAreaView>
   );

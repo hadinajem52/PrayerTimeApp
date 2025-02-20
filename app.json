@@ -2,7 +2,7 @@
   "expo": {
     "name": "مواقيت الصلاة للشيعة",
     "slug": "ShiaPrayerLeb",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -20,7 +20,7 @@
     },
     "android": {
       "googleServicesFile": "./google-services.json",
-      "versionCode": 8 , 
+      "versionCode": 9 , 
 
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -36,19 +36,6 @@
         "projectId": "8dbb9a8c-7250-41a6-a264-df416556a461"
       }
     },
-    "plugins": [
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth",
-      "@react-native-firebase/crashlytics",
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "useFrameworks": "static"
-          }
-        }
-      ]
-    ],
     "owner": "hhhhjjj"
   }
 }
