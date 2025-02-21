@@ -1,6 +1,6 @@
+// App.js
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import {
-  StyleSheet,
   Text,
   View,
   TouchableOpacity,
@@ -21,13 +21,8 @@ import moment from 'moment-hijri';
 import prayerData from './assets/prayer_times.json';
 import dailyQuotes from './data/quotes';
 import QiblaCompass from './QiblaCompass';
-
-import {
-  scheduleLocalNotification,
-  cancelLocalNotification,
-  scheduleNotificationsForUpcomingPeriod,
-  cancelAllNotifications,
-} from './notificationsender';
+import notifee, { AndroidImportance, TriggerType } from '@notifee/react-native';
+import styles from './styles';
 
 /* --- Static Constants --- */
 const TRANSLATIONS = {
@@ -109,7 +104,6 @@ const PrayerRow = React.memo(
     const upcomingStyle = isDarkMode
       ? styles.upcomingPrayerDark
       : styles.upcomingPrayerLight;
-    console.log(`PrayerRow: ${prayerKey} enabled =`, isEnabled);
     return (
       <View style={[styles.prayerRow, isUpcoming && upcomingStyle]}>
         <Icon
@@ -144,7 +138,123 @@ const PrayerRow = React.memo(
 
 /* --- Main App Component --- */
 export default function App() {
-  // State declarations
+  /* --- Notifee Initialization --- */
+  useEffect(() => {
+    async function requestPermissions() {
+      const settings = await notifee.requestPermission();
+      if (settings.authorizationStatus >= 1) {
+        console.log('Permission granted:', settings);
+      } else {
+        Alert.alert(
+          'Notifications Disabled',
+          'Without notification permissions, you might miss important reminders.'
+        );
+      }
+    }
+    requestPermissions();
+  }, []);
+
+  // Create Android notification channel
+  useEffect(() => {
+    async function createChannel() {
+      const channelId = await notifee.createChannel({
+        id: 'prayer-channel',
+        name: 'Prayer Notifications',
+        importance: AndroidImportance.HIGH,
+      });
+      console.log('Notification channel created:', channelId);
+    }
+    createChannel();
+  }, []);
+
+  /* --- Notification Scheduling Functions --- */
+  async function scheduleLocalNotification(notificationId, prayerKey, prayerDateTime) {
+    if (prayerDateTime <= new Date()) {
+      console.warn(`Scheduled time ${prayerDateTime} is in the past. Notification not scheduled.`);
+      return null;
+    }
+    const trigger = {
+      type: TriggerType.TIMESTAMP,
+      timestamp: prayerDateTime.getTime(),
+    };
+  
+    // Use the language state to decide the notification text
+    const title = language === 'ar' ? 'تذكير الصلاة' : 'Prayer Reminder';
+    // Use the translations object to get the appropriate prayer name
+    const prayerName = TRANSLATIONS[language][prayerKey];
+    const body = language === 'ar' 
+      ? `حان موعد صلاة ${prayerName}` 
+      : `It's time for ${prayerName} prayer.`;
+  
+    await notifee.createTriggerNotification(
+      {
+        id: notificationId,
+        title: title,
+        body: body,
+        android: {
+          channelId: 'prayer-channel',
+          smallIcon: 'ic_launcher', // ensure you have a valid icon in your native project
+        },
+      },
+      trigger,
+    );
+    console.log(`Scheduled notification for ${prayerKey} at ${moment(prayerDateTime).format('YYYY-MM-DD HH:mm:ss')}`);
+    return notificationId;
+  }
+  
+
+  async function scheduleNotificationsForUpcomingPeriod(location, enabledPrayers) {
+    const today = new Date();
+    const upcomingDays = prayerData[location]
+      .filter(dayData => {
+        const dayDate = moment(dayData.date, 'D/M/YYYY').toDate();
+        return dayDate >= today;
+      })
+      .slice(0, 30);
+
+    const scheduledNotificationIds = [];
+    for (const dayData of upcomingDays) {
+      for (const prayerKey of ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha']) {
+        if (!enabledPrayers[prayerKey]) continue;
+        const timeStr = dayData[prayerKey];
+        if (!timeStr) continue;
+        const timeParts = timeStr.split(':');
+        const prayerMoment = moment(dayData.date, 'D/M/YYYY')
+          .hour(parseInt(timeParts[0], 10))
+          .minute(parseInt(timeParts[1], 10))
+          .second(0);
+        if (prayerMoment.toDate() > today) {
+          const numericId = moment(prayerMoment).format('YYYYMMDDHHmm');
+          await scheduleLocalNotification(numericId, prayerKey, prayerMoment.toDate());
+          scheduledNotificationIds.push(numericId);
+        }
+      }
+    }
+    return scheduledNotificationIds;
+  }
+
+  async function cancelLocalNotification(notificationId) {
+    await notifee.cancelNotification(notificationId);
+    console.log(`Cancelled notification with id: ${notificationId}`);
+    return true;
+  }
+
+  async function cancelAllNotifications(notificationIds) {
+    for (const id of notificationIds) {
+      await cancelLocalNotification(id);
+    }
+    return true;
+  }
+
+  // Generate unique IDs for notifications
+  const generateNumericId = (date) => moment(date).format('YYYYMMDDHHmm');
+  const generateAlternativeId = (date) => {
+    const timestamp = date.getTime();
+    const randomPart = Math.floor(Math.random() * 900) + 100;
+    return `${timestamp}${randomPart}`;
+  };
+
+  /* --- State Declarations --- */
   const [language, setLanguage] = useState("ar");
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
@@ -158,7 +268,7 @@ export default function App() {
   const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
   const [isCompassVisible, setIsCompassVisible] = useState(false);
 
-  // Global enabled-prayer state (persisted via AsyncStorage)
+  // Global enabled-prayer state
   const [enabledPrayers, setEnabledPrayers] = useState({
     imsak: false,
     fajr: false,
@@ -174,12 +284,10 @@ export default function App() {
   const animation = useRef(new Animated.Value(0)).current;
   const upcomingTimer = useRef(null);
 
-  // Memoized location data based on selected location
   const locationData = useMemo(() => {
     return prayerData[selectedLocation] || [];
   }, [selectedLocation]);
 
-  // Daily quote based on the current day and language
   const dailyQuote = useMemo(() => {
     const todayIndex = new Date().getDate() % dailyQuotes.length;
     return dailyQuotes[todayIndex][language];
@@ -192,7 +300,6 @@ export default function App() {
     return data.findIndex((item) => item.date === formattedDate);
   }, []);
 
-  // Parse a prayer time string (e.g., "5:19") into a Date object for today
   const parsePrayerTime = useCallback((timeStr) => {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const now = new Date();
@@ -212,7 +319,6 @@ export default function App() {
     return null;
   }, [currentPrayer, parsePrayerTime]);
 
-  /* --- OS Notification Permission Request --- */
   const requestOSNotificationPermission = async () => {
     if (Platform.OS === 'android' && Platform.Version >= 33) {
       try {
@@ -243,7 +349,7 @@ export default function App() {
     }
   };
 
-  /* --- AsyncStorage: Load & Save Settings (including enabledPrayers) --- */
+  /* --- AsyncStorage: Load & Save Settings --- */
   useEffect(() => {
     (async () => {
       try {
@@ -299,7 +405,6 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  // Persist enabledPrayers only after settings are loaded
   useEffect(() => {
     if (!isSettingsLoaded) return;
     (async () => {
@@ -311,7 +416,6 @@ export default function App() {
     })();
   }, [enabledPrayers, isSettingsLoaded]);
 
-  // Save scheduled (current day) notifications locally if needed
   useEffect(() => {
     (async () => {
       try {
@@ -334,10 +438,9 @@ export default function App() {
     })();
   }, [selectedLocation]);
 
-  /* --- Schedule Upcoming Notifications for the Next 30 Days Based on Enabled Prayers --- */
+  /* --- Schedule Upcoming Notifications for Next 30 Days --- */
   useEffect(() => {
     if (isSettingsLoaded && selectedLocation) {
-      // Cancel previous upcoming notifications if any
       if (upcomingNotificationIds.length > 0) {
         cancelAllNotifications(upcomingNotificationIds);
         setUpcomingNotificationIds([]);
@@ -396,14 +499,7 @@ export default function App() {
     } else {
       setUpcomingPrayerKey(null);
     }
-  }, [
-    currentPrayer,
-    currentIndex,
-    locationData,
-    getTodayIndex,
-    getUpcomingPrayerKey,
-    parsePrayerTime,
-  ]);
+  }, [currentPrayer, currentIndex, locationData, getTodayIndex, getUpcomingPrayerKey, parsePrayerTime]);
 
   /* --- Animation Transition --- */
   const animateTransition = useCallback(
@@ -455,12 +551,11 @@ export default function App() {
     setLanguage((prev) => (prev === "en" ? "ar" : "en"));
   }, []);
 
-  // Toggle notification for a single prayer on the current day and update global preference
+  // Toggle notification for a prayer on the current day
   const handleNotificationToggle = useCallback(
     async (prayerKey) => {
       console.log(`Toggling notification for prayer: ${prayerKey}`);
       if (enabledPrayers[prayerKey]) {
-        // Disable: cancel current day's notification if it exists
         if (scheduledNotifications[prayerKey]) {
           await cancelLocalNotification(scheduledNotifications[prayerKey]);
           setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: null }));
@@ -468,14 +563,16 @@ export default function App() {
         setEnabledPrayers((prev) => ({ ...prev, [prayerKey]: false }));
         Alert.alert("تم إلغاء الإشعار لـ " + TRANSLATIONS[language][prayerKey]);
       } else {
-        // Enable: schedule notification for current day if the time is still in the future
         const timeStr = currentPrayer[prayerKey];
         if (timeStr) {
           const prayerTime = parsePrayerTime(timeStr);
+          const localPrayerTime = moment(prayerTime).format('YYYY-MM-DD HH:mm:ss');
+          const utcPrayerTime = moment(prayerTime).utc().format('YYYY-MM-DD HH:mm:ss');
+          console.log(`Scheduling ${prayerKey} Notification - Local: ${localPrayerTime}, UTC: ${utcPrayerTime}`);
           if (prayerTime > new Date()) {
-            const notificationId = `${prayerKey}-${currentPrayer.date}`;
-            await scheduleLocalNotification(notificationId, prayerKey, prayerTime);
-            setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: notificationId }));
+            const numericId = moment(prayerTime).format('YYYYMMDDHHmm');
+            await scheduleLocalNotification(numericId, prayerKey, prayerTime);
+            setScheduledNotifications((prev) => ({ ...prev, [prayerKey]: numericId }));
           }
         }
         setEnabledPrayers((prev) => ({ ...prev, [prayerKey]: true }));
@@ -485,7 +582,7 @@ export default function App() {
     [currentPrayer, enabledPrayers, scheduledNotifications, language, parsePrayerTime]
   );
 
-  // Handle location changes with confirmation if notifications are scheduled (both current day and upcoming)
+  // Handle location changes with confirmation if notifications exist
   const handleLocationChange = (newLocation) => {
     if (
       Object.values(scheduledNotifications).some(val => val) ||
@@ -503,10 +600,8 @@ export default function App() {
           {
             text: TRANSLATIONS[language].ok,
             onPress: async () => {
-              // Cancel all current notifications
               await cancelAllNotifications(Object.values(scheduledNotifications).filter(Boolean));
               await cancelAllNotifications(upcomingNotificationIds);
-              // Clear notification states and update location
               setScheduledNotifications({});
               setUpcomingNotificationIds([]);
               setSelectedLocation(newLocation);
@@ -555,6 +650,9 @@ export default function App() {
       </SafeAreaView>
     );
   }
+
+
+
 
   return (
     <SafeAreaView style={[styles.safeArea, isDarkMode && styles.darkContainer, { direction: language === "ar" ? "rtl" : "ltr" }]}>
@@ -667,233 +765,3 @@ export default function App() {
     </SafeAreaView>
   );
 }
-
-/* --- Styles --- */
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#EAEFF2',
-  },
-  darkContainer: {
-    backgroundColor: '#222',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#EAEFF2',
-  },
-  header: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 10,
-    color: '#333',
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  darkHeader: {
-    color: '#FFF',
-  },
-  card: {
-    backgroundColor: '#FFF',
-    borderRadius: 15,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-    marginBottom: 20,
-  },
-  darkCard: {
-    backgroundColor: '#333',
-  },
-  date: {
-    fontSize: 22,
-    fontWeight: '600',
-    marginBottom: 5,
-    textAlign: 'center',
-    color: '#007AFF',
-  },
-  darkDate: {
-    color: '#66CCFF',
-  },
-  dateRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  hijriDate: {
-    fontSize: 18,
-    fontWeight: '500',
-    textAlign: 'center',
-    color: '#555',
-  },
-  darkHijriDate: {
-    color: '#CCC',
-  },
-  locationLabel: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#007AFF',
-    marginLeft: 5,
-  },
-  darkLocationLabel: {
-    color: '#FFA500',
-  },
-  prayerContainer: {
-    paddingBottom: 20,
-    alignItems: 'center',
-  },
-  prayerRow: {
-    flexDirection: 'row',
-    width: '90%',
-    alignSelf: 'center',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    marginVertical: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 5,
-    borderBottomColor: '#eee',
-    borderBottomWidth: 1,
-    position: 'relative',
-  },
-  upcomingPrayerLight: {
-    backgroundColor: '#E0F7FA',
-    borderColor: '#007AFF',
-    borderWidth: 2,
-    borderRadius: 10,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 5,
-    elevation: 5,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  upcomingPrayerDark: {
-    backgroundColor: '#333',
-    borderColor: '#FFA500',
-    borderWidth: 2,
-    borderRadius: 10,
-    shadowColor: '#FFA500',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 5,
-    elevation: 5,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  prayerIcon: {
-    marginRight: 10,
-  },
-  label: {
-    fontSize: 18,
-    color: '#555',
-    fontWeight: '500',
-    flex: 1,
-    textAlign: 'center',
-  },
-  darkLabel: {
-    color: '#CCC',
-  },
-  value: {
-    fontSize: 18,
-    color: '#000',
-    fontWeight: '600',
-    flex: 1,
-    textAlign: 'center',
-  },
-  darkValue: {
-    color: '#FFF',
-  },
-  ribbon: {
-    position: 'absolute',
-    top: -10,
-    right: -10,
-    backgroundColor: '#FF4500',
-    borderRadius: 5,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-  },
-  ribbonText: {
-    fontSize: 10,
-    color: '#FFF',
-    fontWeight: 'bold',
-  },
-  navigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 30,
-    alignItems: 'center',
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '80%',
-    backgroundColor: '#FFF',
-    borderRadius: 10,
-    padding: 20,
-    alignItems: 'center',
-  },
-  darkModalContent: {
-    backgroundColor: '#444',
-  },
-  modalTitle: {
-    fontSize: 20,
-    marginBottom: 20,
-    color: '#333',
-  },
-  darkModalTitle: {
-    color: '#FFF',
-  },
-  locationOption: {
-    paddingVertical: 10,
-    width: '100%',
-    alignItems: 'center',
-    borderBottomColor: '#ccc',
-    borderBottomWidth: 1,
-  },
-  locationOptionText: {
-    fontSize: 18,
-    color: '#007AFF',
-  },
-  darkLocationOptionText: {
-    color: '#66CCFF',
-  },
-  closeButton: {
-    marginTop: 20,
-    backgroundColor: '#007AFF',
-    borderRadius: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 15,
-  },
-  closeButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-  },
-  darkCloseButtonText: {
-    color: '#FFF',
-  },
-  infoButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    zIndex: 1,
-  },
-  quoteModalText: {
-    fontSize: 16,
-    color: '#007AFF',
-    textAlign: 'center',
-    marginVertical: 10,
-  },
-  darkQuoteModalText: {
-    color: '#66CCFF',
-  },
-});
