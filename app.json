@@ -19,7 +19,6 @@
       "supportsTablet": true
     },
     "android": {
-      "googleServicesFile": "./google-services.json",
       "versionCode": 9 , 
 
       "adaptiveIcon": {
