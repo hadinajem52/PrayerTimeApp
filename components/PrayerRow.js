@@ -1,7 +1,8 @@
+//PrayerRow.js
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import styles from '../styles'; // Assume you export your styles from a separate file
+import styles from '../styles'; 
 
 const PrayerRow = React.memo(
   ({
