@@ -17,7 +17,6 @@ export function useNotificationScheduler(language) {
       };
 
       const title = language === 'ar' ? 'تذكير الصلاة' : 'Prayer Reminder';
-      // You may use a translation mapping here for prayerKey if needed.
       const body =
         language === 'ar'
           ? `حان موعد صلاة ${prayerKey}`
