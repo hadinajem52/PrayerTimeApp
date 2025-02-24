@@ -12,20 +12,27 @@ import {
   Alert,
   PermissionsAndroid,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import moment from 'moment-hijri';
+import ProgressBar from 'react-native-progress/Bar'; // Import the progress bar component
 import prayerData from './assets/prayer_times.json';
 import dailyQuotes from './data/quotes';
 import QiblaCompass from './QiblaCompass';
-import notifee, { AndroidImportance, TriggerType } from '@notifee/react-native';
+import notifee, { AndroidImportance } from '@notifee/react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import styles from './styles';
 import PrayerRow from './components/PrayerRow';
 import useSettings from './hooks/useSettings';
 import usePrayerTimer from './hooks/usePrayerTimer';
 import { useNotificationScheduler } from './hooks/useNotificationScheduler';
+import { moderateScale } from 'react-native-size-matters';
+import Feather from 'react-native-vector-icons/Feather';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
+// ----- Translations & Constants -----
 const TRANSLATIONS = {
   en: {
     prayerTimes: "According to the opinion of His Eminence Imam Khamenei",
@@ -46,6 +53,8 @@ const TRANSLATIONS = {
       "Changing location will cancel notifications for the current location. Do you want to proceed?",
     ok: "OK",
     cancel: "Cancel",
+    allEnded: "All prayer times for today have ended",
+    progressBarLabel: "Next Prayer in:", // New label for the progress bar
   },
   ar: {
     prayerTimes: "طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
@@ -66,6 +75,8 @@ const TRANSLATIONS = {
       "تغيير المنطقة سيقوم بإلغاء جميع الإشعارات الخاصة بموقعك الحالي. هل تريد المتابعة؟",
     ok: "موافق",
     cancel: "إلغاء",
+    allEnded: "انتهت كل مواعيد الصلاة لهذا اليوم",
+    progressBarLabel: "الصلاة القادمة في:", // Arabic label
   },
 };
 
@@ -80,15 +91,122 @@ const LOCATION_NAMES = {
 };
 
 const PRAYER_ICONS = {
-  fajr: 'cloudy-night',
+  imsak: 'cloudy-night',
+  fajr: 'sunrise',           // use Feather's "sunrise" icon for morning prayer
   shuruq: 'partly-sunny',
   dhuhr: 'sunny',
-  asr: 'sunny',
-  maghrib: 'moon',
+  asr: 'sunny-snowing',       // use MaterialIcons' "sunny-snowing" icon for asr
+  maghrib: 'sunset',          // use Feather's "sunset" icon for maghrib
   isha: 'moon',
-  imsak: 'cloudy-night',
 };
 
+// Helper to get the correct icon component based on prayer key
+const getIconComponent = (prayerKey) => {
+  if (prayerKey === 'fajr' || prayerKey === 'maghrib') {
+    return Feather;
+  } else if (prayerKey === 'asr') {
+    return MaterialIcons;
+  }
+  return Ionicons;
+};
+
+const Countdown = ({
+  nextPrayerTime,
+  lastPrayerTime,
+  language,
+  translations,
+  isDarkMode,
+  lastPrayerKey,
+  nextPrayerKey,
+}) => {
+  const [timeRemaining, setTimeRemaining] = useState('');
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (!nextPrayerTime || !lastPrayerTime) return;
+    const interval = setInterval(() => {
+      const now = new Date();
+      const startTime = new Date(lastPrayerTime);
+      const endTime = new Date(nextPrayerTime);
+      const totalDuration = endTime - startTime;
+      const elapsed = now - startTime;
+      const diff = endTime - now;
+
+      if (diff <= 0) {
+        setTimeRemaining(null);
+        setProgress(1);
+        clearInterval(interval);
+      } else {
+        // Format remaining time as hh:mm:ss
+        const duration = moment.duration(diff);
+        const hours = String(Math.floor(duration.asHours())).padStart(2, '0');
+        const minutes = String(duration.minutes()).padStart(2, '0');
+        const seconds = String(duration.seconds()).padStart(2, '0');
+        setTimeRemaining(`${hours}:${minutes}:${seconds}`);
+
+        // Calculate progress fraction
+        const progressFraction = Math.min(Math.max(elapsed / totalDuration, 0), 1);
+        setProgress(progressFraction);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [nextPrayerTime, lastPrayerTime]);
+
+  // Get the correct icon components for the start and end icons
+  const StartIcon = getIconComponent(lastPrayerKey);
+  const EndIcon = getIconComponent(nextPrayerKey);
+
+  if (!nextPrayerTime || timeRemaining === null) {
+    return (
+      <Text style={[styles.countdownText, isDarkMode && styles.darkCountdownText]}>
+        {translations.allEnded}
+      </Text>
+    );
+  }
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      {/* Descriptive Label */}
+      <Text style={[styles.labelText, isDarkMode && styles.darkLabelText]}>
+        {translations.progressBarLabel}
+      </Text>
+
+      {/* Countdown Timer */}
+      <Text style={[styles.countdownText, isDarkMode && styles.darkCountdownText]}>
+        {timeRemaining}
+      </Text>
+
+      {/* Progress Bar Row with Icons */}
+      <View style={styles.progressRow}>
+        <StartIcon
+          name={PRAYER_ICONS[lastPrayerKey] || 'time-outline'}
+          size={20}
+          color={isDarkMode ? "#FFA500" : "#007AFF"}
+          style={{ marginRight: 5 }}
+        />
+        <View style={{ transform: [{ scaleX: language === 'en' ? -1 : 1 }] }}>
+          <ProgressBar
+            progress={progress}
+            width={280}
+            color={isDarkMode ? "#66CCFF" : "#66CCFF"}
+            unfilledColor="#555"
+            borderWidth={0}
+          />
+        </View>
+        <EndIcon
+          name={PRAYER_ICONS[nextPrayerKey] || 'time-outline'}
+          size={20}
+          color={isDarkMode ? "#FFA500" : "#007AFF"}
+          style={{ marginLeft: 5 }}
+        />
+      </View>
+    </View>
+  );
+};
+
+
+// ----- Main App Component -----
 export default function App() {
   const [settings, setSettings] = useSettings();
   const {
@@ -125,7 +243,7 @@ export default function App() {
     return dailyQuotes[todayIndex][language];
   }, [language]);
 
-  // Helpers for date and prayer calculations
+  // ----- Helpers for Date & Prayer Calculations -----
   const getTodayIndex = useCallback((data) => {
     const today = new Date();
     const formattedDate = moment(today).format('DD/MM/YYYY');
@@ -140,8 +258,8 @@ export default function App() {
 
   const getUpcomingPrayerKeyCallback = useCallback(() => {
     if (!currentPrayer) return null;
-    const now = new Date();
     const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    const now = new Date();
     for (let key of prayerOrder) {
       const prayerTime = parsePrayerTime(currentPrayer[key]);
       if (now < prayerTime) {
@@ -151,7 +269,6 @@ export default function App() {
     return null;
   }, [currentPrayer, parsePrayerTime]);
 
-  // Use the custom hook to manage the upcoming prayer timer.
   const upcomingPrayerKey = usePrayerTimer(
     currentPrayer,
     currentIndex,
@@ -161,12 +278,24 @@ export default function App() {
     getUpcomingPrayerKeyCallback
   );
 
-  // Ensure RTL layout if needed.
+  // Determine the last prayer key and time based on the prayer order.
+  const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha'];
+  const upcomingIndex = prayerOrder.indexOf(upcomingPrayerKey);
+  let lastPrayerTime = null;
+  let lastPrayerKey = null;
+  if (upcomingIndex > 0) {
+    lastPrayerKey = prayerOrder[upcomingIndex - 1];
+    lastPrayerTime = parsePrayerTime(currentPrayer[lastPrayerKey]);
+  } else {
+    // Before imsak, default to the current time and use imsak as default icon
+    lastPrayerTime = new Date();
+    lastPrayerKey = 'imsak';
+  }
+
   useEffect(() => {
     I18nManager.forceRTL(language === "ar");
   }, [language]);
 
-  // Request OS-level notification permission.
   const requestOSNotificationPermission = async () => {
     if (Platform.OS === 'android' && Platform.Version >= 33) {
       try {
@@ -199,7 +328,6 @@ export default function App() {
     }
   };
 
-  // Notifee initialization.
   useEffect(() => {
     async function requestPermissions() {
       const settingsNotifee = await notifee.requestPermission();
@@ -231,7 +359,6 @@ export default function App() {
     requestOSNotificationPermission();
   }, []);
 
-  // Schedule upcoming notifications for the next 30 days.
   useEffect(() => {
     if (isSettingsLoaded && selectedLocation) {
       if (upcomingNotificationIds.length > 0) {
@@ -253,7 +380,6 @@ export default function App() {
     scheduleNotificationsForUpcomingPeriod
   ]);
 
-  // Update current prayer data.
   useEffect(() => {
     if (locationData.length > 0) {
       const todayIdx = getTodayIndex(locationData);
@@ -269,7 +395,6 @@ export default function App() {
     }
   }, [selectedLocation, locationData, getTodayIndex]);
 
-  // Animation transition between days.
   const animateTransition = useCallback(
     (newIndex, direction) => {
       Animated.timing(animation, {
@@ -318,7 +443,6 @@ export default function App() {
     setSettings((prev) => ({ ...prev, language: prev.language === "en" ? "ar" : "en" }));
   }, [setSettings]);
 
-  // Toggle notification for a prayer on the current day.
   const handleNotificationToggle = useCallback(
     async (prayerKey) => {
       console.log(`Toggling notification for prayer: ${prayerKey}`);
@@ -334,11 +458,6 @@ export default function App() {
           ...prev,
           enabledPrayers: { ...prev.enabledPrayers, [prayerKey]: false },
         }));
-        Alert.alert(
-          (language === 'ar'
-            ? "تم إلغاء الإشعار لـ "
-            : "Notification cancelled for ") + TRANSLATIONS[language][prayerKey]
-        );
       } else {
         const timeStr = currentPrayer[prayerKey];
         if (timeStr) {
@@ -356,11 +475,6 @@ export default function App() {
           ...prev,
           enabledPrayers: { ...prev.enabledPrayers, [prayerKey]: true },
         }));
-        Alert.alert(
-          (language === 'ar'
-            ? "تم جدولة الإشعار لـ "
-            : "Notification scheduled for ") + TRANSLATIONS[language][prayerKey]
-        );
       }
     },
     [
@@ -375,7 +489,6 @@ export default function App() {
     ]
   );
 
-  // Handle location change with confirmation if notifications exist.
   const handleLocationChange = (newLocation) => {
     if (
       Object.values(scheduledNotifications).some((val) => val) ||
@@ -432,6 +545,15 @@ export default function App() {
     getTodayIndex,
   ]);
 
+  // Calculate available height for the card container
+  const { height: windowHeight } = useWindowDimensions();
+  const headerHeight = moderateScale(50);
+  const navHeight = moderateScale(70);
+  const cardContainerHeight = windowHeight - headerHeight - navHeight;
+
+  // Determine the next prayer time for the countdown
+  const nextPrayerTime = upcomingPrayerKey ? parsePrayerTime(currentPrayer[upcomingPrayerKey]) : null;
+
   if (!isSettingsLoaded || !currentPrayer) {
     return (
       <SafeAreaView style={[styles.loadingContainer, isDarkMode && styles.darkContainer]}>
@@ -453,11 +575,13 @@ export default function App() {
       ]}
     >
       <StatusBar translucent backgroundColor="transparent" />
+      {/* Header */}
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
         {TRANSLATIONS[language].prayerTimes}
       </Text>
-      <Animated.View style={{ transform: [{ translateX: animation }] }}>
-        <View style={[styles.card, isDarkMode && styles.darkCard, { position: "relative" }]}>
+      {/* Card container with fixed available height */}
+      <Animated.View style={[{ height: cardContainerHeight, transform: [{ translateX: animation }] }]}>
+        <View style={[styles.card, isDarkMode && styles.darkCard, { height: '100%' }]}>
           <TouchableOpacity onPress={() => setIsQuoteModalVisible(true)} style={styles.infoButton}>
             <Icon
               name="information-circle-outline"
@@ -474,7 +598,11 @@ export default function App() {
               {" - " + displayLocation}
             </Text>
           </View>
-          <ScrollView contentContainerStyle={styles.prayerContainer}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.prayerContainer}
+            showsVerticalScrollIndicator={false}
+          >
             {["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha"].map((key) => (
               <PrayerRow
                 key={key}
@@ -489,10 +617,28 @@ export default function App() {
                 upcomingLabel={TRANSLATIONS[language].upcoming}
               />
             ))}
+            {isToday && (
+              <Countdown
+                nextPrayerTime={nextPrayerTime}
+                lastPrayerTime={lastPrayerTime}
+                language={language}
+                translations={TRANSLATIONS[language]}
+                isDarkMode={isDarkMode}
+                lastPrayerKey={lastPrayerKey}
+                nextPrayerKey={upcomingPrayerKey}
+              />
+            )}
           </ScrollView>
         </View>
       </Animated.View>
-      <View style={[styles.navigation, { direction: "ltr" }]}>
+      {/* Navigation view fixed at the bottom */}
+      <View
+        style={[
+          styles.navigation,
+          isDarkMode && styles.darkNavigation,
+          { position: 'absolute', bottom: 0, left: 0, right: 0, height: navHeight, direction: "ltr" },
+        ]}
+      >
         <TouchableOpacity onPress={handlePrevious} disabled={currentIndex === 0}>
           <Icon
             name="arrow-back-circle"
@@ -519,10 +665,7 @@ export default function App() {
         <TouchableOpacity onPress={() => setIsCompassVisible(true)}>
           <Icon name="compass-outline" size={50} color="#007AFF" />
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleNext}
-          disabled={currentIndex === locationData.length - 1}
-        >
+        <TouchableOpacity onPress={handleNext} disabled={currentIndex === locationData.length - 1}>
           <Icon
             name="arrow-forward-circle"
             size={60}
@@ -530,6 +673,7 @@ export default function App() {
           />
         </TouchableOpacity>
       </View>
+      {/* Quote Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -552,6 +696,7 @@ export default function App() {
           </View>
         </View>
       </Modal>
+      {/* Location Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -583,6 +728,7 @@ export default function App() {
           </View>
         </View>
       </Modal>
+      {/* Compass Modal */}
       <Modal
         animationType="slide"
         transparent={false}
