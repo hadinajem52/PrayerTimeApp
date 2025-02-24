@@ -23,14 +23,18 @@
     "react-native-async-storage": "^0.0.1",
     "react-native-compass-heading": "^2.0.1",
     "react-native-geolocation-service": "^5.3.1",
+    "react-native-progress": "^5.0.1",
     "react-native-responsive-screen": "^1.4.2",
     "react-native-safe-area-context": "^5.2.0",
     "react-native-size-matters": "^0.4.2",
+    "react-native-svg": "^15.11.2",
+    "react-native-svg-transformer": "^1.5.0",
     "react-native-uuid": "^2.0.3",
     "react-native-vector-icons": "^10.2.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "@react-native-community/cli": "latest"
   },
   "private": true
 }

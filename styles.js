@@ -1,5 +1,4 @@
 import { StyleSheet } from 'react-native';
-import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { moderateScale, scale, verticalScale } from 'react-native-size-matters';
 
 export default StyleSheet.create({
@@ -30,7 +29,7 @@ export default StyleSheet.create({
   card: {
     backgroundColor: '#FFF',
     borderRadius: moderateScale(15),
-    padding: moderateScale(20),
+    padding: moderateScale(13),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.1,
@@ -156,12 +155,19 @@ export default StyleSheet.create({
     fontWeight: 'bold',
   },
   navigation: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: moderateScale(80),
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: moderateScale(30),
     alignItems: 'center',
+    backgroundColor: '#EAEFF2',
   },
-  // Modal styles
+  darkNavigation: {
+    backgroundColor: '#333',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -228,5 +234,36 @@ export default StyleSheet.create({
   },
   darkQuoteModalText: {
     color: '#66CCFF',
+  },
+  // ---- Countdown Styles ----
+  countdownText: {
+    textAlign: 'center',
+    fontSize: moderateScale(18),
+    color: '#007AFF',
+    marginVertical: moderateScale(10),
+  },
+  darkCountdownText: {
+    color: '#66CCFF',
+  },
+  countdownText: {
+    textAlign: 'center',
+    fontSize: moderateScale(18),
+    color: '#007AFF',
+    marginVertical: moderateScale(10),
+  },
+  darkCountdownText: {
+    color: '#66CCFF',
+  },
+  labelText: {
+    fontSize: moderateScale(12),
+    color: '#555',
+    marginTop: moderateScale(15),
+  },
+  darkLabelText: {
+    color: '#CCC',
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

@@ -1,8 +1,9 @@
-//PrayerRow.js
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
-import styles from '../styles'; 
+import Feather from 'react-native-vector-icons/Feather';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import styles from '../styles';
 
 const PrayerRow = React.memo(
   ({
@@ -17,18 +18,48 @@ const PrayerRow = React.memo(
     upcomingLabel,
   }) => {
     const upcomingStyle = isDarkMode ? styles.upcomingPrayerDark : styles.upcomingPrayerLight;
+    
+    const renderIcon = () => {
+      // For fajr and maghrib, use Feather for sunrise/sunset icons
+      if (prayerKey === 'fajr' || prayerKey === 'maghrib') {
+        return (
+          <Feather
+            name={iconName}
+            size={24}
+            color={isDarkMode ? "#FFA500" : "#007AFF"}
+            style={styles.prayerIcon}
+          />
+        );
+      } else if (prayerKey === 'asr') {
+        // For asr, use MaterialIcons (for example, "sunny-snowing")
+        return (
+          <MaterialIcons
+            name={iconName}
+            size={24}
+            color={isDarkMode ? "#FFA500" : "#007AFF"}
+            style={styles.prayerIcon}
+          />
+        );
+      } else {
+        // For the rest, use Ionicons
+        return (
+          <Ionicons
+            name={iconName}
+            size={24}
+            color={isDarkMode ? "#FFA500" : "#007AFF"}
+            style={styles.prayerIcon}
+          />
+        );
+      }
+    };
+
     return (
       <View style={[styles.prayerRow, isUpcoming && upcomingStyle]}>
-        <Icon
-          name={iconName}
-          size={24}
-          color={isDarkMode ? "#FFA500" : "#007AFF"}
-          style={styles.prayerIcon}
-        />
+        {renderIcon()}
         <Text style={[styles.label, isDarkMode && styles.darkLabel]}>{label}</Text>
         <Text style={[styles.value, isDarkMode && styles.darkValue]}>{time}</Text>
         <TouchableOpacity onPress={() => onToggleNotification(prayerKey)}>
-          <Icon
+          <Ionicons
             name={isEnabled ? "notifications" : "notifications-outline"}
             size={24}
             color={isDarkMode ? "#FFA500" : "#007AFF"}
