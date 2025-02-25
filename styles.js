@@ -161,9 +161,10 @@ export default StyleSheet.create({
     right: 0,
     height: moderateScale(80),
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between', // Change from 'space-around' to 'space-between'
     alignItems: 'center',
     backgroundColor: '#EAEFF2',
+    paddingHorizontal: moderateScale(10), // Add padding for responsiveness
   },
   darkNavigation: {
     backgroundColor: '#333',
@@ -265,5 +266,7 @@ export default StyleSheet.create({
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '90%', // Make the progress bar responsive
+    alignSelf: 'center',
   },
 });

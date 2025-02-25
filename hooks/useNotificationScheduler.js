@@ -4,6 +4,16 @@ import moment from 'moment-hijri';
 import notifee, { TriggerType } from '@notifee/react-native';
 import prayerData from '../assets/prayer_times.json';
 
+const PRAYER_NAMES = {
+  imsak: { en: 'Imsak', ar: 'الإمساك' },
+  fajr: { en: 'Fajr', ar: 'الفجر' },
+  shuruq: { en: 'Shuruq', ar: 'الشروق' },
+  dhuhr: { en: 'Dhuhr', ar: 'الظهر' },
+  asr: { en: 'Asr', ar: 'العصر' },
+  maghrib: { en: 'Maghrib', ar: 'المغرب' },
+  isha: { en: 'Isha', ar: 'العشاء' },
+};
+
 export function useNotificationScheduler(language) {
   const scheduleLocalNotification = useCallback(
     async (notificationId, prayerKey, prayerDateTime) => {
@@ -17,10 +27,11 @@ export function useNotificationScheduler(language) {
       };
 
       const title = language === 'ar' ? 'تذكير الصلاة' : 'Prayer Reminder';
+      const prayerName = PRAYER_NAMES[prayerKey][language];
       const body =
         language === 'ar'
-          ? `حان موعد صلاة ${prayerKey}`
-          : `It's time for ${prayerKey} prayer.`;
+          ? `حان موعد صلاة ${prayerName}`
+          : `It's time for ${prayerName} prayer.`;
 
       await notifee.createTriggerNotification(
         {
