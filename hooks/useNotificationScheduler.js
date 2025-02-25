@@ -96,9 +96,7 @@ export function useNotificationScheduler(language) {
   }, []);
 
   const cancelAllNotifications = useCallback(async (notificationIds) => {
-    for (const id of notificationIds) {
-      await cancelLocalNotification(id);
-    }
+    await Promise.all(notificationIds.map(id => cancelLocalNotification(id)));
     return true;
   }, [cancelLocalNotification]);
 
