@@ -12,6 +12,7 @@ const PRAYER_NAMES = {
   asr: { en: 'Asr', ar: 'العصر' },
   maghrib: { en: 'Maghrib', ar: 'المغرب' },
   isha: { en: 'Isha', ar: 'العشاء' },
+  midnight: { en: 'Midnight', ar: 'منتصف الليل' },
 };
 
 export function useNotificationScheduler(language) {
@@ -30,7 +31,7 @@ export function useNotificationScheduler(language) {
       const prayerName = PRAYER_NAMES[prayerKey][language];
       const body =
         language === 'ar'
-          ? `حان موعد صلاة ${prayerName}`
+          ? `حان موعد  ${prayerName}`
           : `It's time for ${prayerName} prayer.`;
 
       await notifee.createTriggerNotification(
@@ -66,7 +67,7 @@ export function useNotificationScheduler(language) {
       // Build an array of promises for scheduling notifications concurrently.
       const scheduledNotificationPromises = [];
       for (const dayData of upcomingDays) {
-        for (const prayerKey of ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha"]) {
+        for (const prayerKey of ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"]) {
           if (!enabledPrayers[prayerKey]) continue;
           const timeStr = dayData[prayerKey];
           if (!timeStr) continue;
@@ -88,7 +89,6 @@ export function useNotificationScheduler(language) {
     },
     [scheduleLocalNotification]
   );
-
   const cancelLocalNotification = useCallback(async (notificationId) => {
     await notifee.cancelNotification(notificationId);
     console.log(`Cancelled notification with id: ${notificationId}`);
