@@ -55,6 +55,7 @@ const TRANSLATIONS = {
     cancel: "Cancel",
     allEnded: "All prayer times for today have ended",
     progressBarLabel: "Next Prayer in:", // New label for the progress bar
+    midnight: "Midnight",
   },
   ar: {
     prayerTimes: "طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
@@ -77,6 +78,7 @@ const TRANSLATIONS = {
     cancel: "إلغاء",
     allEnded: "انتهت كل مواعيد الصلاة لهذا اليوم",
     progressBarLabel: "الصلاة القادمة في:", // Arabic label
+    midnight: "منتصف الليل",
   },
 };
 
@@ -92,12 +94,13 @@ const LOCATION_NAMES = {
 
 const PRAYER_ICONS = {
   imsak: 'cloudy-night',
-  fajr: 'sunrise',           // use Feather's "sunrise" icon for morning prayer
+  fajr: 'sunrise',           
   shuruq: 'partly-sunny',
   dhuhr: 'sunny',
-  asr: 'sunny-snowing',       // use MaterialIcons' "sunny-snowing" icon for asr
-  maghrib: 'sunset',          // use Feather's "sunset" icon for maghrib
-  isha: 'moon',
+  asr: 'sunny-snowing',      
+  maghrib: 'sunset',          
+  isha: 'moon-outline',
+  midnight: 'moon',
 };
 
 // Helper to get the correct icon component based on prayer key
@@ -194,12 +197,13 @@ const Countdown = ({
             borderWidth={0}
           />
         </View>
-        <EndIcon
-          name={PRAYER_ICONS[nextPrayerKey] || 'time-outline'}
-          size={20}
-          color={isDarkMode ? "#FFA500" : "#007AFF"}
-          style={{ marginLeft: 5 }}
-        />
+        <View style={[styles.endIconContainer, isDarkMode && styles.darkEndIconContainer]}>
+  <EndIcon
+    name={PRAYER_ICONS[nextPrayerKey] || 'time-outline'}
+    size={20}
+    color={isDarkMode ? "#FFA500" : "#007AFF"}
+  />
+</View>
       </View>
     </View>
   );
@@ -258,7 +262,7 @@ export default function App() {
 
   const getUpcomingPrayerKeyCallback = useCallback(() => {
     if (!currentPrayer) return null;
-    const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
     const now = new Date();
     for (let key of prayerOrder) {
       const prayerTime = parsePrayerTime(currentPrayer[key]);
@@ -279,7 +283,7 @@ export default function App() {
   );
 
   // Determine the last prayer key and time based on the prayer order.
-  const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha'];
+  const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
   const upcomingIndex = prayerOrder.indexOf(upcomingPrayerKey);
   let lastPrayerTime = null;
   let lastPrayerKey = null;
@@ -590,7 +594,7 @@ export default function App() {
             />
           </TouchableOpacity>
           <Text style={[styles.date, isDarkMode && styles.darkDate]}>
-            {currentPrayer.date} — ({TRANSLATIONS[language].day} {currentPrayer.day_number})
+            {currentPrayer.date} 
           </Text>
           <View style={styles.dateRow}>
             <Text style={[styles.hijriDate, isDarkMode && styles.darkHijriDate]}>{hijriDate}</Text>
@@ -603,7 +607,7 @@ export default function App() {
             contentContainerStyle={styles.prayerContainer}
             showsVerticalScrollIndicator={false}
           >
-            {["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha"].map((key) => (
+            {["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"].map((key) => (
               <PrayerRow
                 key={key}
                 prayerKey={key}
@@ -643,11 +647,11 @@ export default function App() {
           <Icon
             name="arrow-back-circle"
             size={60}
-            color={currentIndex === 0 ? "#ccc" : "#007AFF"}
+            color={currentIndex === 0 ? "#ccc" : isDarkMode ? "#66CCFF" : "#007AFF"}
           />
         </TouchableOpacity>
         <TouchableOpacity onPress={goToToday}>
-          <Icon name="today-outline" size={50} color="#007AFF" />
+          <Icon name="today-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
         </TouchableOpacity>
         <TouchableOpacity onPress={toggleDarkMode}>
           <Icon
@@ -657,19 +661,19 @@ export default function App() {
           />
         </TouchableOpacity>
         <TouchableOpacity onPress={toggleLanguage}>
-          <Icon name="language-outline" size={50} color="#007AFF" />
+          <Icon name="language-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setIsLocationModalVisible(true)}>
-          <Icon name="location-outline" size={50} color="#007AFF" />
+          <Icon name="location-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setIsCompassVisible(true)}>
-          <Icon name="compass-outline" size={50} color="#007AFF" />
+          <Icon name="compass-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleNext} disabled={currentIndex === locationData.length - 1}>
           <Icon
             name="arrow-forward-circle"
             size={60}
-            color={currentIndex === locationData.length - 1 ? "#ccc" : "#007AFF"}
+            color={currentIndex === locationData.length - 1 ? "#ccc" : isDarkMode ? "#66CCFF" : "#007AFF"}
           />
         </TouchableOpacity>
       </View>

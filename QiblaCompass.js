@@ -24,6 +24,7 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
       qiblaDirection: "Qibla Direction",
       rotateNeedle: "Rotate Needle by",
       flatSurfaceNotice: "For improved accuracy, place your phone on a flat surface.",
+      magnetometerNotice: "Note: The magnetometer on some devices may provide inaccurate directions.",
       close: "Close",
       loading: "Loading Qibla direction..."
     },
@@ -33,10 +34,12 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
       qiblaDirection: "اتجاه القبلة",
       rotateNeedle: "تدوير الإبرة بمقدار",
       flatSurfaceNotice: "للحصول على دقة أفضل، يرجى وضع هاتفك على سطح مستوٍ.",
+      magnetometerNotice: "ملاحظة: قد يوفر مقياس المغناطيسية في بعض الأجهزة اتجاهات غير دقيقة.",
       close: "إغلاق",
       loading: "جاري تحميل اتجاه القبلة..."
     },
   };
+  
 
   const [deviceHeading, setDeviceHeading] = useState(0);
   const [qiblaDirection, setQiblaDirection] = useState(0);
@@ -260,6 +263,11 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
           />
           <View style={styles.centerDot} />
         </View>
+
+        <Text style={[styles.noticeText, isDarkMode && styles.darkNoticeText,{marginTop: 60}]}>
+          {TRANSLATIONS[language].magnetometerNotice}
+        </Text>
+
       </View>
     </SafeAreaView>
   );
@@ -344,13 +352,13 @@ const styles = StyleSheet.create({
     marginVertical: 3,
   },
   darkInfoText: {
-    color: '#66CCFF',
+    color: '#FFA500',
   },
   compassContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#007AFF',
+    borderColor: '#66CCFF',
     backgroundColor: '#F0F4F7',
     marginTop: 40,
     shadowColor: '#000',
@@ -376,7 +384,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 20,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: '#007AFF',
+    borderBottomColor: '#66CCFF',
     zIndex: 10,
   },
   kaabaIcon: {

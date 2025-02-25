@@ -16,6 +16,7 @@ export default function usePrayerTimer(
     if (currentPrayer && currentIndex === getTodayIndex(locationData)) {
       if (upcomingTimer.current) clearTimeout(upcomingTimer.current);
       const updateUpcomingPrayer = () => {
+        const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
         const upcoming = getUpcomingPrayerKey();
         setUpcomingPrayerKey(upcoming);
         if (upcoming) {

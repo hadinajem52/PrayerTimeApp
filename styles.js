@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
-import { moderateScale, scale, verticalScale } from 'react-native-size-matters';
+import { moderateScale, verticalScale } from 'react-native-size-matters';
+import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 
 export default StyleSheet.create({
   safeArea: {
@@ -18,10 +19,10 @@ export default StyleSheet.create({
   header: {
     fontSize: moderateScale(15),
     fontWeight: '700',
-    marginBottom: moderateScale(10),
+    marginBottom: hp('1.5%'), // updated marginBottom for responsiveness
     color: '#333',
     textAlign: 'center',
-    marginTop: moderateScale(20),
+    marginTop: hp('3%'), // updated marginTop for responsiveness
   },
   darkHeader: {
     color: '#FFF',
@@ -80,13 +81,13 @@ export default StyleSheet.create({
   },
   prayerRow: {
     flexDirection: 'row',
-    width: '90%',
+    width: wp('83%'),
     alignSelf: 'center',
     justifyContent: 'space-around',
     alignItems: 'center',
     marginVertical: moderateScale(12),
     paddingVertical: moderateScale(10),
-    paddingHorizontal: moderateScale(5),
+    paddingHorizontal: wp('2%'), 
     borderBottomColor: '#eee',
     borderBottomWidth: 1,
     position: 'relative',
@@ -94,28 +95,28 @@ export default StyleSheet.create({
   upcomingPrayerLight: {
     backgroundColor: '#E0F7FA',
     borderColor: '#007AFF',
-    borderWidth: 2,
+    borderWidth: 1,
     borderRadius: moderateScale(10),
     shadowColor: '#007AFF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: moderateScale(5),
-    elevation: 5,
+    elevation: 15,
     paddingVertical: moderateScale(10),
-    paddingHorizontal: moderateScale(12),
+    paddingHorizontal: moderateScale(18),
   },
   upcomingPrayerDark: {
     backgroundColor: '#333',
     borderColor: '#FFA500',
-    borderWidth: 2,
+    borderWidth: 1,
     borderRadius: moderateScale(10),
     shadowColor: '#FFA500',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: moderateScale(5),
-    elevation: 5,
+    elevation: 15,
     paddingVertical: moderateScale(10),
-    paddingHorizontal: moderateScale(12),
+    paddingHorizontal: moderateScale(18),
   },
   prayerIcon: {
     marginRight: moderateScale(10),
@@ -159,12 +160,12 @@ export default StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: moderateScale(80),
+    height: hp('12%'), // updated height for responsiveness
     flexDirection: 'row',
-    justifyContent: 'space-between', // Change from 'space-around' to 'space-between'
+    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#EAEFF2',
-    paddingHorizontal: moderateScale(10), // Add padding for responsiveness
+    paddingHorizontal: wp('3%'), // updated padding for responsiveness
   },
   darkNavigation: {
     backgroundColor: '#333',
@@ -269,4 +270,19 @@ export default StyleSheet.create({
     width: '90%', // Make the progress bar responsive
     alignSelf: 'center',
   },
+  // Add to your styles.js file
+endIconContainer: {
+  shadowColor: "#007AFF",
+  shadowOffset: { width: 0, height: 0 },
+  shadowOpacity: 0.9,
+  shadowRadius: 15,
+  borderRadius: 15,
+  padding: 7,
+  backgroundColor: 'rgba(0, 122, 255, 0.1)',
+  marginLeft: 8,
+},
+darkEndIconContainer: {
+  shadowColor: "#FFA500",
+  backgroundColor: 'rgba(255, 165, 0, 0.1)',
+},  
 });
