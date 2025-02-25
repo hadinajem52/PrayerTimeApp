@@ -63,7 +63,8 @@ export function useNotificationScheduler(language) {
         })
         .slice(0, 30);
 
-      const scheduledNotificationIds = [];
+      // Build an array of promises for scheduling notifications concurrently.
+      const scheduledNotificationPromises = [];
       for (const dayData of upcomingDays) {
         for (const prayerKey of ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha"]) {
           if (!enabledPrayers[prayerKey]) continue;
@@ -76,11 +77,13 @@ export function useNotificationScheduler(language) {
             .second(0);
           if (prayerMoment.toDate() > today) {
             const numericId = moment(prayerMoment).format('YYYYMMDDHHmm');
-            await scheduleLocalNotification(numericId, prayerKey, prayerMoment.toDate());
-            scheduledNotificationIds.push(numericId);
+            scheduledNotificationPromises.push(
+              scheduleLocalNotification(numericId, prayerKey, prayerMoment.toDate()).then(() => numericId)
+            );
           }
         }
       }
+      const scheduledNotificationIds = await Promise.all(scheduledNotificationPromises);
       return scheduledNotificationIds;
     },
     [scheduleLocalNotification]
