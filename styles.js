@@ -162,10 +162,10 @@ export default StyleSheet.create({
     right: 0,
     height: hp('12%'), // updated height for responsiveness
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-evenly', // changed from 'space-between'
     alignItems: 'center',
     backgroundColor: '#EAEFF2',
-    paddingHorizontal: wp('3%'), // updated padding for responsiveness
+    // Removed paddingHorizontal and width for proper alignment
   },
   darkNavigation: {
     backgroundColor: '#333',
