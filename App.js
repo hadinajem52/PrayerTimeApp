@@ -13,6 +13,7 @@ import {
   PermissionsAndroid,
   Platform,
   useWindowDimensions,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import moment from 'moment-hijri';
@@ -236,6 +237,8 @@ export default function App() {
     scheduleNotificationsForUpcomingPeriod,
     cancelLocalNotification,
     cancelAllNotifications,
+    scheduleRollingNotifications,
+    setupDailyRefresh  // Add this line
   } = useNotificationScheduler(language);
 
   const animation = useRef(new Animated.Value(0)).current;
@@ -559,6 +562,50 @@ export default function App() {
 
   // Determine the next prayer time for the countdown
   const nextPrayerTime = upcomingPrayerKey ? parsePrayerTime(currentPrayer[upcomingPrayerKey]) : null;
+
+  const appState = useRef(AppState.currentState);
+  
+  // Schedule notifications on app start and when app comes to foreground
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState) => {
+      if (
+        appState.current.match(/inactive|background/) && 
+        nextAppState === 'active'
+      ) {
+        console.log('App has come to the foreground - refreshing notifications');
+        // Use settings instead of userSettings and add null checks
+        if (settings.selectedLocation && settings.enabledPrayers) {
+          scheduleRollingNotifications(
+            settings.selectedLocation, 
+            settings.enabledPrayers
+          );
+        }
+      }
+      appState.current = nextAppState;
+    };
+    
+    // Initial scheduling when app loads
+    // Add null checks here too
+    if (settings.selectedLocation && settings.enabledPrayers) {
+      scheduleRollingNotifications(
+        settings.selectedLocation, 
+        settings.enabledPrayers
+      );
+      
+      // IMPORTANT: Set up the midnight refresh mechanism
+      setupDailyRefresh(
+        settings.selectedLocation,
+        settings.enabledPrayers
+      );
+    }
+    
+    // Subscribe to app state changes
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription.remove();
+    };
+  }, [scheduleRollingNotifications, setupDailyRefresh, settings]); // Use settings in dependency array
 
   if (!isSettingsLoaded || !currentPrayer) {
     return (
