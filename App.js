@@ -156,15 +156,16 @@ const Countdown = ({
     return () => clearInterval(interval);
   }, [nextPrayerTime, lastPrayerTime]);
 
-  // Get the correct icon components for the start and end icons
   const StartIcon = getIconComponent(lastPrayerKey);
   const EndIcon = getIconComponent(nextPrayerKey);
 
   if (!nextPrayerTime || timeRemaining === null) {
     return (
-      <Text style={[styles.countdownText, isDarkMode && styles.darkCountdownText]}>
-        {translations.allEnded}
-      </Text>
+      <View>
+        <Text style={[styles.countdownText, isDarkMode && styles.darkCountdownText]}>
+          {translations.allEnded}
+        </Text>
+      </View>
     );
   }
 
@@ -182,28 +183,29 @@ const Countdown = ({
 
       {/* Progress Bar Row with Icons */}
       <View style={styles.progressRow}>
-        <StartIcon
-          name={PRAYER_ICONS[lastPrayerKey] || 'time-outline'}
-          size={20}
-          color={isDarkMode ? "#FFA500" : "#007AFF"}
-          style={{ marginRight: 5 }}
-        />
+        <View style={{ marginRight: 5 }}>
+          <StartIcon
+            name={PRAYER_ICONS[lastPrayerKey] || 'time-outline'}
+            size={20}
+            color={isDarkMode ? "#FFA500" : "#007AFF"}
+          />
+        </View>
         <View style={{ transform: [{ scaleX: language === 'en' ? -1 : 1 }] }}>
           <ProgressBar
             progress={progress}
-            width={280}
+            width={250}
             color={isDarkMode ? "#66CCFF" : "#66CCFF"}
             unfilledColor="#555"
             borderWidth={0}
           />
         </View>
         <View style={[styles.endIconContainer, isDarkMode && styles.darkEndIconContainer]}>
-  <EndIcon
-    name={PRAYER_ICONS[nextPrayerKey] || 'time-outline'}
-    size={20}
-    color={isDarkMode ? "#FFA500" : "#007AFF"}
-  />
-</View>
+          <EndIcon
+            name={PRAYER_ICONS[nextPrayerKey] || 'time-outline'}
+            size={20}
+            color={isDarkMode ? "#FFA500" : "#007AFF"}
+          />
+        </View>
       </View>
     </View>
   );
@@ -635,12 +637,11 @@ export default function App() {
           </ScrollView>
         </View>
       </Animated.View>
-      {/* Navigation view fixed at the bottom */}
       <View
         style={[
           styles.navigation,
           isDarkMode && styles.darkNavigation,
-          { position: 'absolute', bottom: 0, left: 0, right: 0, height: navHeight, direction: "ltr" },
+          { position: 'absolute', height: navHeight, direction: "ltr" },
         ]}
       >
         <TouchableOpacity onPress={handlePrevious} disabled={currentIndex === 0}>
@@ -651,7 +652,7 @@ export default function App() {
           />
         </TouchableOpacity>
         <TouchableOpacity onPress={goToToday}>
-          <Icon name="today-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
+          <Icon name="today-outline" size={43} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
         </TouchableOpacity>
         <TouchableOpacity onPress={toggleDarkMode}>
           <Icon
