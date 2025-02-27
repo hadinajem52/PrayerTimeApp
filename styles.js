@@ -56,6 +56,7 @@ export default StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: moderateScale(15),
+    marginTop: moderateScale(10),
   },
   hijriDate: {
     fontSize: moderateScale(18),
