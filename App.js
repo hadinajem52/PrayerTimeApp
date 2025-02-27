@@ -14,15 +14,17 @@ import {
   Platform,
   useWindowDimensions,
   AppState,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import moment from 'moment-hijri';
-import ProgressBar from 'react-native-progress/Bar'; // Import the progress bar component
+import ProgressBar from 'react-native-progress/Bar'; 
 import prayerData from './assets/prayer_times.json';
 import dailyQuotes from './data/quotes';
 import QiblaCompass from './QiblaCompass';
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 import styles from './styles';
 import PrayerRow from './components/PrayerRow';
 import useSettings from './hooks/useSettings';
@@ -55,8 +57,11 @@ const TRANSLATIONS = {
     ok: "OK",
     cancel: "Cancel",
     allEnded: "All prayer times for today have ended",
-    progressBarLabel: "Next Prayer in:", // New label for the progress bar
+    progressBarLabel: "Next Prayer in:", 
     midnight: "Midnight",
+    today: "Today",
+    months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
   },
   ar: {
     prayerTimes: "طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
@@ -78,8 +83,11 @@ const TRANSLATIONS = {
     ok: "موافق",
     cancel: "إلغاء",
     allEnded: "انتهت كل مواعيد الصلاة لهذا اليوم",
-    progressBarLabel: "الصلاة القادمة في:", // Arabic label
+    progressBarLabel: "الصلاة القادمة في:", 
     midnight: "منتصف الليل",
+    today: "اليوم",
+    months: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
+    days: ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"],
   },
 };
 
@@ -212,6 +220,77 @@ const Countdown = ({
   );
 };
 
+// New component for the Today indicator - using Material Icons instead of text
+const TodayIndicator = ({ isDarkMode }) => {
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        top: 15,
+        left: 15,
+        zIndex: 5,
+        }}
+    >
+      <View
+        style={{
+          backgroundColor: isDarkMode ? '#FFA500' : '#007AFF',
+          paddingHorizontal: 10,
+          paddingVertical: 10,
+          borderRadius: 20,
+          shadowColor: isDarkMode ? '#FFA500' : '#007AFF',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.5,
+          shadowRadius: 8,
+          elevation: 6,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <MaterialIcons
+          name="today"
+          size={20}
+          color="#FFF"
+        />
+      </View>
+    </View>
+  );
+};
+
+const QuoteIconButton = ({ isDarkMode, onPress }) => {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        position: 'absolute',
+        top: 15,
+        right: 15, 
+        zIndex: 5,
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: isDarkMode ? '#66CCFF' : '#007AFF',
+          paddingHorizontal: 10,
+          paddingVertical: 10,
+          borderRadius: 20,
+          shadowColor: isDarkMode ? '#66CCFF' : '#007AFF',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.5,
+          shadowRadius: 8,
+          elevation: 6,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <FontAwesome6
+          name="hands-praying"
+          size={17}
+          color="#FFF"
+        />
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 // ----- Main App Component -----
 export default function App() {
@@ -238,7 +317,7 @@ export default function App() {
     cancelLocalNotification,
     cancelAllNotifications,
     scheduleRollingNotifications,
-    setupDailyRefresh  // Add this line
+    setupDailyRefresh  
   } = useNotificationScheduler(language);
 
   const animation = useRef(new Animated.Value(0)).current;
@@ -408,15 +487,18 @@ export default function App() {
     (newIndex, direction) => {
       Animated.timing(animation, {
         toValue: -direction * 300,
-        duration: 200,
+        duration: 250, 
         useNativeDriver: true,
+        easing: Easing.out(Easing.cubic), 
       }).start(() => {
         setCurrentIndex(newIndex);
         setCurrentPrayer(locationData[newIndex]);
-        animation.setValue(direction * 300);
-        Animated.timing(animation, {
+        animation.setValue(direction * 300); 
+        
+        Animated.spring(animation, {
           toValue: 0,
-          duration: 200,
+          friction: 8, 
+          tension: 80, 
           useNativeDriver: true,
         }).start();
       });
@@ -436,7 +518,6 @@ export default function App() {
     }
   }, [currentIndex, locationData, animateTransition]);
 
-  // Removing the goToToday function as it's no longer needed
 
   const toggleDarkMode = useCallback(() => {
     setSettings((prev) => ({ ...prev, isDarkMode: !prev.isDarkMode }));
@@ -567,7 +648,6 @@ export default function App() {
         nextAppState === 'active'
       ) {
         console.log('App has come to the foreground - refreshing notifications');
-        // Use settings instead of userSettings and add null checks
         if (settings.selectedLocation && settings.enabledPrayers) {
           scheduleRollingNotifications(
             settings.selectedLocation, 
@@ -577,29 +657,69 @@ export default function App() {
       }
       appState.current = nextAppState;
     };
-    
-    // Initial scheduling when app loads
-    // Add null checks here too
+
     if (settings.selectedLocation && settings.enabledPrayers) {
       scheduleRollingNotifications(
         settings.selectedLocation, 
         settings.enabledPrayers
       );
       
-      // IMPORTANT: Set up the midnight refresh mechanism
       setupDailyRefresh(
         settings.selectedLocation,
         settings.enabledPrayers
       );
     }
     
-    // Subscribe to app state changes
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     
     return () => {
       subscription.remove();
     };
-  }, [scheduleRollingNotifications, setupDailyRefresh, settings]); // Use settings in dependency array
+  }, [scheduleRollingNotifications, setupDailyRefresh, settings]); 
+  const convertToArabicNumerals = useCallback((str, lang) => {
+    if (lang !== 'ar') return str;
+    
+    // Map of Western digits to Arabic numerals
+    const arabicNumerals = {
+      '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤',
+      '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩'
+    };
+    
+    return str.toString().replace(/[0-9]/g, match => arabicNumerals[match]);
+  }, []);
+
+  const formatDate = useCallback((dateStr, lang) => {
+    if (!dateStr) return "";
+    
+    // Parse the date from DD/MM/YYYY format
+    const [day, month, year] = dateStr.split('/').map(Number);
+    const date = new Date(year, month - 1, day);
+    
+    const translations = TRANSLATIONS[lang];
+    const dayName = translations.days[date.getDay()];
+    const dayNum = date.getDate();
+    const monthName = translations.months[date.getMonth()];
+    
+    // Format with proper numerals based on language
+    const formattedDayNum = convertToArabicNumerals(dayNum, lang);
+    
+    return `${dayName} ${formattedDayNum} ${monthName}`;
+  }, [convertToArabicNumerals]);
+
+  const formattedHijriDate = useMemo(() => {
+    if (!currentPrayer || !currentPrayer.date) return "";
+    
+    const hijriDateObj = moment(currentPrayer.date, "D/M/YYYY");
+    
+    if (language === 'ar') {
+      const day = convertToArabicNumerals(hijriDateObj.format("iD"), 'ar');
+      const month = hijriDateObj.format("iMMMM"); 
+      const year = convertToArabicNumerals(hijriDateObj.format("iYYYY"), 'ar');
+      return `${day} ${month} ${year}`;
+    } else {
+      return hijriDateObj.format("iD iMMMM iYYYY");
+    }
+  }, [currentPrayer, language, convertToArabicNumerals]);
 
   if (!isSettingsLoaded || !currentPrayer) {
     return (
@@ -629,18 +749,38 @@ export default function App() {
       {/* Card container with fixed available height */}
       <Animated.View style={[{ height: cardContainerHeight, transform: [{ translateX: animation }] }]}>
         <View style={[styles.card, isDarkMode && styles.darkCard, { height: '100%' }]}>
-          <TouchableOpacity onPress={() => setIsQuoteModalVisible(true)} style={styles.infoButton}>
-            <Icon
-              name="information-circle-outline"
-              size={24}
-              color={isDarkMode ? "#66CCFF" : "#007AFF"}
+          {/* Add Today Indicator if this is today's card */}
+          {isToday && <TodayIndicator isDarkMode={isDarkMode} />}
+          
+          {/* Show QuoteIconButton only for today's prayer card */}
+          {isToday && (
+            <QuoteIconButton 
+              isDarkMode={isDarkMode} 
+              onPress={() => setIsQuoteModalVisible(true)} 
             />
-          </TouchableOpacity>
+          )}
+          
+          {isToday && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                borderWidth: 2,
+                borderColor: isDarkMode ? '#FFA500' : '#007AFF',
+                borderRadius: moderateScale(15),
+                opacity: 0.3,
+              }}
+            />
+          )}
+          
           <Text style={[styles.date, isDarkMode && styles.darkDate]}>
-            {currentPrayer.date} 
+            {currentPrayer.date ? formatDate(currentPrayer.date, language) : ''} 
           </Text>
           <View style={styles.dateRow}>
-            <Text style={[styles.hijriDate, isDarkMode && styles.darkHijriDate]}>{hijriDate}</Text>
+            <Text style={[styles.hijriDate, isDarkMode && styles.darkHijriDate]}>{formattedHijriDate}</Text>
             <Text style={[styles.locationLabel, isDarkMode && styles.darkLocationLabel]}>
               {" - " + displayLocation}
             </Text>
@@ -682,7 +822,7 @@ export default function App() {
         style={[
           styles.navigation,
           isDarkMode && styles.darkNavigation,
-          { height: navHeight, direction: "ltr" } // Removed redundant position:'absolute'
+          { height: navHeight, direction: "ltr" } 
         ]}
       >
         <TouchableOpacity onPress={handlePrevious} disabled={currentIndex === 0}>
@@ -692,7 +832,6 @@ export default function App() {
             color={currentIndex === 0 ? "#ccc" : isDarkMode ? "#66CCFF" : "#007AFF"}
           />
         </TouchableOpacity>
-        {/* Removed the goToToday button */}
         <TouchableOpacity onPress={toggleDarkMode}>
           <Icon
             name={isDarkMode ? "sunny-outline" : "moon-outline"}

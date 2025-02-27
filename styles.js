@@ -286,4 +286,15 @@ darkEndIconContainer: {
   shadowColor: "#FFA500",
   backgroundColor: 'rgba(255, 165, 0, 0.1)',
 },  
+  // Today indicator styles
+  todayCardGlow: {
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 10,
+    shadowOpacity: 0.5,
+    elevation: 40,
+  },
+  darkTodayCardGlow: {
+    shadowColor: '#FFA500',
+  },
 });
