@@ -436,13 +436,7 @@ export default function App() {
     }
   }, [currentIndex, locationData, animateTransition]);
 
-  const goToToday = useCallback(() => {
-    const todayIdx = getTodayIndex(locationData);
-    if (todayIdx !== -1 && todayIdx !== currentIndex) {
-      const direction = todayIdx > currentIndex ? 1 : -1;
-      animateTransition(todayIdx, direction);
-    }
-  }, [currentIndex, locationData, getTodayIndex, animateTransition]);
+  // Removing the goToToday function as it's no longer needed
 
   const toggleDarkMode = useCallback(() => {
     setSettings((prev) => ({ ...prev, isDarkMode: !prev.isDarkMode }));
@@ -688,7 +682,7 @@ export default function App() {
         style={[
           styles.navigation,
           isDarkMode && styles.darkNavigation,
-          { position: 'absolute', height: navHeight, direction: "ltr" },
+          { height: navHeight, direction: "ltr" } // Removed redundant position:'absolute'
         ]}
       >
         <TouchableOpacity onPress={handlePrevious} disabled={currentIndex === 0}>
@@ -698,9 +692,7 @@ export default function App() {
             color={currentIndex === 0 ? "#ccc" : isDarkMode ? "#66CCFF" : "#007AFF"}
           />
         </TouchableOpacity>
-        <TouchableOpacity onPress={goToToday}>
-          <Icon name="today-outline" size={43} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
-        </TouchableOpacity>
+        {/* Removed the goToToday button */}
         <TouchableOpacity onPress={toggleDarkMode}>
           <Icon
             name={isDarkMode ? "sunny-outline" : "moon-outline"}
