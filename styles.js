@@ -269,6 +269,7 @@ export default StyleSheet.create({
     alignItems: 'center',
     width: '90%', // Make the progress bar responsive
     alignSelf: 'center',
+    marginBottom: moderateScale(20),
   },
   // Add to your styles.js file
 endIconContainer: {
