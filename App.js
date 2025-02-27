@@ -712,11 +712,13 @@ export default function App() {
     const hijriDateObj = moment(currentPrayer.date, "D/M/YYYY");
     
     if (language === 'ar') {
+      // For Arabic, manually build the string with Arabic numerals
       const day = convertToArabicNumerals(hijriDateObj.format("iD"), 'ar');
-      const month = hijriDateObj.format("iMMMM"); 
+      const month = hijriDateObj.format("iMMMM"); // Month name is already in Arabic
       const year = convertToArabicNumerals(hijriDateObj.format("iYYYY"), 'ar');
       return `${day} ${month} ${year}`;
     } else {
+      // For English, use the default format
       return hijriDateObj.format("iD iMMMM iYYYY");
     }
   }, [currentPrayer, language, convertToArabicNumerals]);
@@ -822,7 +824,7 @@ export default function App() {
         style={[
           styles.navigation,
           isDarkMode && styles.darkNavigation,
-          { height: navHeight, direction: "ltr" } 
+          { height: navHeight, direction: "ltr" } // Removed redundant position:'absolute'
         ]}
       >
         <TouchableOpacity onPress={handlePrevious} disabled={currentIndex === 0}>
