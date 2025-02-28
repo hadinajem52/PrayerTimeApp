@@ -60,10 +60,10 @@ export default StyleSheet.create({
     borderRadius: moderateScale(15),
     padding: moderateScale(13),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.1,
-    shadowRadius: moderateScale(5),
-    elevation: 3,
+    shadowOffset: { width: 0, height: verticalScale(4) },
+    shadowOpacity: 0.25,
+    shadowRadius: moderateScale(10),
+    elevation: 8,
     marginBottom: moderateScale(20),
   },
   darkCard: {
@@ -325,6 +325,39 @@ darkEndIconContainer: {
   },
   darkTodayCardGlow: {
     shadowColor: '#FFA500',
+  },
+  // Animation related styles
+  animatedPrayerRow: {
+    backfaceVisibility: 'hidden', // Performance optimization
+  },
+  notificationToggleContainer: {
+    padding: 5,
+  },
+  animatedButton: {
+    overflow: 'visible',
+  },
+  animatedQuote: {
+    transform: [{ scale: 1 }],
+  },
+  // Animation for the navigation bar
+  navIconContainer: {
+    padding: 8,
+  },
+  // Special animation styles for modals
+  animatedModalContent: {
+    backfaceVisibility: 'hidden',
+  },
+  // Subtle highlight effect for active elements
+  activeHighlight: {
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+  },
+  darkActiveHighlight: {
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+  },
+  // Enhance transition for upcoming prayers
+  upcomingTransition: {
+    transitionProperty: 'all',
+    transitionDuration: '300ms',
   },
   ...loadingStateStyles,
 });
