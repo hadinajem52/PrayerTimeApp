@@ -37,6 +37,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Settings from './components/Settings';
 import CalendarView from './components/Calendar';
+import SkeletonLoader from './components/SkeletonLoader';
 
 // ----- Translations & Constants -----
 const TRANSLATIONS = {
@@ -319,6 +320,7 @@ export default function App() {
   const [isCompassVisible, setIsCompassVisible] = useState(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const {
     scheduleLocalNotification,
@@ -813,14 +815,27 @@ export default function App() {
     };
   }, [currentPrayer, language, isToday, upcomingPrayerKey, enabledPrayers]);
 
-  if (!isSettingsLoaded || !currentPrayer) {
+  useEffect(() => {
+    // Simulate loading state for at least 700ms to prevent flickers when data loads quickly
+    let loadTimer;
+    
+    if (locationData.length > 0 && isSettingsLoaded) {
+      loadTimer = setTimeout(() => {
+        setIsLoading(false);
+      }, 700);
+    }
+    
+    return () => {
+      if (loadTimer) clearTimeout(loadTimer);
+    };
+  }, [locationData, isSettingsLoaded]);
+  
+  // Wait until settings and prayer data are loaded, but show skeleton loader during this time
+  if (!isSettingsLoaded || !currentPrayer || isLoading) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, isDarkMode && styles.darkContainer]}>
+      <SafeAreaView style={[{ flex: 1 }, isDarkMode && styles.darkContainer]}>
         <StatusBar translucent backgroundColor="transparent" />
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
-          {TRANSLATIONS[language].loading}
-        </Text>
+        <SkeletonLoader isDarkMode={isDarkMode} />
       </SafeAreaView>
     );
   }

@@ -2,6 +2,34 @@ import { StyleSheet } from 'react-native';
 import { moderateScale, verticalScale } from 'react-native-size-matters';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 
+const loadingStateStyles = {
+  shimmerContainer: {
+    overflow: 'hidden',
+  },
+  skeletonBackground: {
+    backgroundColor: '#E1E9EE',
+  },
+  darkSkeletonBackground: {
+    backgroundColor: '#2A2A2A',
+  },
+  shimmerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#FFFFFF',
+    opacity: 0.6,
+  },
+  darkShimmerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#3D3D3D',
+    opacity: 0.6,
+  },
+  skeletonAccent: {
+    backgroundColor: '#007AFF33', // Semi-transparent accent color
+  },
+  darkSkeletonAccent: {
+    backgroundColor: '#66CCFF33', // Semi-transparent accent color
+  },
+};
+
 export default StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -298,4 +326,5 @@ darkEndIconContainer: {
   darkTodayCardGlow: {
     shadowColor: '#FFA500',
   },
+  ...loadingStateStyles,
 });
