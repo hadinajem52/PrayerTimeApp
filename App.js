@@ -15,6 +15,7 @@ import {
   useWindowDimensions,
   AppState,
   Easing,
+  PanResponder,  // Add PanResponder import
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import moment from 'moment-hijri';
@@ -518,6 +519,42 @@ export default function App() {
     }
   }, [currentIndex, locationData, animateTransition]);
 
+  // Create a pan responder to handle swipe gestures
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onPanResponderMove: (evt, gestureState) => {
+          // Only update animation value for horizontal movements
+          if (Math.abs(gestureState.dx) > Math.abs(gestureState.dy)) {
+            animation.setValue(gestureState.dx);
+          }
+        },
+        onPanResponderRelease: (evt, gestureState) => {
+          // Threshold for considering a gesture as a swipe
+          const swipeThreshold = 80; 
+          
+          // If swiped right (positive dx) beyond threshold and not at the beginning
+          if (gestureState.dx > swipeThreshold && currentIndex > 0) {
+            handlePrevious();
+          } 
+          // If swiped left (negative dx) beyond threshold and not at the end
+          else if (gestureState.dx < -swipeThreshold && currentIndex < locationData.length - 1) {
+            handleNext();
+          } 
+          // If not a valid swipe, animate back to center
+          else {
+            Animated.spring(animation, {
+              toValue: 0,
+              friction: 5,
+              tension: 40,
+              useNativeDriver: true,
+            }).start();
+          }
+        },
+      }),
+    [animation, handlePrevious, handleNext, currentIndex, locationData.length]
+  );
 
   const toggleDarkMode = useCallback(() => {
     setSettings((prev) => ({ ...prev, isDarkMode: !prev.isDarkMode }));
@@ -749,7 +786,10 @@ export default function App() {
         {TRANSLATIONS[language].prayerTimes}
       </Text>
       {/* Card container with fixed available height */}
-      <Animated.View style={[{ height: cardContainerHeight, transform: [{ translateX: animation }] }]}>
+      <Animated.View 
+        style={[{ height: cardContainerHeight, transform: [{ translateX: animation }] }]}
+        {...panResponder.panHandlers}
+      >
         <View style={[styles.card, isDarkMode && styles.darkCard, { height: '100%' }]}>
           {/* Add Today Indicator if this is today's card */}
           {isToday && <TodayIndicator isDarkMode={isDarkMode} />}
