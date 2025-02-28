@@ -35,6 +35,8 @@ import { moderateScale } from 'react-native-size-matters';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import Settings from './components/Settings';
+import CalendarView from './components/Calendar';
 
 // ----- Translations & Constants -----
 const TRANSLATIONS = {
@@ -63,6 +65,8 @@ const TRANSLATIONS = {
     today: "Today",
     months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
     days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    settings: "Settings",
+    calendar: "Calendar",
   },
   ar: {
     prayerTimes: "طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
@@ -89,6 +93,8 @@ const TRANSLATIONS = {
     today: "اليوم",
     months: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
     days: ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"],
+    settings: "الإعدادات",
+    calendar: "التقويم",
   },
 };
 
@@ -311,6 +317,8 @@ export default function App() {
   const [isQuoteModalVisible, setIsQuoteModalVisible] = useState(false);
   const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
   const [isCompassVisible, setIsCompassVisible] = useState(false);
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
+  const [isCalendarVisible, setIsCalendarVisible] = useState(false);
 
   const {
     scheduleLocalNotification,
@@ -331,6 +339,11 @@ export default function App() {
     const todayIndex = new Date().getDate() % dailyQuotes.length;
     return dailyQuotes[todayIndex][language];
   }, [language]);
+
+  // Extract all available prayer dates for the calendar
+  const prayerDates = useMemo(() => {
+    return locationData.map(item => item.date);
+  }, [locationData]);
 
   // ----- Helpers for Date & Prayer Calculations -----
   const getTodayIndex = useCallback((data) => {
@@ -484,23 +497,28 @@ export default function App() {
     }
   }, [selectedLocation, locationData, getTodayIndex]);
 
+  // Optimized animation transition
   const animateTransition = useCallback(
     (newIndex, direction) => {
+      // Use a faster animation with optimized easing
       Animated.timing(animation, {
         toValue: -direction * 300,
-        duration: 250, 
+        duration: 180, // Reduced duration for snappier transitions
         useNativeDriver: true,
-        easing: Easing.out(Easing.cubic), 
+        easing: Easing.out(Easing.cubic),
       }).start(() => {
         setCurrentIndex(newIndex);
         setCurrentPrayer(locationData[newIndex]);
-        animation.setValue(direction * 300); 
+        animation.setValue(direction * 300);
         
+        // Smoother return animation using optimized spring 
         Animated.spring(animation, {
           toValue: 0,
-          friction: 8, 
-          tension: 80, 
+          friction: 10, // Higher friction for less oscillation
+          tension: 70, // Adjusted tension for smoother feel
           useNativeDriver: true,
+          restSpeedThreshold: 10, // End animation faster when close to final position
+          restDisplacementThreshold: 10, // End animation faster when close to final position
         }).start();
       });
     },
@@ -519,39 +537,56 @@ export default function App() {
     }
   }, [currentIndex, locationData, animateTransition]);
 
-  // Create a pan responder to handle swipe gestures
+  // Optimized pan responder with better touch response
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (evt, gestureState) => {
+          const minMovementThreshold = 8; // Slightly reduced threshold for better responsiveness
+          
+          const { dx, dy } = gestureState;
+          const absDx = Math.abs(dx);
+          const absDy = Math.abs(dy);
+          
+          return (
+            absDx > absDy &&
+            absDx > minMovementThreshold &&
+            ((dx > 0 && currentIndex > 0) ||
+             (dx < 0 && currentIndex < locationData.length - 1))
+          );
+        },
+        
         onPanResponderMove: (evt, gestureState) => {
-          // Only update animation value for horizontal movements
           if (Math.abs(gestureState.dx) > Math.abs(gestureState.dy)) {
-            animation.setValue(gestureState.dx);
+            // Dampen the movement slightly for more controlled feel
+            animation.setValue(gestureState.dx * 0.8);
           }
         },
+        
         onPanResponderRelease: (evt, gestureState) => {
-          // Threshold for considering a gesture as a swipe
-          const swipeThreshold = 80; 
+          const swipeThreshold = 80; // Reduced threshold makes swipe more responsive
           
-          // If swiped right (positive dx) beyond threshold and not at the beginning
           if (gestureState.dx > swipeThreshold && currentIndex > 0) {
             handlePrevious();
           } 
-          // If swiped left (negative dx) beyond threshold and not at the end
           else if (gestureState.dx < -swipeThreshold && currentIndex < locationData.length - 1) {
             handleNext();
           } 
-          // If not a valid swipe, animate back to center
           else {
+            // Faster spring back if not a complete swipe
             Animated.spring(animation, {
               toValue: 0,
-              friction: 5,
-              tension: 40,
+              friction: 9,
+              tension: 80,
               useNativeDriver: true,
+              restSpeedThreshold: 10,
+              restDisplacementThreshold: 10,
             }).start();
           }
         },
+        
+        onPanResponderTerminationRequest: () => true,
       }),
     [animation, handlePrevious, handleNext, currentIndex, locationData.length]
   );
@@ -760,6 +795,24 @@ export default function App() {
     }
   }, [currentPrayer, language, convertToArabicNumerals]);
 
+  // Optimize prayer data preparation (memoized)
+  const preparedPrayerData = useMemo(() => {
+    if (!currentPrayer) return null;
+    
+    // Pre-process prayer times to avoid recalculation during rendering
+    return {
+      times: ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"]
+        .map(key => ({
+          key,
+          time: currentPrayer[key],
+          label: TRANSLATIONS[language][key],
+          iconName: PRAYER_ICONS[key],
+          isUpcoming: isToday && key === upcomingPrayerKey,
+          isEnabled: enabledPrayers[key]
+        }))
+    };
+  }, [currentPrayer, language, isToday, upcomingPrayerKey, enabledPrayers]);
+
   if (!isSettingsLoaded || !currentPrayer) {
     return (
       <SafeAreaView style={[styles.loadingContainer, isDarkMode && styles.darkContainer]}>
@@ -785,9 +838,16 @@ export default function App() {
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
         {TRANSLATIONS[language].prayerTimes}
       </Text>
-      {/* Card container with fixed available height */}
+      {/* Card container with optimized animation */}
       <Animated.View 
-        style={[{ height: cardContainerHeight, transform: [{ translateX: animation }] }]}
+        style={[
+          { 
+            height: cardContainerHeight, 
+            transform: [{ translateX: animation }],
+            // Add will-change property equivalent for better performance
+            backfaceVisibility: 'hidden',
+          }
+        ]}
         {...panResponder.panHandlers}
       >
         <View style={[styles.card, isDarkMode && styles.darkCard, { height: '100%' }]}>
@@ -831,16 +891,18 @@ export default function App() {
             style={{ flex: 1 }}
             contentContainerStyle={styles.prayerContainer}
             showsVerticalScrollIndicator={false}
+            removeClippedSubviews={true} // Optimization for scroll performance
+            scrollEventThrottle={16} // Optimize scroll event firing
           >
-            {["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"].map((key) => (
+            {preparedPrayerData && preparedPrayerData.times.map((item) => (
               <PrayerRow
-                key={key}
-                prayerKey={key}
-                time={currentPrayer[key]}
-                label={TRANSLATIONS[language][key]}
-                iconName={PRAYER_ICONS[key]}
-                isUpcoming={isToday && key === upcomingPrayerKey}
-                isEnabled={enabledPrayers[key]}
+                key={item.key}
+                prayerKey={item.key}
+                time={item.time}
+                label={item.label}
+                iconName={item.iconName}
+                isUpcoming={item.isUpcoming}
+                isEnabled={item.isEnabled}
                 onToggleNotification={handleNotificationToggle}
                 isDarkMode={isDarkMode}
                 upcomingLabel={TRANSLATIONS[language].upcoming}
@@ -864,40 +926,53 @@ export default function App() {
         style={[
           styles.navigation,
           isDarkMode && styles.darkNavigation,
-          { height: navHeight, direction: "ltr" } // Removed redundant position:'absolute'
+          { height: navHeight, direction: "ltr" }
         ]}
       >
-        <TouchableOpacity onPress={handlePrevious} disabled={currentIndex === 0}>
+        <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
           <Icon
-            name="arrow-back-circle"
-            size={60}
-            color={currentIndex === 0 ? "#ccc" : isDarkMode ? "#66CCFF" : "#007AFF"}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={toggleDarkMode}>
-          <Icon
-            name={isDarkMode ? "sunny-outline" : "moon-outline"}
+            name="settings-outline"
             size={50}
-            color={isDarkMode ? "#FFA500" : "#007AFF"}
+            color={isDarkMode ? "#66CCFF" : "#007AFF"}
           />
         </TouchableOpacity>
-        <TouchableOpacity onPress={toggleLanguage}>
-          <Icon name="language-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
+        
+        <TouchableOpacity onPress={() => setIsCalendarVisible(true)}>
+          <Icon
+            name="calendar-outline"
+            size={50}
+            color={isDarkMode ? "#66CCFF" : "#007AFF"}
+          />
         </TouchableOpacity>
+        
         <TouchableOpacity onPress={() => setIsLocationModalVisible(true)}>
           <Icon name="location-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setIsCompassVisible(true)}>
           <Icon name="compass-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleNext} disabled={currentIndex === locationData.length - 1}>
-          <Icon
-            name="arrow-forward-circle"
-            size={60}
-            color={currentIndex === locationData.length - 1 ? "#ccc" : isDarkMode ? "#66CCFF" : "#007AFF"}
-          />
-        </TouchableOpacity>
       </View>
+      {/* Calendar Modal */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={isCalendarVisible}
+        onRequestClose={() => setIsCalendarVisible(false)}
+      >
+        <CalendarView
+          language={language}
+          isDarkMode={isDarkMode}
+          onClose={() => setIsCalendarVisible(false)}
+          onSelectDate={(index) => {
+            setCurrentIndex(index);
+            setCurrentPrayer(locationData[index]);
+            setIsCalendarVisible(false);
+          }}
+          prayerDates={prayerDates}
+          currentSelectedDate={currentPrayer ? currentPrayer.date : null}
+          todayIndex={getTodayIndex(locationData)}
+        />
+      </Modal>
       {/* Quote Modal */}
       <Modal
         animationType="fade"
@@ -961,6 +1036,21 @@ export default function App() {
         onRequestClose={() => setIsCompassVisible(false)}
       >
         <QiblaCompass isDarkMode={isDarkMode} language={language} onClose={() => setIsCompassVisible(false)} />
+      </Modal>
+      {/* Settings Modal */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={isSettingsVisible}
+        onRequestClose={() => setIsSettingsVisible(false)}
+      >
+        <Settings
+          language={language}
+          isDarkMode={isDarkMode}
+          toggleDarkMode={toggleDarkMode}
+          toggleLanguage={toggleLanguage}
+          onClose={() => setIsSettingsVisible(false)}
+        />
       </Modal>
     </SafeAreaView>
   );
