@@ -38,6 +38,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import Settings from './components/Settings';
 import CalendarView from './components/Calendar';
 import SkeletonLoader from './components/SkeletonLoader';
+import { Animations, AnimationUtils } from './utils/animations';
 
 // ----- Translations & Constants -----
 const TRANSLATIONS = {
@@ -302,6 +303,7 @@ const QuoteIconButton = ({ isDarkMode, onPress }) => {
 
 // ----- Main App Component -----
 export default function App() {
+  // Move ALL hook calls to the top level, before any conditional logic
   const [settings, setSettings] = useSettings();
   const {
     language,
@@ -321,6 +323,7 @@ export default function App() {
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [timeRemaining, setTimeRemaining] = useState('');  // Move from Countdown
 
   const {
     scheduleLocalNotification,
@@ -331,8 +334,18 @@ export default function App() {
     setupDailyRefresh  
   } = useNotificationScheduler(language);
 
+  // Animation refs
   const animation = useRef(new Animated.Value(0)).current;
+  const cardScaleAnim = useRef(new Animated.Value(1)).current;
+  const locationChangeAnim = useRef(new Animated.Value(1)).current;
+  const navigationBarAnim = useRef(new Animated.Value(1)).current;
+  const settingsButtonAnim = useRef(new Animated.Value(1)).current;
+  const calendarButtonAnim = useRef(new Animated.Value(1)).current;
+  const locationButtonAnim = useRef(new Animated.Value(1)).current;
+  const compassButtonAnim = useRef(new Animated.Value(1)).current;
+  const appState = useRef(AppState.currentState);
 
+  // All useMemo calls should be at top level
   const locationData = useMemo(() => {
     return prayerData[selectedLocation] || [];
   }, [selectedLocation]);
@@ -342,12 +355,11 @@ export default function App() {
     return dailyQuotes[todayIndex][language];
   }, [language]);
 
-  // Extract all available prayer dates for the calendar
   const prayerDates = useMemo(() => {
     return locationData.map(item => item.date);
   }, [locationData]);
 
-  // ----- Helpers for Date & Prayer Calculations -----
+  // ALL useCallback definitions must be moved here, before any conditional returns
   const getTodayIndex = useCallback((data) => {
     const today = new Date();
     const formattedDate = moment(today).format('DD/MM/YYYY');
@@ -373,139 +385,19 @@ export default function App() {
     return null;
   }, [currentPrayer, parsePrayerTime]);
 
-  const upcomingPrayerKey = usePrayerTimer(
-    currentPrayer,
-    currentIndex,
-    locationData,
-    getTodayIndex,
-    parsePrayerTime,
-    getUpcomingPrayerKeyCallback
-  );
-
-  // Determine the last prayer key and time based on the prayer order.
-  const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
-  const upcomingIndex = prayerOrder.indexOf(upcomingPrayerKey);
-  let lastPrayerTime = null;
-  let lastPrayerKey = null;
-  if (upcomingIndex > 0) {
-    lastPrayerKey = prayerOrder[upcomingIndex - 1];
-    lastPrayerTime = parsePrayerTime(currentPrayer[lastPrayerKey]);
-  } else {
-    // Before imsak, default to the current time and use imsak as default icon
-    lastPrayerTime = new Date();
-    lastPrayerKey = 'imsak';
-  }
-
-  useEffect(() => {
-    I18nManager.forceRTL(language === "ar");
-  }, [language]);
-
-  const requestOSNotificationPermission = async () => {
-    if (Platform.OS === 'android' && Platform.Version >= 33) {
-      try {
-        const result = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-          {
-            title: 'Allow Notifications',
-            message:
-              'This app uses notifications to remind you about prayer times. Please allow notifications.',
-            buttonPositive: 'Allow',
-            buttonNegative: 'Deny',
-          }
-        );
-        if (result === PermissionsAndroid.RESULTS.GRANTED) {
-          console.log('Notification permission granted');
-        } else {
-          console.log('Notification permission denied');
-          Alert.alert(
-            'Notifications Disabled',
-            'Without notification permissions, you might miss important reminders.'
-          );
-        }
-      } catch (error) {
-        console.warn('Notification permission error:', error);
-      }
-    } else {
-      console.log(
-        'Notification permission automatically granted on this Android version or not applicable.'
-      );
-    }
-  };
-
-  useEffect(() => {
-    async function requestPermissions() {
-      const settingsNotifee = await notifee.requestPermission();
-      if (settingsNotifee.authorizationStatus >= 1) {
-        console.log('Notifee permission granted:', settingsNotifee);
-      } else {
-        Alert.alert(
-          'Notifications Disabled',
-          'Without notification permissions, you might miss important reminders.'
-        );
-      }
-    }
-    requestPermissions();
-  }, []);
-
-  useEffect(() => {
-    async function createChannel() {
-      const channelId = await notifee.createChannel({
-        id: 'prayer-channel',
-        name: 'Prayer Notifications',
-        importance: AndroidImportance.HIGH,
-      });
-      console.log('Notification channel created:', channelId);
-    }
-    createChannel();
-  }, []);
-
-  useEffect(() => {
-    requestOSNotificationPermission();
-  }, []);
-
-  useEffect(() => {
-    if (isSettingsLoaded && selectedLocation) {
-      if (upcomingNotificationIds.length > 0) {
-        cancelAllNotifications(upcomingNotificationIds);
-        setUpcomingNotificationIds([]);
-      }
-      scheduleNotificationsForUpcomingPeriod(selectedLocation, enabledPrayers)
-        .then((ids) => {
-          console.log("Scheduled upcoming notifications:", ids);
-          setUpcomingNotificationIds(ids);
-        })
-        .catch((err) => console.error("Error scheduling upcoming notifications:", err));
-    }
-  }, [
-    isSettingsLoaded,
-    selectedLocation,
-    enabledPrayers,
-    cancelAllNotifications,
-    scheduleNotificationsForUpcomingPeriod
-  ]);
-
-  useEffect(() => {
-    if (locationData.length > 0) {
-      const todayIdx = getTodayIndex(locationData);
-      if (todayIdx !== -1) {
-        setCurrentIndex(todayIdx);
-        setCurrentPrayer(locationData[todayIdx]);
-      } else {
-        setCurrentIndex(0);
-        setCurrentPrayer(locationData[0]);
-      }
-    } else {
-      setCurrentPrayer(null);
-    }
-  }, [selectedLocation, locationData, getTodayIndex]);
-
-  // Optimized animation transition
   const animateTransition = useCallback(
     (newIndex, direction) => {
+      // Scale card slightly before transition
+      Animated.timing(cardScaleAnim, {
+        toValue: 0.97,
+        duration: 120,
+        useNativeDriver: true,
+      }).start();
+      
       // Use a faster animation with optimized easing
       Animated.timing(animation, {
         toValue: -direction * 300,
-        duration: 180, // Reduced duration for snappier transitions
+        duration: 180,
         useNativeDriver: true,
         easing: Easing.out(Easing.cubic),
       }).start(() => {
@@ -513,18 +405,24 @@ export default function App() {
         setCurrentPrayer(locationData[newIndex]);
         animation.setValue(direction * 300);
         
-        // Smoother return animation using optimized spring 
-        Animated.spring(animation, {
-          toValue: 0,
-          friction: 10, // Higher friction for less oscillation
-          tension: 70, // Adjusted tension for smoother feel
-          useNativeDriver: true,
-          restSpeedThreshold: 10, // End animation faster when close to final position
-          restDisplacementThreshold: 10, // End animation faster when close to final position
-        }).start();
+        // Fixed spring animation configuration with explicit toValue
+        Animated.parallel([
+          Animated.spring(animation, {
+            toValue: 0, // Explicitly set toValue instead of using Animations.spring.responsive
+            friction: 7,
+            tension: 70,
+            useNativeDriver: true
+          }),
+          Animated.spring(cardScaleAnim, {
+            toValue: 1,
+            friction: 8,
+            tension: 50,
+            useNativeDriver: true
+          })
+        ]).start();
       });
     },
-    [animation, locationData]
+    [animation, cardScaleAnim, locationData]
   );
 
   const handlePrevious = useCallback(() => {
@@ -539,60 +437,6 @@ export default function App() {
     }
   }, [currentIndex, locationData, animateTransition]);
 
-  // Optimized pan responder with better touch response
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (evt, gestureState) => {
-          const minMovementThreshold = 8; // Slightly reduced threshold for better responsiveness
-          
-          const { dx, dy } = gestureState;
-          const absDx = Math.abs(dx);
-          const absDy = Math.abs(dy);
-          
-          return (
-            absDx > absDy &&
-            absDx > minMovementThreshold &&
-            ((dx > 0 && currentIndex > 0) ||
-             (dx < 0 && currentIndex < locationData.length - 1))
-          );
-        },
-        
-        onPanResponderMove: (evt, gestureState) => {
-          if (Math.abs(gestureState.dx) > Math.abs(gestureState.dy)) {
-            // Dampen the movement slightly for more controlled feel
-            animation.setValue(gestureState.dx * 0.8);
-          }
-        },
-        
-        onPanResponderRelease: (evt, gestureState) => {
-          const swipeThreshold = 80; // Reduced threshold makes swipe more responsive
-          
-          if (gestureState.dx > swipeThreshold && currentIndex > 0) {
-            handlePrevious();
-          } 
-          else if (gestureState.dx < -swipeThreshold && currentIndex < locationData.length - 1) {
-            handleNext();
-          } 
-          else {
-            // Faster spring back if not a complete swipe
-            Animated.spring(animation, {
-              toValue: 0,
-              friction: 9,
-              tension: 80,
-              useNativeDriver: true,
-              restSpeedThreshold: 10,
-              restDisplacementThreshold: 10,
-            }).start();
-          }
-        },
-        
-        onPanResponderTerminationRequest: () => true,
-      }),
-    [animation, handlePrevious, handleNext, currentIndex, locationData.length]
-  );
-
   const toggleDarkMode = useCallback(() => {
     setSettings((prev) => ({ ...prev, isDarkMode: !prev.isDarkMode }));
   }, [setSettings]);
@@ -600,7 +444,8 @@ export default function App() {
   const toggleLanguage = useCallback(() => {
     setSettings((prev) => ({ ...prev, language: prev.language === "en" ? "ar" : "en" }));
   }, [setSettings]);
-
+  
+  // Add a new callback for toggling animations
   const handleNotificationToggle = useCallback(
     async (prayerKey) => {
       console.log(`Toggling notification for prayer: ${prayerKey}`);
@@ -638,7 +483,6 @@ export default function App() {
     [
       enabledPrayers,
       scheduledNotifications,
-      language,
       currentPrayer,
       parsePrayerTime,
       scheduleLocalNotification,
@@ -647,7 +491,63 @@ export default function App() {
     ]
   );
 
-  const handleLocationChange = (newLocation) => {
+  const convertToArabicNumerals = useCallback((str, lang) => {
+    if (lang !== 'ar') return str;
+    
+    // Map of Western digits to Arabic numerals
+    const arabicNumerals = {
+      '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤',
+      '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩'
+    };
+    
+    return str.toString().replace(/[0-9]/g, match => arabicNumerals[match]);
+  }, []);
+
+  const formatDate = useCallback((dateStr, lang) => {
+    if (!dateStr) return "";
+    
+    // Parse the date from DD/MM/YYYY format
+    const [day, month, year] = dateStr.split('/').map(Number);
+    const date = new Date(year, month - 1, day);
+    
+    const translations = TRANSLATIONS[lang];
+    const dayName = translations.days[date.getDay()];
+    const dayNum = date.getDate();
+    const monthName = translations.months[date.getMonth()];
+    
+    // Format with proper numerals based on language
+    const formattedDayNum = convertToArabicNumerals(dayNum, lang);
+    
+    return `${dayName} ${formattedDayNum} ${monthName}`;
+  }, [convertToArabicNumerals]);
+  
+  // Ensure these animation callbacks are ALWAYS defined regardless of render conditions
+  const animateNavItem = useCallback(() => {
+    AnimationUtils.bounce(navigationBarAnim);
+  }, [navigationBarAnim]);
+
+  const animateSettingsButton = useCallback(() => {
+    AnimationUtils.bounce(settingsButtonAnim);
+    setIsSettingsVisible(true);
+  }, [settingsButtonAnim]);
+  
+  const animateCalendarButton = useCallback(() => {
+    AnimationUtils.bounce(calendarButtonAnim);
+    setIsCalendarVisible(true);
+  }, [calendarButtonAnim]);
+  
+  const animateLocationButton = useCallback(() => {
+    AnimationUtils.bounce(locationButtonAnim);
+    setIsLocationModalVisible(true);
+  }, [locationButtonAnim]);
+  
+  const animateCompassButton = useCallback(() => {
+    AnimationUtils.bounce(compassButtonAnim);
+    setIsCompassVisible(true);
+  }, [compassButtonAnim]);
+
+  // Moved from conditional rendering
+  const handleLocationChange = useCallback((newLocation) => {
     if (
       Object.values(scheduledNotifications).some((val) => val) ||
       upcomingNotificationIds.length > 0
@@ -664,6 +564,9 @@ export default function App() {
           {
             text: TRANSLATIONS[language].ok,
             onPress: async () => {
+              // Animate location change
+              AnimationUtils.pulse(locationChangeAnim);
+              
               const scheduledIds = Object.values(scheduledNotifications).filter(Boolean);
               await cancelAllNotifications(scheduledIds);
               if (upcomingNotificationIds.length > 0) {
@@ -679,11 +582,25 @@ export default function App() {
         { cancelable: true }
       );
     } else {
+      // Animate location change
+      AnimationUtils.pulse(locationChangeAnim);
+      
       setSettings((prev) => ({ ...prev, selectedLocation: newLocation }));
       setIsLocationModalVisible(false);
     }
-  };
+  }, [TRANSLATIONS, language, locationChangeAnim, scheduledNotifications, upcomingNotificationIds, cancelAllNotifications, setSettings]);
 
+  // Continue with the rest of the hooks
+  const upcomingPrayerKey = usePrayerTimer(
+    currentPrayer,
+    currentIndex,
+    locationData,
+    getTodayIndex,
+    parsePrayerTime,
+    getUpcomingPrayerKeyCallback
+  );
+
+  // Remaining useMemo hooks
   const displayLocation = useMemo(() => {
     return LOCATION_NAMES[selectedLocation]
       ? LOCATION_NAMES[selectedLocation][language]
@@ -703,18 +620,258 @@ export default function App() {
     getTodayIndex,
   ]);
 
-  // Calculate available height for the card container
+  // Determine the next prayer time for the countdown
+  const nextPrayerTime = useMemo(() => {
+    return upcomingPrayerKey ? parsePrayerTime(currentPrayer?.[upcomingPrayerKey]) : null;
+  }, [upcomingPrayerKey, currentPrayer, parsePrayerTime]);
+
+  const formattedHijriDate = useMemo(() => {
+    if (!currentPrayer || !currentPrayer.date) return "";
+    
+    const hijriDateObj = moment(currentPrayer.date, "D/M/YYYY");
+    
+    if (language === 'ar') {
+      // For Arabic, manually build the string with Arabic numerals
+      const day = convertToArabicNumerals(hijriDateObj.format("iD"), 'ar');
+      const month = hijriDateObj.format("iMMMM"); // Month name is already in Arabic
+      const year = convertToArabicNumerals(hijriDateObj.format("iYYYY"), 'ar');
+      return `${day} ${month} ${year}`;
+    } else {
+      // For English, use the default format
+      return hijriDateObj.format("iD iMMMM iYYYY");
+    }
+  }, [currentPrayer, language, convertToArabicNumerals]);
+  
+  const preparedPrayerData = useMemo(() => {
+    if (!currentPrayer) return null;
+    
+    // Pre-process prayer times to avoid recalculation during rendering
+    return {
+      times: ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"]
+        .map(key => ({
+          key,
+          time: currentPrayer[key],
+          label: TRANSLATIONS[language][key],
+          iconName: PRAYER_ICONS[key],
+          isUpcoming: isToday && key === upcomingPrayerKey,
+          isEnabled: enabledPrayers[key]
+        }))
+    };
+  }, [currentPrayer, language, isToday, upcomingPrayerKey, enabledPrayers]);
+
+  // PanResponder declaration - moved from conditional logic to ensure consistency
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (evt, gestureState) => {
+          const minMovementThreshold = 8;
+          
+          const { dx, dy } = gestureState;
+          const absDx = Math.abs(dx);
+          const absDy = Math.abs(dy);
+          
+          return (
+            absDx > absDy &&
+            absDx > minMovementThreshold &&
+            ((dx > 0 && currentIndex > 0) ||
+             (dx < 0 && currentIndex < locationData.length - 1))
+          );
+        },
+        
+        onPanResponderGrant: () => {
+          Animated.spring(cardScaleAnim, {
+            toValue: 0.98,
+            friction: 10,
+            tension: 40,
+            useNativeDriver: true
+          }).start();
+        },
+        
+        onPanResponderMove: (evt, gestureState) => {
+          if (Math.abs(gestureState.dx) > Math.abs(gestureState.dy)) {
+            animation.setValue(gestureState.dx * 0.8);
+          }
+        },
+        
+        onPanResponderRelease: (evt, gestureState) => {
+          const swipeThreshold = 80;
+          
+          if (gestureState.dx > swipeThreshold && currentIndex > 0) {
+            handlePrevious();
+          } 
+          else if (gestureState.dx < -swipeThreshold && currentIndex < locationData.length - 1) {
+            handleNext();
+          } 
+          else {
+            // Ensure all spring animations have explicit toValue
+            Animated.parallel([
+              Animated.spring(animation, {
+                toValue: 0,
+                friction: 9,
+                tension: 80,
+                useNativeDriver: true,
+              }),
+              Animated.spring(cardScaleAnim, {
+                toValue: 1,
+                friction: 8,
+                tension: 60,
+                useNativeDriver: true
+              })
+            ]).start();
+          }
+        },
+        
+        onPanResponderTerminationRequest: () => true,
+      }),
+    [animation, cardScaleAnim, handlePrevious, handleNext, currentIndex, locationData.length]
+  );
+
+  // Calculate dimensions - moved out of conditional return
   const { height: windowHeight } = useWindowDimensions();
   const headerHeight = moderateScale(50);
   const navHeight = moderateScale(70);
   const cardContainerHeight = windowHeight - headerHeight - navHeight;
-
-  // Determine the next prayer time for the countdown
-  const nextPrayerTime = upcomingPrayerKey ? parsePrayerTime(currentPrayer[upcomingPrayerKey]) : null;
-
-  const appState = useRef(AppState.currentState);
   
-  // Schedule notifications on app start and when app comes to foreground
+  // Determine the last prayer key and time based on the prayer order
+  const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
+  const upcomingIndex = prayerOrder.indexOf(upcomingPrayerKey);
+  
+  // Make sure these values are always defined
+  const lastPrayerKey = useMemo(() => {
+    if (upcomingIndex > 0) {
+      return prayerOrder[upcomingIndex - 1];
+    }
+    return 'imsak'; // Default
+  }, [upcomingIndex]);
+  
+  const lastPrayerTime = useMemo(() => {
+    if (upcomingIndex > 0 && currentPrayer) {
+      const key = prayerOrder[upcomingIndex - 1];
+      return parsePrayerTime(currentPrayer[key]);
+    }
+    return new Date(); // Default to current time
+  }, [upcomingIndex, currentPrayer, parsePrayerTime]);
+
+  // All useEffect hooks must be defined here, not conditionally
+  useEffect(() => {
+    I18nManager.forceRTL(language === "ar");
+  }, [language]);
+
+  useEffect(() => {
+    async function requestPermissions() {
+      const settingsNotifee = await notifee.requestPermission();
+      if (settingsNotifee.authorizationStatus >= 1) {
+        console.log('Notifee permission granted:', settingsNotifee);
+      } else {
+        Alert.alert(
+          'Notifications Disabled',
+          'Without notification permissions, you might miss important reminders.'
+        );
+      }
+    }
+    requestPermissions();
+  }, []);
+
+  useEffect(() => {
+    async function createChannel() {
+      const channelId = await notifee.createChannel({
+        id: 'prayer-channel',
+        name: 'Prayer Notifications',
+        importance: AndroidImportance.HIGH,
+      });
+      console.log('Notification channel created:', channelId);
+    }
+    createChannel();
+  }, []);
+
+  const requestOSNotificationPermission = useCallback(async () => {
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      try {
+        const result = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+          {
+            title: 'Allow Notifications',
+            message:
+              'This app uses notifications to remind you about prayer times. Please allow notifications.',
+            buttonPositive: 'Allow',
+            buttonNegative: 'Deny',
+          }
+        );
+        if (result === PermissionsAndroid.RESULTS.GRANTED) {
+          console.log('Notification permission granted');
+        } else {
+          console.log('Notification permission denied');
+          Alert.alert(
+            'Notifications Disabled',
+            'Without notification permissions, you might miss important reminders.'
+          );
+        }
+      } catch (error) {
+        console.warn('Notification permission error:', error);
+      }
+    } else {
+      console.log(
+        'Notification permission automatically granted on this Android version or not applicable.'
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    requestOSNotificationPermission();
+  }, [requestOSNotificationPermission]); // Add dependency
+
+  useEffect(() => {
+    if (isSettingsLoaded && selectedLocation) {
+      if (upcomingNotificationIds.length > 0) {
+        cancelAllNotifications(upcomingNotificationIds);
+        setUpcomingNotificationIds([]);
+      }
+      scheduleNotificationsForUpcomingPeriod(selectedLocation, enabledPrayers)
+        .then((ids) => {
+          console.log("Scheduled upcoming notifications:", ids);
+          setUpcomingNotificationIds(ids);
+        })
+        .catch((err) => console.error("Error scheduling upcoming notifications:", err));
+    }
+  }, [
+    isSettingsLoaded,
+    selectedLocation,
+    enabledPrayers,
+    cancelAllNotifications,
+    scheduleNotificationsForUpcomingPeriod
+  ]);
+
+  useEffect(() => {
+    if (locationData.length > 0) {
+      const todayIdx = getTodayIndex(locationData);
+      if (todayIdx !== -1) {
+        setCurrentIndex(todayIdx);
+        setCurrentPrayer(locationData[todayIdx]);
+      } else {
+        setCurrentIndex(0);
+        setCurrentPrayer(locationData[0]);
+      }
+    } else {
+      setCurrentPrayer(null);
+    }
+  }, [selectedLocation, locationData, getTodayIndex]);
+
+  useEffect(() => {
+    // Simulate loading state
+    let loadTimer;
+    
+    if (locationData.length > 0 && isSettingsLoaded) {
+      loadTimer = setTimeout(() => {
+        setIsLoading(false);
+      }, 700);
+    }
+    
+    return () => {
+      if (loadTimer) clearTimeout(loadTimer);
+    };
+  }, [locationData, isSettingsLoaded]);
+  
   useEffect(() => {
     const handleAppStateChange = async (nextAppState) => {
       if (
@@ -750,87 +907,8 @@ export default function App() {
       subscription.remove();
     };
   }, [scheduleRollingNotifications, setupDailyRefresh, settings]); 
-  const convertToArabicNumerals = useCallback((str, lang) => {
-    if (lang !== 'ar') return str;
-    
-    // Map of Western digits to Arabic numerals
-    const arabicNumerals = {
-      '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤',
-      '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩'
-    };
-    
-    return str.toString().replace(/[0-9]/g, match => arabicNumerals[match]);
-  }, []);
-
-  const formatDate = useCallback((dateStr, lang) => {
-    if (!dateStr) return "";
-    
-    // Parse the date from DD/MM/YYYY format
-    const [day, month, year] = dateStr.split('/').map(Number);
-    const date = new Date(year, month - 1, day);
-    
-    const translations = TRANSLATIONS[lang];
-    const dayName = translations.days[date.getDay()];
-    const dayNum = date.getDate();
-    const monthName = translations.months[date.getMonth()];
-    
-    // Format with proper numerals based on language
-    const formattedDayNum = convertToArabicNumerals(dayNum, lang);
-    
-    return `${dayName} ${formattedDayNum} ${monthName}`;
-  }, [convertToArabicNumerals]);
-
-  const formattedHijriDate = useMemo(() => {
-    if (!currentPrayer || !currentPrayer.date) return "";
-    
-    const hijriDateObj = moment(currentPrayer.date, "D/M/YYYY");
-    
-    if (language === 'ar') {
-      // For Arabic, manually build the string with Arabic numerals
-      const day = convertToArabicNumerals(hijriDateObj.format("iD"), 'ar');
-      const month = hijriDateObj.format("iMMMM"); // Month name is already in Arabic
-      const year = convertToArabicNumerals(hijriDateObj.format("iYYYY"), 'ar');
-      return `${day} ${month} ${year}`;
-    } else {
-      // For English, use the default format
-      return hijriDateObj.format("iD iMMMM iYYYY");
-    }
-  }, [currentPrayer, language, convertToArabicNumerals]);
-
-  // Optimize prayer data preparation (memoized)
-  const preparedPrayerData = useMemo(() => {
-    if (!currentPrayer) return null;
-    
-    // Pre-process prayer times to avoid recalculation during rendering
-    return {
-      times: ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"]
-        .map(key => ({
-          key,
-          time: currentPrayer[key],
-          label: TRANSLATIONS[language][key],
-          iconName: PRAYER_ICONS[key],
-          isUpcoming: isToday && key === upcomingPrayerKey,
-          isEnabled: enabledPrayers[key]
-        }))
-    };
-  }, [currentPrayer, language, isToday, upcomingPrayerKey, enabledPrayers]);
-
-  useEffect(() => {
-    // Simulate loading state for at least 700ms to prevent flickers when data loads quickly
-    let loadTimer;
-    
-    if (locationData.length > 0 && isSettingsLoaded) {
-      loadTimer = setTimeout(() => {
-        setIsLoading(false);
-      }, 700);
-    }
-    
-    return () => {
-      if (loadTimer) clearTimeout(loadTimer);
-    };
-  }, [locationData, isSettingsLoaded]);
   
-  // Wait until settings and prayer data are loaded, but show skeleton loader during this time
+  // After all hooks are defined, we can have conditional rendering
   if (!isSettingsLoaded || !currentPrayer || isLoading) {
     return (
       <SafeAreaView style={[{ flex: 1 }, isDarkMode && styles.darkContainer]}>
@@ -840,6 +918,7 @@ export default function App() {
     );
   }
 
+  // The rest of the component rendering remains the same
   return (
     <SafeAreaView
       style={[
@@ -853,12 +932,17 @@ export default function App() {
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
         {TRANSLATIONS[language].prayerTimes}
       </Text>
+      
+      {/* Rest of component remains the same */}
       {/* Card container with optimized animation */}
       <Animated.View 
         style={[
           { 
             height: cardContainerHeight, 
-            transform: [{ translateX: animation }],
+            transform: [
+              { translateX: animation },
+              { scale: cardScaleAnim }
+            ],
             // Add will-change property equivalent for better performance
             backfaceVisibility: 'hidden',
           }
@@ -898,9 +982,15 @@ export default function App() {
           </Text>
           <View style={styles.dateRow}>
             <Text style={[styles.hijriDate, isDarkMode && styles.darkHijriDate]}>{formattedHijriDate}</Text>
-            <Text style={[styles.locationLabel, isDarkMode && styles.darkLocationLabel]}>
+            <Animated.Text 
+              style={[
+                styles.locationLabel, 
+                isDarkMode && styles.darkLocationLabel,
+                { transform: [{ scale: locationChangeAnim }]}
+              ]}
+            >
               {" - " + displayLocation}
-            </Text>
+            </Animated.Text>
           </View>
           <ScrollView
             style={{ flex: 1 }}
@@ -937,36 +1027,50 @@ export default function App() {
           </ScrollView>
         </View>
       </Animated.View>
-      <View
+      <Animated.View
         style={[
           styles.navigation,
           isDarkMode && styles.darkNavigation,
-          { height: navHeight, direction: "ltr" }
+          { 
+            height: navHeight, 
+            direction: "ltr",
+            transform: [{ scale: navigationBarAnim }]
+          }
         ]}
       >
-        <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
-          <Icon
-            name="settings-outline"
-            size={50}
-            color={isDarkMode ? "#66CCFF" : "#007AFF"}
-          />
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: settingsButtonAnim }] }}>
+          <TouchableOpacity onPress={animateSettingsButton}>
+            <Icon
+              name="settings-outline"
+              size={50}
+              color={isDarkMode ? "#66CCFF" : "#007AFF"}
+            />
+          </TouchableOpacity>
+        </Animated.View>
         
-        <TouchableOpacity onPress={() => setIsCalendarVisible(true)}>
-          <Icon
-            name="calendar-outline"
-            size={50}
-            color={isDarkMode ? "#66CCFF" : "#007AFF"}
-          />
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: calendarButtonAnim }] }}>
+          <TouchableOpacity onPress={animateCalendarButton}>
+            <Icon
+              name="calendar-outline"
+              size={50}
+              color={isDarkMode ? "#66CCFF" : "#007AFF"}
+            />
+          </TouchableOpacity>
+        </Animated.View>
         
-        <TouchableOpacity onPress={() => setIsLocationModalVisible(true)}>
-          <Icon name="location-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setIsCompassVisible(true)}>
-          <Icon name="compass-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
-        </TouchableOpacity>
-      </View>
+        <Animated.View style={{ transform: [{ scale: locationButtonAnim }] }}>
+          <TouchableOpacity onPress={animateLocationButton}>
+            <Icon name="location-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
+          </TouchableOpacity>
+        </Animated.View>
+        
+        <Animated.View style={{ transform: [{ scale: compassButtonAnim }] }}>
+          <TouchableOpacity onPress={animateCompassButton}>
+            <Icon name="compass-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
+          </TouchableOpacity>
+        </Animated.View>
+      </Animated.View>
+      
       {/* Calendar Modal */}
       <Modal
         animationType="slide"
@@ -1043,6 +1147,7 @@ export default function App() {
           </View>
         </View>
       </Modal>
+
       {/* Compass Modal */}
       <Modal
         animationType="slide"
@@ -1052,6 +1157,7 @@ export default function App() {
       >
         <QiblaCompass isDarkMode={isDarkMode} language={language} onClose={() => setIsCompassVisible(false)} />
       </Modal>
+
       {/* Settings Modal */}
       <Modal
         animationType="slide"
