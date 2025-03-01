@@ -28,27 +28,10 @@ ASSETS_DIR = "assets"
 os.makedirs(PDFS_DIR, exist_ok=True)
 os.makedirs(ASSETS_DIR, exist_ok=True)
 
-# Function to get the Last-Modified date of the PDF
-def get_last_modified(url):
-    response = requests.head(url)
-    if response.status_code == 200:
-        return response.headers.get('Last-Modified')
-    return None
-
-# Step 1: Download the PDF from the URL if not already downloaded (or force download)
-def download_pdf(url, save_path, force_download=False, retries=5, delay=500):
+# Step 1: Download the PDF from the URL
+def download_pdf(url, save_path, retries=5, delay=500):
     attempt = 0
-    last_modified = get_last_modified(url)
     while attempt < retries:
-        if os.path.exists(save_path):
-            if force_download:
-                os.remove(save_path)  # remove cached file if forcing download
-            else:
-                # Check if the PDF has been updated
-                local_last_modified = datetime.datetime.fromtimestamp(os.path.getmtime(save_path)).strftime('%a, %d %b %Y %H:%M:%S GMT')
-                if last_modified and last_modified <= local_last_modified:
-                    print(f"PDF already exists and is up-to-date at {save_path}.")
-                    return True
         print(f"Attempt {attempt + 1}: Downloading PDF from {url} ...")
         response = requests.get(url)
         if response.status_code == 200:
@@ -67,23 +50,54 @@ def download_pdf(url, save_path, force_download=False, retries=5, delay=500):
 
 # Step 2: Parse each line to extract prayer times using regex
 def parse_line(line):
-    # This regular expression is designed based on the sample content.
-    # It captures the following in order:
-    # midnight, isha, maghrib, asr, dhuhr, shuruq, fajr, imsak, date, day name, day number
-    pattern = (
+    # Updated pattern to handle both formats
+    # First try with the new format (with Hijri date)
+    new_pattern = (
         r"(\d{2}:\d{2})\s+"   # midnight
         r"(\d{2}:\d{2})\s+"   # isha (العشاء)
         r"(\d{2}:\d{2})\s+"   # maghrib (المغرب)
         r"(\d{2}:\d{2})\s+"   # asr (العصر)
         r"(\d{2}:\d{2})\s+"   # dhuhr (الظهر)
-        r"(\d{1,2}:\d{2})\s+" # shuruq (الشروق) – sometimes hour might be one digit
+        r"(\d{1,2}:\d{2})\s+" # shuruq (الشروق)
+        r"(\d{1,2}:\d{2})\s+" # fajr (الصبح)
+        r"(\d{1,2}:\d{2})\s+" # imsak (الامساك)
+        r"(\d{1,2}/\d{1,2}/\d{4})\s+" # date (التاريخ)
+        r"([\u0600-\u06FF\s]+)\s+"  # day name in Arabic (اليوم)
+        r"([\u0600-\u06FF0-9\s]+)"  # Hijri date
+    )
+    
+    # Alternative pattern for the old format
+    old_pattern = (
+        r"(\d{2}:\d{2})\s+"   # midnight
+        r"(\d{2}:\d{2})\s+"   # isha (العشاء)
+        r"(\d{2}:\d{2})\s+"   # maghrib (المغرب)
+        r"(\d{2}:\d{2})\s+"   # asr (العصر)
+        r"(\d{2}:\d{2})\s+"   # dhuhr (الظهر)
+        r"(\d{1,2}:\d{2})\s+" # shuruq (الشروق)
         r"(\d{1,2}:\d{2})\s+" # fajr (الصبح)
         r"(\d{1,2}:\d{2})\s+" # imsak (الامساك)
         r"(\d{1,2}/\d{1,2}/\d{4})\s+" # date (التاريخ)
         r"([\u0600-\u06FF\s]+)\s+"      # day name in Arabic (اليوم)
         r"(\d+)"                       # day number
     )
-    match = re.search(pattern, line)
+    
+    # Another pattern for when the day number comes at the beginning (as in beirut-2.pdf)
+    start_with_number_pattern = (
+        r"^(\d+)"               # day number at start
+        r"([\u0600-\u06FF\s]+)" # day name in Arabic
+        r"(\d{1,2}/\d{1,2}/\d{4})\s+" # date
+        r"(\d{1,2}:\d{2})\s+"   # imsak
+        r"(\d{1,2}:\d{2})\s+"   # fajr
+        r"(\d{1,2}:\d{2})\s+"   # shuruq
+        r"(\d{2}:\d{2})\s+"     # dhuhr
+        r"(\d{2}:\d{2})\s+"     # asr
+        r"(\d{2}:\d{2})\s+"     # maghrib
+        r"(\d{2}:\d{2})\s+"     # isha
+        r"(\d{2}:\d{2})"        # midnight
+    )
+    
+    # Try the new format first
+    match = re.search(new_pattern, line)
     if match:
         return {
             "midnight": match.group(1),
@@ -96,8 +110,45 @@ def parse_line(line):
             "imsak": match.group(8),
             "date": match.group(9),
             "day_name": match.group(10).strip(),
-            "day_number": match.group(11)
+            "hijri_date": match.group(11).strip()
         }
+    
+    # Try the old format
+    match = re.search(old_pattern, line)
+    if match:
+        return {
+            "midnight": match.group(1),
+            "isha": match.group(2),
+            "maghrib": match.group(3),
+            "asr": match.group(4),
+            "dhuhr": match.group(5),
+            "shuruq": match.group(6),
+            "fajr": match.group(7),
+            "imsak": match.group(8),
+            "date": match.group(9),
+            "day_name": match.group(10).strip(),
+            "day_number": match.group(11),
+            "hijri_date": ""  # Empty for old format
+        }
+    
+    # Try the format where day number is at the beginning
+    match = re.search(start_with_number_pattern, line)
+    if match:
+        return {
+            "day_number": match.group(1),
+            "day_name": match.group(2).strip(),
+            "date": match.group(3),
+            "imsak": match.group(4),
+            "fajr": match.group(5),
+            "shuruq": match.group(6),
+            "dhuhr": match.group(7),
+            "asr": match.group(8),
+            "maghrib": match.group(9),
+            "isha": match.group(10),
+            "midnight": match.group(11),
+            "hijri_date": ""  # Empty for old format
+        }
+    
     return None
 
 # Step 3: Extract prayer times data from the PDF
@@ -116,20 +167,22 @@ def extract_prayer_times(pdf_path):
 
 if __name__ == "__main__":
     all_data = {}
-    # Determine if the file should be force-downloaded (e.g., at month start)
-    force_download = datetime.datetime.now().day == 1
 
     for location, url in locations.items():
         print(f"\nProcessing location: {location}")
         # Define the local PDF path for the location
-        local_pdf_path = os.path.join(PDFS_DIR, f"{location}-2.pdf")
+        local_pdf_path = os.path.join(PDFS_DIR, f"{location}-{current_month}.pdf")
         
-        # Download the PDF if necessary
-        if not download_pdf(url, local_pdf_path, force_download=force_download):  # pass force_download flag
-            print(f"Failed to download PDF for {location}. Skipping...")
-            continue
+        # Check if the PDF already exists
+        if os.path.exists(local_pdf_path):
+            print(f"PDF for {location} already exists at {local_pdf_path}. Skipping download.")
+        else:
+            # Download the PDF only if it doesn't exist
+            if not download_pdf(url, local_pdf_path):
+                print(f"Failed to download PDF for {location}. Skipping...")
+                continue
         
-        # Extract data from the downloaded PDF
+        # Extract data from the PDF
         prayer_times = extract_prayer_times(local_pdf_path)
         all_data[location] = prayer_times
 
