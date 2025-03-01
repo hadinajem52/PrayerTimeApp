@@ -50,13 +50,12 @@ def download_pdf(url, save_path, retries=5, delay=500):
 
 # Step 2: Parse each line to extract prayer times using regex
 def parse_line(line):
-    # Updated pattern to handle both formats
-    # First try with the new format (with Hijri date)
+    # Updated pattern to handle single-digit hour for Asr time
     new_pattern = (
         r"(\d{2}:\d{2})\s+"   # midnight
         r"(\d{2}:\d{2})\s+"   # isha (العشاء)
         r"(\d{2}:\d{2})\s+"   # maghrib (المغرب)
-        r"(\d{2}:\d{2})\s+"   # asr (العصر)
+        r"(\d{1,2}:\d{2})\s+" # asr (العصر) - Modified to accept 1 or 2 digits
         r"(\d{2}:\d{2})\s+"   # dhuhr (الظهر)
         r"(\d{1,2}:\d{2})\s+" # shuruq (الشروق)
         r"(\d{1,2}:\d{2})\s+" # fajr (الصبح)
@@ -66,107 +65,93 @@ def parse_line(line):
         r"([\u0600-\u06FF0-9\s]+)"  # Hijri date
     )
     
-    # Alternative pattern for the old format
-    old_pattern = (
-        r"(\d{2}:\d{2})\s+"   # midnight
-        r"(\d{2}:\d{2})\s+"   # isha (العشاء)
-        r"(\d{2}:\d{2})\s+"   # maghrib (المغرب)
-        r"(\d{2}:\d{2})\s+"   # asr (العصر)
-        r"(\d{2}:\d{2})\s+"   # dhuhr (الظهر)
-        r"(\d{1,2}:\d{2})\s+" # shuruq (الشروق)
-        r"(\d{1,2}:\d{2})\s+" # fajr (الصبح)
-        r"(\d{1,2}:\d{2})\s+" # imsak (الامساك)
-        r"(\d{1,2}/\d{1,2}/\d{4})\s+" # date (التاريخ)
-        r"([\u0600-\u06FF\s]+)\s+"      # day name in Arabic (اليوم)
-        r"(\d+)"                       # day number
-    )
-    
-    # Another pattern for when the day number comes at the beginning (as in beirut-2.pdf)
-    start_with_number_pattern = (
-        r"^(\d+)"               # day number at start
-        r"([\u0600-\u06FF\s]+)" # day name in Arabic
-        r"(\d{1,2}/\d{1,2}/\d{4})\s+" # date
-        r"(\d{1,2}:\d{2})\s+"   # imsak
-        r"(\d{1,2}:\d{2})\s+"   # fajr
-        r"(\d{1,2}:\d{2})\s+"   # shuruq
-        r"(\d{2}:\d{2})\s+"     # dhuhr
-        r"(\d{2}:\d{2})\s+"     # asr
-        r"(\d{2}:\d{2})\s+"     # maghrib
-        r"(\d{2}:\d{2})\s+"     # isha
-        r"(\d{2}:\d{2})"        # midnight
-    )
-    
-    # Try the new format first
     match = re.search(new_pattern, line)
     if match:
+        # Extract times from regex match
+        midnight = match.group(1)
+        isha = match.group(2)
+        maghrib = match.group(3)
+        asr = match.group(4)
+        dhuhr = match.group(5)
+        shuruq = match.group(6)
+        fajr = match.group(7)
+        imsak = match.group(8)
+        
+        # Convert afternoon/evening prayers to 24-hour format if needed
+        # Asr prayer time conversion (likely culprit in Saida data)
+        asr = convert_to_24h_format(asr)
+        
+        # Although these seem to be already in 24h format in our data,
+        # we'll handle them just to be safe
+        dhuhr = convert_to_24h_format(dhuhr)
+        maghrib = convert_to_24h_format(maghrib)
+        isha = convert_to_24h_format(isha)
+        midnight = convert_to_24h_format(midnight)
+        
+        # Morning prayers (already in correct format, no need to convert)
+        # imsak, fajr, and shuruq remain as is
+        
         return {
-            "midnight": match.group(1),
-            "isha": match.group(2),
-            "maghrib": match.group(3),
-            "asr": match.group(4),
-            "dhuhr": match.group(5),
-            "shuruq": match.group(6),
-            "fajr": match.group(7),
-            "imsak": match.group(8),
+            "midnight": midnight,
+            "isha": isha,
+            "maghrib": maghrib,
+            "asr": asr,
+            "dhuhr": dhuhr,
+            "shuruq": shuruq,
+            "fajr": fajr,
+            "imsak": imsak,
             "date": match.group(9),
             "day_name": match.group(10).strip(),
             "hijri_date": match.group(11).strip()
         }
     
-    # Try the old format
-    match = re.search(old_pattern, line)
-    if match:
-        return {
-            "midnight": match.group(1),
-            "isha": match.group(2),
-            "maghrib": match.group(3),
-            "asr": match.group(4),
-            "dhuhr": match.group(5),
-            "shuruq": match.group(6),
-            "fajr": match.group(7),
-            "imsak": match.group(8),
-            "date": match.group(9),
-            "day_name": match.group(10).strip(),
-            "day_number": match.group(11),
-            "hijri_date": ""  # Empty for old format
-        }
-    
-    # Try the format where day number is at the beginning
-    match = re.search(start_with_number_pattern, line)
-    if match:
-        return {
-            "day_number": match.group(1),
-            "day_name": match.group(2).strip(),
-            "date": match.group(3),
-            "imsak": match.group(4),
-            "fajr": match.group(5),
-            "shuruq": match.group(6),
-            "dhuhr": match.group(7),
-            "asr": match.group(8),
-            "maghrib": match.group(9),
-            "isha": match.group(10),
-            "midnight": match.group(11),
-            "hijri_date": ""  # Empty for old format
-        }
-    
     return None
 
-# Step 3: Extract prayer times data from the PDF
-def extract_prayer_times(pdf_path):
+# Helper function to convert time to 24-hour format
+def convert_to_24h_format(time_str):
+    """Convert a time string to 24-hour format if needed"""
+    hours, minutes = map(int, time_str.split(':'))
+    
+    # If hour is less than 12 and it's an afternoon/evening prayer time, 
+    # add 12 hours to convert to 24-hour format
+    if hours < 12 and hours != 0:  # Don't convert midnight (00:00)
+        # For times like 3:07 PM, convert to 15:07
+        hours += 12
+    
+    # Format back to string "HH:MM"
+    return f"{hours:02d}:{minutes:02d}"
+
+# Step 3: Extract prayer times data from the PDF with added diagnostics
+def extract_prayer_times(pdf_path, location=None, debug=False):
     prayer_times = []
     with pdfplumber.open(pdf_path) as pdf:
-        for page in pdf.pages:
+        for page_num, page in enumerate(pdf.pages):
             text = page.extract_text()
             if text:
                 lines = text.split("\n")
+                if debug:
+                    print(f"\n===== DEBUG: First 10 lines from {location} PDF (page {page_num+1}) =====")
+                    for i, line in enumerate(lines[:10]):
+                        print(f"Line {i+1}: {line}")
+                    print("=====")
+                
                 for line in lines:
                     data = parse_line(line)
                     if data:
                         prayer_times.append(data)
+    
+    if len(prayer_times) == 0 and debug:
+        print(f"WARNING: No prayer times extracted from {location}!")
+        print("This might be due to a different PDF format that doesn't match our regex pattern.")
+    
     return prayer_times
 
 if __name__ == "__main__":
     all_data = {}
+    total_days_extracted = 0
+    
+    # Add debug flag - set to True to see diagnostic info
+    debug_mode = True
 
     for location, url in locations.items():
         print(f"\nProcessing location: {location}")
@@ -182,9 +167,16 @@ if __name__ == "__main__":
                 print(f"Failed to download PDF for {location}. Skipping...")
                 continue
         
+        # Special debugging for Saida location
+        current_debug = debug_mode or location == "saida"
+        
         # Extract data from the PDF
-        prayer_times = extract_prayer_times(local_pdf_path)
+        prayer_times = extract_prayer_times(local_pdf_path, location, debug=current_debug)
         all_data[location] = prayer_times
+        
+        # Log how many days were extracted for this location
+        print(f"Extracted {len(prayer_times)} days of prayer times from {location}")
+        total_days_extracted += len(prayer_times)
 
     # Define the JSON file path inside the assets directory
     json_file_path = os.path.join(ASSETS_DIR, "prayer_times.json")
@@ -193,4 +185,5 @@ if __name__ == "__main__":
     with open(json_file_path, "w", encoding="utf-8") as f:
         json.dump(all_data, f, ensure_ascii=False, indent=2)
     
-    print(f"\nExtraction complete. Data saved to {json_file_path}")
+    print(f"\nExtraction complete. Total days extracted: {total_days_extracted}")
+    print(f"Data saved to {json_file_path}")
