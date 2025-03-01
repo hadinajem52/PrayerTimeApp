@@ -35,8 +35,10 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-android/
-
+android/app/google-services.json
+android/app/build.gradle
+android/app/@hhhhjjj__ShiaPrayerLeb.jks
+android\@hhhhjjj__ShiaPrayerLeb.jks
 pdfs/
 
 
