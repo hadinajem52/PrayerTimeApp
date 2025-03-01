@@ -21,6 +21,11 @@ const TRANSLATIONS = {
     english: "English",
     arabic: "Arabic",
     back: "Back",
+    hijriDate: "Hijri Date",
+    hijriAdjustment: "Date Adjustment",
+    daysForward: "days forward",
+    daysBackward: "days backward",
+    noAdjustment: "No adjustment",
   },
   ar: {
     settings: "الإعدادات",
@@ -30,11 +35,26 @@ const TRANSLATIONS = {
     english: "الإنجليزية",
     arabic: "العربية",
     back: "رجوع",
+    hijriDate: "التاريخ الهجري",
+    hijriAdjustment: "تعديل التاريخ",
+    daysForward: "أيام للأمام",
+    daysBackward: "أيام للخلف",
+    noAdjustment: "لا تعديل",
   },
 };
 
-const Settings = ({ language, isDarkMode, toggleDarkMode, toggleLanguage, onClose }) => {
+const Settings = ({ language, isDarkMode, toggleDarkMode, toggleLanguage, onClose, hijriDateOffset = 0, updateHijriOffset }) => {
   const translations = TRANSLATIONS[language];
+
+  const renderHijriOffsetText = () => {
+    if (hijriDateOffset === 0) {
+      return translations.noAdjustment;
+    } else if (hijriDateOffset > 0) {
+      return `${hijriDateOffset} ${translations.daysForward}`;
+    } else {
+      return `${Math.abs(hijriDateOffset)} ${translations.daysBackward}`;
+    }
+  };
 
   return (
     <SafeAreaView style={[
@@ -79,6 +99,46 @@ const Settings = ({ language, isDarkMode, toggleDarkMode, toggleLanguage, onClos
               thumbColor={isDarkMode ? "#FFA500" : "#007AFF"}
               ios_backgroundColor="#3e3e3e"
             />
+          </View>
+        </View>
+        
+        {/* Hijri Date Adjustment Section */}
+        <View style={[styles.section, isDarkMode && styles.darkSection]}>
+          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
+            {translations.hijriDate}
+          </Text>
+          
+          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+            <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
+              {translations.hijriAdjustment}
+            </Text>
+            <View style={styles.adjustmentContainer}>
+              <TouchableOpacity
+                style={[styles.adjustButton, isDarkMode && styles.darkAdjustButton]}
+                onPress={() => updateHijriOffset(hijriDateOffset - 1)}
+              >
+                <Icon 
+                  name="remove-outline" 
+                  size={22} 
+                  color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                />
+              </TouchableOpacity>
+              
+              <Text style={[styles.offsetValue, isDarkMode && styles.darkOffsetValue]}>
+                {renderHijriOffsetText()}
+              </Text>
+              
+              <TouchableOpacity
+                style={[styles.adjustButton, isDarkMode && styles.darkAdjustButton]}
+                onPress={() => updateHijriOffset(hijriDateOffset + 1)}
+              >
+                <Icon 
+                  name="add-outline" 
+                  size={22} 
+                  color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
         
@@ -258,6 +318,34 @@ const styles = StyleSheet.create({
   },
   darkSelectedLanguageText: {
     color: '#FFA500',
+  },
+  adjustmentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adjustButton: {
+    width: 35,
+    height: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+  },
+  darkAdjustButton: {
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+  },
+  offsetValue: {
+    fontSize: moderateScale(14),
+    fontWeight: '500',
+    paddingHorizontal: 10,
+    width: 120, // Fixed width instead of minWidth
+    textAlign: 'center',
+    color: '#333',
+    alignSelf: 'center', // Ensure vertical alignment
+  },
+  darkOffsetValue: {
+    color: '#fff',
   },
 });
 

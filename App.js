@@ -456,6 +456,11 @@ export default function App() {
   const toggleLanguage = useCallback(() => {
     setSettings((prev) => ({ ...prev, language: prev.language === "en" ? "ar" : "en" }));
   }, [setSettings]);
+
+  // Add the missing updateHijriOffset function
+  const updateHijriOffset = useCallback((newOffset) => {
+    setSettings((prev) => ({ ...prev, hijriDateOffset: newOffset }));
+  }, [setSettings]);
   
   // Add a new callback for toggling animations
   const handleNotificationToggle = useCallback(
@@ -640,7 +645,11 @@ export default function App() {
   const formattedHijriDate = useMemo(() => {
     if (!currentPrayer || !currentPrayer.date) return "";
     
+    // Apply hijri date offset
     const hijriDateObj = moment(currentPrayer.date, "D/M/YYYY");
+    if (settings.hijriDateOffset) {
+      hijriDateObj.add(settings.hijriDateOffset, 'days');
+    }
     
     if (language === 'ar') {
       // For Arabic, manually build the string with Arabic numerals
@@ -652,7 +661,7 @@ export default function App() {
       // For English, use the default format
       return hijriDateObj.format("iD iMMMM iYYYY");
     }
-  }, [currentPrayer, language, convertToArabicNumerals]);
+  }, [currentPrayer, language, convertToArabicNumerals, settings.hijriDateOffset]);
   
   const preparedPrayerData = useMemo(() => {
     if (!currentPrayer) return null;
@@ -1208,6 +1217,8 @@ export default function App() {
           toggleDarkMode={toggleDarkMode}
           toggleLanguage={toggleLanguage}
           onClose={() => setIsSettingsVisible(false)}
+          hijriDateOffset={settings.hijriDateOffset || 0}
+          updateHijriOffset={updateHijriOffset}
         />
       </Modal>
     </SafeAreaView>
