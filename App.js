@@ -39,6 +39,8 @@ import Settings from './components/Settings';
 import CalendarView from './components/Calendar';
 import SkeletonLoader from './components/SkeletonLoader';
 import { Animations, AnimationUtils } from './utils/animations';
+import { UpdateManager } from './components/UpdateManager';
+import './firebase';
 
 // ----- Translations & Constants -----
 const TRANSLATIONS = {
@@ -960,6 +962,9 @@ export default function App() {
       ]}
     >
       <StatusBar translucent backgroundColor="transparent" />
+      {/* Add UpdateManager at the top level */}
+      <UpdateManager />
+      
       {/* Header */}
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
         {TRANSLATIONS[language].prayerTimes}
