@@ -202,12 +202,26 @@ export function useNotificationScheduler(language) {
       const today = new Date();
       console.log(`Today's date: ${today.toISOString()}`);
       
+      // Focus on finding today first
+      const formattedToday = moment(today).format('D/M/YYYY');
+      console.log(`Formatted today: ${formattedToday}`);
+      
       const upcomingDays = prayerData[location]
         .filter((dayData) => {
-          const dayDate = moment(dayData.date, 'D/M/YYYY').toDate();
-          return dayDate >= today;
+          try {
+            const [day, month, year] = dayData.date.trim().split('/').map(Number);
+            const dayDate = new Date(year, month - 1, day);
+            // Use noon to avoid timezone issues
+            const todayNoon = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
+            const dayNoon = new Date(year, month - 1, day, 12, 0, 0);
+            
+            return dayNoon >= todayNoon;
+          } catch (error) {
+            console.error(`Error parsing date ${dayData.date}:`, error);
+            return false;
+          }
         })
-        .slice(0, 30);
+        .slice(0, 2); // LIMIT to today and tomorrow only for testing
       
       console.log(`Found ${upcomingDays.length} upcoming days with prayer data`);
       if (upcomingDays.length === 0) {
@@ -226,6 +240,10 @@ export function useNotificationScheduler(language) {
       
       for (const dayData of upcomingDays) {
         console.log(`Processing date: ${dayData.date}`);
+        
+        // Parse the date components
+        const [day, month, year] = dayData.date.trim().split('/').map(Number);
+        
         for (const prayerKey of ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"]) {
           if (!enabledPrayers[prayerKey]) {
             console.log(`${prayerKey} is disabled, skipping`);
@@ -238,32 +256,34 @@ export function useNotificationScheduler(language) {
             continue;
           }
           
-          const [hour, minute] = timeStr.split(':').map(Number);
-          const prayerMoment = moment(dayData.date, 'D/M/YYYY')
-            .hour(hour)
-            .minute(minute)
-            .second(0);
-          
-          console.log(`${prayerKey} time for ${dayData.date}: ${timeStr} (${prayerMoment.format('YYYY-MM-DD HH:mm:ss')})`);
-          
-          if (prayerMoment.toDate() > today) {
-            const numericId = moment(prayerMoment).format('YYYYMMDDHHmm');
-            console.log(`Queueing ${prayerKey} notification with ID ${numericId}`);
-            notificationsAttempted++;
-            scheduledNotificationPromises.push(
-              scheduleLocalNotification(numericId, prayerKey, prayerMoment.toDate())
-                .then(id => {
-                  if (id) console.log(`✅ Notification ${id} scheduled successfully`);
-                  else console.log(`⚠️ Notification scheduling returned null`);
-                  return id;
-                })
-                .catch(err => {
-                  console.error(`❌ Error scheduling notification: ${err.message}`);
-                  return null;
-                })
-            );
-          } else {
-            console.log(`${prayerKey} time ${timeStr} is in the past, skipping`);
+          try {
+            const [hour, minute] = timeStr.split(':').map(Number);
+            // Create a proper date object for this prayer time
+            const prayerDate = new Date(year, month - 1, day, hour, minute, 0);
+            
+            console.log(`${prayerKey} time for ${dayData.date}: ${timeStr} (${prayerDate.toISOString()})`);
+            
+            if (prayerDate > today) {
+              const numericId = `${year}${month.toString().padStart(2, '0')}${day.toString().padStart(2, '0')}${hour.toString().padStart(2, '0')}${minute.toString().padStart(2, '0')}`;
+              console.log(`Queueing ${prayerKey} notification with ID ${numericId} for ${prayerDate.toLocaleString()}`);
+              notificationsAttempted++;
+              scheduledNotificationPromises.push(
+                scheduleLocalNotification(numericId, prayerKey, prayerDate)
+                  .then(id => {
+                    if (id) console.log(`✅ Notification ${id} scheduled successfully`);
+                    else console.log(`⚠️ Notification scheduling returned null`);
+                    return id;
+                  })
+                  .catch(err => {
+                    console.error(`❌ Error scheduling notification: ${err.message}`);
+                    return null;
+                  })
+              );
+            } else {
+              console.log(`${prayerKey} time ${timeStr} is in the past, skipping`);
+            }
+          } catch (error) {
+            console.error(`Error scheduling ${prayerKey}:`, error);
           }
         }
       }
@@ -292,11 +312,35 @@ export function useNotificationScheduler(language) {
         }
         
         const today = new Date();
+        // Format today's date to match the prayer data format
+        const formattedToday = moment(today).format('D/M/YYYY');
+        console.log(`Today's formatted date: ${formattedToday}`);
+        
+        // Find today's data first
+        const todayData = prayerData[location].find(day => day.date.trim() === formattedToday);
+        if (!todayData) {
+          console.warn(`Could not find prayer data for today (${formattedToday})`);
+        } else {
+          console.log(`Found today's prayer data: ${JSON.stringify(todayData)}`);
+        }
+        
         // Find data for today and tomorrow
         const availableDays = prayerData[location]
           .filter((dayData) => {
-            const dayDate = moment(dayData.date, 'D/M/YYYY').toDate();
-            return dayDate >= today;
+            try {
+              const [day, month, year] = dayData.date.trim().split('/').map(Number);
+              // Create date at noon to avoid timezone issues
+              const dayDate = new Date(year, month - 1, day, 12, 0, 0);
+              const todayAtNoon = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
+              
+              // Debug log 
+              console.log(`Comparing ${dayData.date} (${dayDate.toISOString()}) with today (${todayAtNoon.toISOString()}): ${dayDate >= todayAtNoon}`);
+              
+              return dayDate >= todayAtNoon;
+            } catch (error) {
+              console.error(`Error parsing date ${dayData.date}:`, error);
+              return false;
+            }
           })
           .slice(0, 2); // Only get today and tomorrow
         
@@ -305,28 +349,52 @@ export function useNotificationScheduler(language) {
           return [];
         }
         
+        console.log(`Found ${availableDays.length} days for notifications:`);
+        availableDays.forEach(day => console.log(`- ${day.date}`));
+        
         // Schedule notifications for available days
         const scheduledNotificationPromises = [];
         for (const dayData of availableDays) {
+          console.log(`Processing notifications for date: ${dayData.date}`);
+          
           for (const prayerKey of ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"]) {
-            if (!enabledPrayers[prayerKey]) continue;
+            if (!enabledPrayers[prayerKey]) {
+              console.log(`${prayerKey} is disabled, skipping`);
+              continue;
+            }
+            
             const timeStr = dayData[prayerKey];
-            if (!timeStr) continue;
-            const [hour, minute] = timeStr.split(':').map(Number);
-            const prayerMoment = moment(dayData.date, 'D/M/YYYY')
-              .hour(hour)
-              .minute(minute)
-              .second(0);
-            if (prayerMoment.toDate() > today) {
-              const numericId = moment(prayerMoment).format('YYYYMMDDHHmm');
-              scheduledNotificationPromises.push(
-                scheduleLocalNotification(numericId, prayerKey, prayerMoment.toDate()).then(() => numericId)
-              );
+            if (!timeStr) {
+              console.log(`No time data for ${prayerKey}, skipping`);
+              continue;
+            }
+            
+            try {
+              const [hour, minute] = timeStr.split(':').map(Number);
+              const [day, month, year] = dayData.date.trim().split('/').map(Number);
+              
+              // Create a date object for this prayer time
+              const prayerDate = new Date(year, month - 1, day, hour, minute, 0);
+              
+              console.log(`${prayerKey} time: ${timeStr} (${prayerDate.toISOString()})`);
+              
+              if (prayerDate > today) {
+                const numericId = `${year}${month.toString().padStart(2, '0')}${day.toString().padStart(2, '0')}${hour.toString().padStart(2, '0')}${minute.toString().padStart(2, '0')}`;
+                console.log(`Scheduling ${prayerKey} notification with ID ${numericId} for ${prayerDate.toLocaleString()}`);
+                
+                scheduledNotificationPromises.push(
+                  scheduleLocalNotification(numericId, prayerKey, prayerDate).then(() => numericId)
+                );
+              } else {
+                console.log(`${prayerKey} time is in the past, skipping`);
+              }
+            } catch (error) {
+              console.error(`Error scheduling ${prayerKey}:`, error);
             }
           }
         }
         
-        const scheduledNotificationIds = await Promise.all(scheduledNotificationPromises);
+        const scheduledNotificationIds = (await Promise.all(scheduledNotificationPromises)).filter(Boolean);
         console.log(`Scheduled ${scheduledNotificationIds.length} notifications for the next ${availableDays.length} days`);
         return scheduledNotificationIds;
       } catch (error) {
