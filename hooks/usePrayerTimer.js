@@ -1,45 +1,57 @@
 //usePrayerTimer.js
-import { useEffect, useRef, useState } from 'react';
+import { useState, useEffect } from 'react';
 
-export default function usePrayerTimer(
+const usePrayerTimer = (
   currentPrayer,
   currentIndex,
-  locationData,
+  prayerData,
   getTodayIndex,
   parsePrayerTime,
-  getUpcomingPrayerKey
-) {
-  const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
-  const upcomingTimer = useRef(null);
+  getUpcomingPrayerKeyCallback
+) => {
+  const [upcomingPrayer, setUpcomingPrayer] = useState(null);
 
   useEffect(() => {
-    if (currentPrayer && currentIndex === getTodayIndex(locationData)) {
-      if (upcomingTimer.current) clearTimeout(upcomingTimer.current);
-      const updateUpcomingPrayer = () => {
-        const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
-        const upcoming = getUpcomingPrayerKey();
-        setUpcomingPrayerKey(upcoming);
-        if (upcoming) {
-          const prayerTime = parsePrayerTime(currentPrayer[upcoming]);
-          const now = new Date();
-          const msUntilPrayer = prayerTime - now;
-          if (msUntilPrayer <= 0) {
-            updateUpcomingPrayer();
-          } else {
-            upcomingTimer.current = setTimeout(updateUpcomingPrayer, msUntilPrayer + 500);
-          }
-        } else {
-          setUpcomingPrayerKey(null);
-        }
-      };
-      updateUpcomingPrayer();
-      return () => {
-        if (upcomingTimer.current) clearTimeout(upcomingTimer.current);
-      };
-    } else {
-      setUpcomingPrayerKey(null);
+    // Only run this for today's prayer card
+    const todayIndex = getTodayIndex(prayerData);
+    if (currentIndex !== todayIndex || !currentPrayer) {
+      // Don't calculate upcoming prayer for non-today cards
+      setUpcomingPrayer(null);
+      return;
     }
-  }, [currentPrayer, currentIndex, locationData, getTodayIndex, parsePrayerTime, getUpcomingPrayerKey]);
 
-  return upcomingPrayerKey;
-}
+    const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
+    const now = new Date();
+    
+    console.log(`Calculating upcoming prayer for today (${currentPrayer.date})`);
+    
+    // Find the next prayer that hasn't occurred yet
+    let foundUpcoming = false;
+    for (const prayer of prayerOrder) {
+      if (!currentPrayer[prayer]) continue;
+      
+      try {
+        const prayerTime = parsePrayerTime(currentPrayer[prayer]);
+        console.log(`Checking ${prayer}: ${currentPrayer[prayer]}, parsed: ${prayerTime.toLocaleTimeString()}, now: ${now.toLocaleTimeString()}`);
+        
+        if (prayerTime > now) {
+          console.log(`Found upcoming prayer: ${prayer} at ${prayerTime.toLocaleTimeString()}`);
+          setUpcomingPrayer(prayer);
+          foundUpcoming = true;
+          break;
+        }
+      } catch (error) {
+        console.error(`Error parsing time for ${prayer}:`, error);
+      }
+    }
+    
+    if (!foundUpcoming) {
+      console.log('No more prayers for today');
+      setUpcomingPrayer(null);
+    }
+  }, [currentPrayer, currentIndex, prayerData, getTodayIndex, parsePrayerTime]);
+
+  return upcomingPrayer;
+};
+
+export default usePrayerTimer;

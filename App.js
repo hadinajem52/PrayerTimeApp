@@ -362,8 +362,18 @@ export default function App() {
   // ALL useCallback definitions must be moved here, before any conditional returns
   const getTodayIndex = useCallback((data) => {
     const today = new Date();
-    const formattedDate = moment(today).format('DD/MM/YYYY');
-    return data.findIndex((item) => item.date === formattedDate);
+    // Format the date as DD/MM/YYYY to match the format in the prayer data
+    const formattedDate = moment(today).format('D/M/YYYY');
+    console.log(`Looking for today's date: ${formattedDate} in prayer data`);
+    
+    const index = data.findIndex((item) => {
+      // Normalize both dates to ensure consistent comparison
+      const dataDateNormalized = item.date.trim();
+      return dataDateNormalized === formattedDate;
+    });
+    
+    console.log(`Found today's index: ${index}`);
+    return index;
   }, []);
 
   const parsePrayerTime = useCallback((timeStr) => {
@@ -845,12 +855,34 @@ export default function App() {
   useEffect(() => {
     if (locationData.length > 0) {
       const todayIdx = getTodayIndex(locationData);
+      console.log(`Today's index in prayer data: ${todayIdx}`);
+      
       if (todayIdx !== -1) {
+        // If today's date is found, use it
+        console.log(`Setting current index to today: ${todayIdx}`);
         setCurrentIndex(todayIdx);
         setCurrentPrayer(locationData[todayIdx]);
       } else {
-        setCurrentIndex(0);
-        setCurrentPrayer(locationData[0]);
+        // If not found, try to find the closest date
+        console.log('Today not found in prayer data, finding closest date');
+        const today = new Date();
+        let closestIndex = 0;
+        let smallestDiff = Infinity;
+        
+        locationData.forEach((dayData, index) => {
+          const [day, month, year] = dayData.date.split('/').map(Number);
+          const dataDate = new Date(year, month - 1, day);
+          const diff = Math.abs(dataDate - today);
+          
+          if (diff < smallestDiff) {
+            smallestDiff = diff;
+            closestIndex = index;
+          }
+        });
+        
+        console.log(`Using closest date at index: ${closestIndex}`);
+        setCurrentIndex(closestIndex);
+        setCurrentPrayer(locationData[closestIndex]);
       }
     } else {
       setCurrentPrayer(null);
