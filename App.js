@@ -14,7 +14,7 @@ import {
   useWindowDimensions,
   AppState,
   Easing,
-  PanResponder,  // Add PanResponder import
+  PanResponder,  
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import moment from 'moment-hijri';
@@ -42,6 +42,8 @@ import { UpdateManager } from './components/UpdateManager';
 import './firebase';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import MonthTransitionNotice from './components/MonthTransitionNotice';
+import { formatTimeString } from './utils/timeFormatters';
 
 // ----- Translations & Constants -----
 const TRANSLATIONS = {
@@ -129,12 +131,11 @@ const LOCATION_ICONS = {
   tyre: "beach",
   saida: "waves",
   baalbek: "pillar",
-  hermel: "mountain", // We'll keep this name but use FontAwesome5 component for hermel
+  hermel: "mountain",
   tripoli: "lighthouse",
   "nabatieh-bintjbeil": "home-group"
 };
 
-// Helper to get the correct icon component based on prayer key
 const getIconComponent = (prayerKey) => {
   if (prayerKey === 'fajr' || prayerKey === 'maghrib') {
     return Feather;
@@ -155,6 +156,18 @@ const Countdown = ({
 }) => {
   const [timeRemaining, setTimeRemaining] = useState('');
   const [progress, setProgress] = useState(0);
+  
+  // Get time format directly from settings
+  const [settings] = useSettings();
+  const { timeFormat } = settings;
+
+  // Force update when time format changes
+  const forceUpdate = useRef(0);
+
+  // Listen for time format changes and trigger re-render
+  useEffect(() => {
+    forceUpdate.current += 1;
+  }, [timeFormat]);
 
   useEffect(() => {
     if (!nextPrayerTime || !lastPrayerTime) return;
@@ -171,21 +184,24 @@ const Countdown = ({
         setProgress(1);
         clearInterval(interval);
       } else {
-        // Format remaining time as hh:mm:ss
         const duration = moment.duration(diff);
         const hours = String(Math.floor(duration.asHours())).padStart(2, '0');
         const minutes = String(duration.minutes()).padStart(2, '0');
         const seconds = String(duration.seconds()).padStart(2, '0');
-        setTimeRemaining(`${hours}:${minutes}:${seconds}`);
+        
+        // Format the countdown according to current time format preference
+        const timeStr = `${hours}:${minutes}:${seconds}`;
+        setTimeRemaining(timeFormat === '12h' 
+          ? formatTimeString(timeStr, timeFormat, true)
+          : timeStr);
 
-        // Calculate progress fraction
         const progressFraction = Math.min(Math.max(elapsed / totalDuration, 0), 1);
         setProgress(progressFraction);
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [nextPrayerTime, lastPrayerTime]);
+  }, [nextPrayerTime, lastPrayerTime, timeFormat]);
 
   const StartIcon = getIconComponent(lastPrayerKey);
   const EndIcon = getIconComponent(nextPrayerKey);
@@ -242,7 +258,6 @@ const Countdown = ({
   );
 };
 
-// New component for the Today indicator - using Material Icons instead of text
 const TodayIndicator = ({ isDarkMode }) => {
   return (
     <View
@@ -316,7 +331,6 @@ const QuoteIconButton = ({ isDarkMode, onPress }) => {
 
 // ----- Main App Component -----
 export default function App() {
-  // Move ALL hook calls to the top level, before any conditional logic
   const [settings, setSettings] = useSettings();
   const {
     language,
@@ -325,6 +339,7 @@ export default function App() {
     enabledPrayers,
     scheduledNotifications,
     isSettingsLoaded,
+    timeFormat, // Get timeFormat from settings
   } = settings;
 
   const [currentPrayer, setCurrentPrayer] = useState(null);
@@ -336,7 +351,8 @@ export default function App() {
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [timeRemaining, setTimeRemaining] = useState('');  // Move from Countdown
+  const [timeRemaining, setTimeRemaining] = useState(''); 
+  const [isShowingLastAvailableDay, setIsShowingLastAvailableDay] = useState(false);
 
   const {
     scheduleLocalNotification,
@@ -372,15 +388,12 @@ export default function App() {
     return locationData.map(item => item.date);
   }, [locationData]);
 
-  // ALL useCallback definitions must be moved here, before any conditional returns
   const getTodayIndex = useCallback((data) => {
     const today = new Date();
-    // Format the date as DD/MM/YYYY to match the format in the prayer data
     const formattedDate = moment(today).format('D/M/YYYY');
     console.log(`Looking for today's date: ${formattedDate} in prayer data`);
     
     const index = data.findIndex((item) => {
-      // Normalize both dates to ensure consistent comparison
       const dataDateNormalized = item.date.trim();
       return dataDateNormalized === formattedDate;
     });
@@ -410,14 +423,12 @@ export default function App() {
 
   const animateTransition = useCallback(
     (newIndex, direction) => {
-      // Scale card slightly before transition
       Animated.timing(cardScaleAnim, {
         toValue: 0.97,
         duration: 120,
         useNativeDriver: true,
       }).start();
       
-      // Use a faster animation with optimized easing
       Animated.timing(animation, {
         toValue: -direction * 300,
         duration: 180,
@@ -428,10 +439,9 @@ export default function App() {
         setCurrentPrayer(locationData[newIndex]);
         animation.setValue(direction * 300);
         
-        // Fixed spring animation configuration with explicit toValue
         Animated.parallel([
           Animated.spring(animation, {
-            toValue: 0, // Explicitly set toValue instead of using Animations.spring.responsive
+            toValue: 0,
             friction: 7,
             tension: 70,
             useNativeDriver: true
@@ -468,12 +478,10 @@ export default function App() {
     setSettings((prev) => ({ ...prev, language: prev.language === "en" ? "ar" : "en" }));
   }, [setSettings]);
 
-  // Add the missing updateHijriOffset function
   const updateHijriOffset = useCallback((newOffset) => {
     setSettings((prev) => ({ ...prev, hijriDateOffset: newOffset }));
   }, [setSettings]);
   
-  // Add a new callback for toggling animations
   const handleNotificationToggle = useCallback(
     async (prayerKey) => {
       console.log(`Toggling notification for prayer: ${prayerKey}`);
@@ -522,7 +530,6 @@ export default function App() {
   const convertToArabicNumerals = useCallback((str, lang) => {
     if (lang !== 'ar') return str;
     
-    // Map of Western digits to Arabic numerals
     const arabicNumerals = {
       '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤',
       '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩'
@@ -543,13 +550,11 @@ export default function App() {
     const dayNum = date.getDate();
     const monthName = translations.months[date.getMonth()];
     
-    // Format with proper numerals based on language
     const formattedDayNum = convertToArabicNumerals(dayNum, lang);
     
     return `${dayName} ${formattedDayNum} ${monthName}`;
   }, [convertToArabicNumerals]);
   
-  // Ensure these animation callbacks are ALWAYS defined regardless of render conditions
   const animateNavItem = useCallback(() => {
     AnimationUtils.bounce(navigationBarAnim);
   }, [navigationBarAnim]);
@@ -886,26 +891,58 @@ export default function App() {
         setCurrentIndex(todayIdx);
         setCurrentPrayer(locationData[todayIdx]);
       } else {
-        // If not found, try to find the closest date
-        console.log('[REFRESH] Today not found in prayer data, finding closest date');
+        // If not found, check if today is beyond the last available date
+        console.log('[REFRESH] Today not found in prayer data, determining best date to show');
         const today = new Date();
-        let closestIndex = 0;
-        let smallestDiff = Infinity;
         
-        locationData.forEach((dayData, index) => {
+        // Parse all dates and find the earliest and latest
+        const datesToCompare = locationData.map(dayData => {
           const [day, month, year] = dayData.date.split('/').map(Number);
-          const dataDate = new Date(year, month - 1, day);
-          const diff = Math.abs(dataDate - today);
-          
-          if (diff < smallestDiff) {
-            smallestDiff = diff;
-            closestIndex = index;
-          }
+          return new Date(year, month - 1, day);
         });
         
-        console.log(`[REFRESH] Using closest date at index: ${closestIndex}`);
-        setCurrentIndex(closestIndex);
-        setCurrentPrayer(locationData[closestIndex]);
+        const earliestDate = new Date(Math.min(...datesToCompare));
+        const latestDate = new Date(Math.max(...datesToCompare));
+        
+        // Compare today with the date range
+        if (today > latestDate) {
+          // If today is after all available dates, use the last date
+          const lastIndex = locationData.length - 1;
+          console.log(`[REFRESH] Today (${today.toLocaleDateString()}) is after latest data (${latestDate.toLocaleDateString()}), using last available date at index ${lastIndex}`);
+          setCurrentIndex(lastIndex);
+          setCurrentPrayer(locationData[lastIndex]);
+          
+          // Set a flag to indicate we're showing the last day of available data
+          // and current date is beyond this data
+          setIsShowingLastAvailableDay(true);
+        } else if (today < earliestDate) {
+          // If today is before all available dates, use the first date
+          console.log(`[REFRESH] Today (${today.toLocaleDateString()}) is before earliest data (${earliestDate.toLocaleDateString()}), using first date at index 0`);
+          setCurrentIndex(0);
+          setCurrentPrayer(locationData[0]);
+          setIsShowingLastAvailableDay(false);
+        } else {
+          // If today is within range but not found, find the closest date (this shouldn't normally happen)
+          console.log('[REFRESH] Today is within date range but exact date not found, finding closest date');
+          let closestIndex = 0;
+          let smallestDiff = Infinity;
+          
+          locationData.forEach((dayData, index) => {
+            const [day, month, year] = dayData.date.split('/').map(Number);
+            const dataDate = new Date(year, month - 1, day);
+            const diff = Math.abs(dataDate - today);
+            
+            if (diff < smallestDiff) {
+              smallestDiff = diff;
+              closestIndex = index;
+            }
+          });
+          
+          console.log(`[REFRESH] Using closest date at index: ${closestIndex}`);
+          setCurrentIndex(closestIndex);
+          setCurrentPrayer(locationData[closestIndex]);
+          setIsShowingLastAvailableDay(false);
+        }
       }
     }
   }, [locationData, getTodayIndex]);
@@ -1132,6 +1169,14 @@ export default function App() {
           </ScrollView>
         </View>
       </Animated.View>
+      {isShowingLastAvailableDay && (
+        <View style={{marginTop: 10}}>
+          <MonthTransitionNotice 
+            language={language}
+            isDarkMode={isDarkMode}
+          />
+        </View>
+      )}
       <Animated.View
         style={[
           styles.navigation,
@@ -1263,7 +1308,9 @@ export default function App() {
             </View>
             
             <ScrollView style={styles.locationListContainer}>
-              {Object.keys(prayerData).map((loc) => {
+              {Object.keys(prayerData)
+                .filter(loc => loc !== "last_updated") // Filter out the last_updated metadata
+                .map((loc) => {
                 const locDisplay = LOCATION_NAMES[loc] ? LOCATION_NAMES[loc][language] : loc;
                 const isSelected = selectedLocation === loc;
                 const iconColor = isSelected 

@@ -1,10 +1,12 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import styles from '../styles';
 import { AnimationUtils } from '../utils/animations';
+import { formatTimeString } from '../utils/timeFormatters';
+import useSettings from '../hooks/useSettings';
 
 // Helper to get the correct icon component based on prayer key
 const getIconComponent = (prayerKey) => {
@@ -45,6 +47,17 @@ const PrayerRow = ({
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const [wasEnabled, setWasEnabled] = useState(isEnabled);
   
+  // Get time format from settings
+  const [settings] = useSettings();
+  const { timeFormat } = settings;
+
+  // Format the time according to user preference
+  const formattedTime = formatTimeString(time, timeFormat);
+  
+  // Key based on time format to force re-renders when format changes
+  const renderKey = useCallback(() => `${prayerKey}-${timeFormat}-${isUpcoming ? 1 : 0}`, 
+    [prayerKey, timeFormat, isUpcoming]);
+
   // Animation when row becomes the upcoming prayer
   useEffect(() => {
     if (isUpcoming) {
@@ -70,6 +83,7 @@ const PrayerRow = ({
   
   return (
     <Animated.View 
+      key={renderKey()}
       style={[
         styles.prayerRow,
         isUpcoming ? 
@@ -101,7 +115,7 @@ const PrayerRow = ({
       </Text>
       
       <Text style={[styles.value, isDarkMode && styles.darkValue]}>
-        {time}
+        {formattedTime}
       </Text>
       
       <Animated.View style={{
@@ -119,4 +133,13 @@ const PrayerRow = ({
   );
 };
 
-export default React.memo(PrayerRow);
+// Ensure component re-renders when settings change
+export default React.memo(PrayerRow, (prevProps, nextProps) => {
+  // Re-render if any of these props change
+  return prevProps.time === nextProps.time &&
+         prevProps.isUpcoming === nextProps.isUpcoming &&
+         prevProps.isEnabled === nextProps.isEnabled &&
+         prevProps.isDarkMode === nextProps.isDarkMode;
+  // Note: We intentionally don't compare based on time format, as we want
+  // the component to re-render when the global time format setting changes
+});
