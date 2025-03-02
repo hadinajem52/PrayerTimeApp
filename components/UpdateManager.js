@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import UpdateService from '../services/UpdateService';
 import { ForcedUpdateDialog, OptionalUpdateDialog } from './UpdateDialog';
 
+console.log('UpdateManager initialized');
+
 const UPDATE_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 const LAST_UPDATE_CHECK_KEY = 'last_update_check';
 const POSTPONED_VERSION_KEY = 'postponed_update_version';
@@ -66,8 +68,39 @@ export const UpdateManager = () => {
     setShowUpdateDialog(false);
   };
 
+  const checkForPrayerTimeUpdates = async () => {
+    console.log('Attempting to check for prayer time updates...');
+    try {
+      if (!NativeModules.UpdateModule) {
+        console.error('UpdateModule is not available!');
+        return;
+      }
+      
+      console.log('Calling forceUpdateCheck...');
+      const hasUpdate = await NativeModules.UpdateModule.forceUpdateCheck();
+      console.log('forceUpdateCheck result:', hasUpdate);
+      
+      if (hasUpdate) {
+        Alert.alert(
+          "Prayer Times Updated", 
+          "New prayer times data has been downloaded. The app will now refresh.",
+          [{ 
+            text: "OK",
+            onPress: () => {
+              // Force reload app data here
+              // This depends on how your app loads data, but could be:
+              // global.fetchPrayerData(); or similar refresh mechanism
+            }
+          }]
+        );
+      }
+    } catch (error) {
+      console.error("Error in checkForPrayerTimeUpdates:", error);
+    }
+  };
+
   useEffect(() => {
-    // Check for updates when component mounts
+    // First effect with timeout and AppState
     const initialCheck = setTimeout(() => {
       checkForUpdates();
     }, 3000); // Delay initial check by 3 seconds to not interfere with app startup
@@ -87,6 +120,7 @@ export const UpdateManager = () => {
 
   useEffect(() => {
     checkForUpdates();
+    checkForPrayerTimeUpdates(); // Called here
   }, []);
 
   if (!showUpdateDialog) {
