@@ -38,22 +38,48 @@ def clean_old_pdfs():
                 print(f"Removed old PDF: {file}")
 
 # Step 1: Download the PDF from the URL
-def download_pdf(url, save_path, retries=5, delay=500):
+def download_pdf(url, save_path, retries=5, initial_timeout=300, max_timeout=900):
+    """
+    Download PDF with extended timeout and exponential backoff
+    
+    Args:
+        url: URL to download from
+        save_path: Where to save the PDF
+        retries: Maximum number of retry attempts
+        initial_timeout: Starting timeout in seconds (300s = 5 minutes)
+        max_timeout: Maximum timeout in seconds (900s = 15 minutes)
+    """
     attempt = 0
+    current_timeout = initial_timeout
+    
     while attempt < retries:
         print(f"Attempt {attempt + 1}: Downloading PDF from {url} ...")
-        response = requests.get(url)
-        if response.status_code == 200:
-            with open(save_path, "wb") as f:
-                f.write(response.content)
-            print(f"Downloaded and saved to {save_path}.")
-            return True
-        else:
-            print(f"Failed to download PDF. Status code: {response.status_code}")
-            attempt += 1
-            if attempt < retries:
-                print(f"Retrying in {delay} seconds...")
-                time.sleep(delay)
+        print(f"Using timeout of {current_timeout} seconds")
+        
+        try:
+            response = requests.get(url, timeout=current_timeout)
+            if response.status_code == 200:
+                with open(save_path, "wb") as f:
+                    f.write(response.content)
+                print(f"Downloaded and saved to {save_path}.")
+                return True
+            else:
+                print(f"Failed to download PDF. Status code: {response.status_code}")
+        except requests.exceptions.Timeout:
+            print(f"Request timed out after {current_timeout} seconds")
+        except requests.exceptions.RequestException as e:
+            print(f"Request failed: {e}")
+            
+        # Increase retry counter
+        attempt += 1
+        
+        if attempt < retries:
+            # Exponential backoff - increase timeout for next attempt, but cap at max_timeout
+            current_timeout = min(current_timeout * 1.5, max_timeout)
+            delay = min(60 * attempt, 300)  # Start with 60s delay, max 5 minutes
+            print(f"Retrying in {delay} seconds with increased timeout of {current_timeout} seconds...")
+            time.sleep(delay)
+            
     print("Exceeded maximum retries. Exiting.")
     return False
 
