@@ -8,6 +8,8 @@ import com.hnjm123.ShiaPrayerLeb.workers.PrayerTimeUpdateWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import android.content.Context
 
 class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
     override fun getName(): String {
@@ -23,6 +25,13 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             } catch (e: Exception) {
                 promise.reject("UPDATE_ERROR", e.message, e)
             }
+        }
+    }
+
+    companion object {
+        // This implementation is missing or incomplete
+        suspend fun forceCheckUpdate(context: Context): Boolean = withContext(Dispatchers.IO) {
+            // Implementation needed
         }
     }
 }
