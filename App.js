@@ -41,6 +41,8 @@ import SkeletonLoader from './components/SkeletonLoader';
 import { Animations, AnimationUtils } from './utils/animations';
 import { UpdateManager } from './components/UpdateManager';
 import './firebase';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
 // ----- Translations & Constants -----
 const TRANSLATIONS = {
@@ -121,6 +123,16 @@ const PRAYER_ICONS = {
   maghrib: 'sunset',          
   isha: 'moon-outline',
   midnight: 'moon',
+};
+
+const LOCATION_ICONS = {
+  beirut: "city",
+  tyre: "beach",
+  saida: "waves",
+  baalbek: "pillar",
+  hermel: "mountain", // We'll keep this name but use FontAwesome5 component for hermel
+  tripoli: "lighthouse",
+  "nabatieh-bintjbeil": "home-group"
 };
 
 // Helper to get the correct icon component based on prayer key
@@ -863,19 +875,20 @@ export default function App() {
     scheduleNotificationsForUpcomingPeriod
   ]);
 
-  useEffect(() => {
+  // Add a new refresh function to update the current prayer time and index
+  const refreshCurrentPrayerData = useCallback(() => {
     if (locationData.length > 0) {
       const todayIdx = getTodayIndex(locationData);
-      console.log(`Today's index in prayer data: ${todayIdx}`);
+      console.log(`[REFRESH] Today's index in prayer data: ${todayIdx}`);
       
       if (todayIdx !== -1) {
         // If today's date is found, use it
-        console.log(`Setting current index to today: ${todayIdx}`);
+        console.log(`[REFRESH] Setting current index to today: ${todayIdx}`);
         setCurrentIndex(todayIdx);
         setCurrentPrayer(locationData[todayIdx]);
       } else {
         // If not found, try to find the closest date
-        console.log('Today not found in prayer data, finding closest date');
+        console.log('[REFRESH] Today not found in prayer data, finding closest date');
         const today = new Date();
         let closestIndex = 0;
         let smallestDiff = Infinity;
@@ -891,15 +904,62 @@ export default function App() {
           }
         });
         
-        console.log(`Using closest date at index: ${closestIndex}`);
+        console.log(`[REFRESH] Using closest date at index: ${closestIndex}`);
         setCurrentIndex(closestIndex);
         setCurrentPrayer(locationData[closestIndex]);
       }
+    }
+  }, [locationData, getTodayIndex]);
+
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState) => {
+      if (
+        appState.current.match(/inactive|background/) && 
+        nextAppState === 'active'
+      ) {
+        console.log('App has come to the foreground - refreshing data and notifications');
+        
+        // Refresh the current prayer data to ensure it matches the current time
+        refreshCurrentPrayerData();
+        
+        // Continue with notification refresh
+        if (settings.selectedLocation && settings.enabledPrayers) {
+          scheduleRollingNotifications(
+            settings.selectedLocation, 
+            settings.enabledPrayers
+          );
+        }
+      }
+      appState.current = nextAppState;
+    };
+
+    if (settings.selectedLocation && settings.enabledPrayers) {
+      scheduleRollingNotifications(
+        settings.selectedLocation, 
+        settings.enabledPrayers
+      );
+      
+      setupDailyRefresh(
+        settings.selectedLocation,
+        settings.enabledPrayers
+      );
+    }
+    
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription.remove();
+    };
+  }, [scheduleRollingNotifications, setupDailyRefresh, settings, refreshCurrentPrayerData]); 
+
+  useEffect(() => {
+    if (locationData.length > 0) {
+      refreshCurrentPrayerData();
     } else {
       setCurrentPrayer(null);
     }
-  }, [selectedLocation, locationData, getTodayIndex]);
-
+  }, [selectedLocation, locationData, refreshCurrentPrayerData]);
+  
   useEffect(() => {
     // Simulate loading state
     let loadTimer;
@@ -1163,34 +1223,90 @@ export default function App() {
       </Modal>
       {/* Location Modal */}
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         visible={isLocationModalVisible}
         onRequestClose={() => setIsLocationModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isDarkMode && styles.darkModalContent]}>
-            <Text style={[styles.modalTitle, isDarkMode && styles.darkModalTitle]}>
-              {TRANSLATIONS[language].selectLocation}
-            </Text>
-            {Object.keys(prayerData).map((loc) => {
-              const locDisplay = LOCATION_NAMES[loc] ? LOCATION_NAMES[loc][language] : loc;
-              return (
-                <TouchableOpacity
-                  key={loc}
-                  style={styles.locationOption}
-                  onPress={() => handleLocationChange(loc)}
-                >
-                  <Text style={[styles.locationOptionText, isDarkMode && styles.darkLocationOptionText]}>
-                    {locDisplay}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-            <TouchableOpacity style={styles.closeButton} onPress={() => setIsLocationModalVisible(false)}>
-              <Text style={[styles.closeButtonText, isDarkMode && styles.darkCloseButtonText]}>X</Text>
-            </TouchableOpacity>
-          </View>
+          <Animated.View 
+            style={[
+              styles.enhancedModalContent, 
+              isDarkMode && styles.darkEnhancedModalContent,
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.enhancedModalTitle, isDarkMode && styles.darkEnhancedModalTitle]}>
+                {TRANSLATIONS[language].selectLocation}
+              </Text>
+              <TouchableOpacity 
+                style={[styles.roundedCloseButton, isDarkMode && styles.darkRoundedCloseButton]} 
+                onPress={() => setIsLocationModalVisible(false)}
+              >
+                <Icon name="close" size={20} color={isDarkMode ? "#FFF" : "#FFF"} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.locationListContainer}>
+              {Object.keys(prayerData).map((loc) => {
+                const locDisplay = LOCATION_NAMES[loc] ? LOCATION_NAMES[loc][language] : loc;
+                const isSelected = selectedLocation === loc;
+                const iconColor = isSelected 
+                  ? (isDarkMode ? "#FFA500" : "#007AFF") 
+                  : (isDarkMode ? "#66CCFF" : "#555");
+                
+                return (
+                  <TouchableOpacity
+                    key={loc}
+                    style={[
+                      styles.enhancedLocationOption,
+                      isDarkMode && styles.darkEnhancedLocationOption,
+                      isSelected && styles.selectedLocationOption,
+                      isSelected && isDarkMode && styles.darkSelectedLocationOption
+                    ]}
+                    onPress={() => handleLocationChange(loc)}
+                  >
+                    <View style={[
+                      styles.locationIconContainer,
+                      isDarkMode ? styles.darkLocationIconContainer : styles.lightLocationIconContainer,
+                      isSelected && styles.selectedLocationIconContainer
+                    ]}>
+                      {loc === 'hermel' ? (
+                        <FontAwesome5
+                          name="mountain"
+                          size={18}
+                          color={iconColor}
+                          solid
+                        />
+                      ) : (
+                        <MaterialCommunityIcons
+                          name={LOCATION_ICONS[loc] || "map-marker"}
+                          size={24}
+                          color={iconColor}
+                        />
+                      )}
+                    </View>
+                    <Text style={[
+                      styles.enhancedLocationText,
+                      isDarkMode && styles.darkEnhancedLocationText,
+                      isSelected && styles.selectedLocationText,
+                      isSelected && isDarkMode && styles.darkSelectedLocationText
+                    ]}>
+                      {locDisplay}
+                    </Text>
+                    {isSelected && (
+                      <Icon 
+                        name="checkmark-circle" 
+                        size={22} 
+                        color={isDarkMode ? "#FFA500" : "#007AFF"}
+                        style={styles.selectedCheckmark}
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </Animated.View>
         </View>
       </Modal>
 

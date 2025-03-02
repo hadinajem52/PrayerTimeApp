@@ -1,57 +1,61 @@
 //usePrayerTimer.js
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
+/**
+ * Custom hook to monitor prayer times and determine the upcoming prayer
+ */
 const usePrayerTimer = (
-  currentPrayer,
-  currentIndex,
-  prayerData,
-  getTodayIndex,
-  parsePrayerTime,
+  currentPrayer, 
+  currentIndex, 
+  locationData, 
+  getTodayIndex, 
+  parsePrayerTime, 
   getUpcomingPrayerKeyCallback
 ) => {
-  const [upcomingPrayer, setUpcomingPrayer] = useState(null);
+  const [upcomingPrayerKey, setUpcomingPrayerKey] = useState(null);
+  const timerRef = useRef(null);
+  
+  // Function to determine the upcoming prayer
+  const updateUpcomingPrayer = () => {
+    if (currentPrayer) {
+      const upcoming = getUpcomingPrayerKeyCallback();
+      setUpcomingPrayerKey(upcoming);
+      return upcoming;
+    }
+    return null;
+  };
 
+  // Effect to update the upcoming prayer whenever the current prayer changes
   useEffect(() => {
-    // Only run this for today's prayer card
-    const todayIndex = getTodayIndex(prayerData);
-    if (currentIndex !== todayIndex || !currentPrayer) {
-      // Don't calculate upcoming prayer for non-today cards
-      setUpcomingPrayer(null);
-      return;
-    }
-
-    const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
-    const now = new Date();
+    updateUpcomingPrayer();
     
-    console.log(`Calculating upcoming prayer for today (${currentPrayer.date})`);
-    
-    // Find the next prayer that hasn't occurred yet
-    let foundUpcoming = false;
-    for (const prayer of prayerOrder) {
-      if (!currentPrayer[prayer]) continue;
+    // Set up an interval to check for prayer time changes every minute
+    // This ensures we update even if the app remains open for extended periods
+    timerRef.current = setInterval(() => {
+      const todayIdx = getTodayIndex(locationData);
+      const currentIdx = currentIndex;
       
-      try {
-        const prayerTime = parsePrayerTime(currentPrayer[prayer]);
-        console.log(`Checking ${prayer}: ${currentPrayer[prayer]}, parsed: ${prayerTime.toLocaleTimeString()}, now: ${now.toLocaleTimeString()}`);
+      // If we're viewing today's prayers and the day hasn't changed
+      if (currentIdx === todayIdx) {
+        // Check if the upcoming prayer has changed
+        const newUpcoming = updateUpcomingPrayer();
         
-        if (prayerTime > now) {
-          console.log(`Found upcoming prayer: ${prayer} at ${prayerTime.toLocaleTimeString()}`);
-          setUpcomingPrayer(prayer);
-          foundUpcoming = true;
-          break;
+        // If all prayers have passed and we're at the end of the day,
+        // we'll see null as the upcoming prayer
+        if (!newUpcoming) {
+          console.log('All prayers for today have passed');
         }
-      } catch (error) {
-        console.error(`Error parsing time for ${prayer}:`, error);
       }
-    }
+    }, 60000); // Check every minute
     
-    if (!foundUpcoming) {
-      console.log('No more prayers for today');
-      setUpcomingPrayer(null);
-    }
-  }, [currentPrayer, currentIndex, prayerData, getTodayIndex, parsePrayerTime]);
-
-  return upcomingPrayer;
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [currentPrayer, currentIndex, locationData, getTodayIndex, getUpcomingPrayerKeyCallback]);
+  
+  return upcomingPrayerKey;
 };
 
 export default usePrayerTimer;

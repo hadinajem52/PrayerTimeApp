@@ -359,5 +359,110 @@ darkEndIconContainer: {
     transitionProperty: 'all',
     transitionDuration: '300ms',
   },
+  // Enhanced modal styles
+  enhancedModalContent: {
+    width: '85%',
+    maxHeight: '80%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: moderateScale(20),
+    padding: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 10,
+    overflow: 'hidden'
+  },
+  darkEnhancedModalContent: {
+    backgroundColor: '#333333',
+    borderColor: '#444',
+    borderWidth: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateScale(15),
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
+  },
+  enhancedModalTitle: {
+    fontSize: moderateScale(20),
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  darkEnhancedModalTitle: {
+    color: '#66CCFF',
+    borderBottomColor: '#444',
+  },
+  roundedCloseButton: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  darkRoundedCloseButton: {
+    backgroundColor: '#66CCFF',
+  },
+  locationListContainer: {
+    maxHeight: '80%',
+    paddingVertical: moderateScale(5),
+  },
+  enhancedLocationOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: moderateScale(12),
+    paddingHorizontal: moderateScale(20),
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  darkEnhancedLocationOption: {
+    borderBottomColor: '#444',
+  },
+  selectedLocationOption: {
+    backgroundColor: 'rgba(0, 122, 255, 0.08)',
+  },
+  darkSelectedLocationOption: {
+    backgroundColor: 'rgba(255, 165, 0, 0.08)',
+  },
+  locationIconContainer: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: moderateScale(15),
+  },
+  lightLocationIconContainer: {
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+  },
+  darkLocationIconContainer: {
+    backgroundColor: 'rgba(102, 204, 255, 0.1)',
+  },
+  selectedLocationIconContainer: {
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+  },
+  enhancedLocationText: {
+    fontSize: moderateScale(18),
+    fontWeight: '500',
+    color: '#333',
+    flex: 1,
+  },
+  darkEnhancedLocationText: {
+    color: '#DDD',
+  },
+  selectedLocationText: {
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  darkSelectedLocationText: {
+    color: '#FFA500',
+  },
+  selectedCheckmark: {
+    marginLeft: moderateScale(10),
+  },
   ...loadingStateStyles,
 });
