@@ -464,5 +464,51 @@ darkEndIconContainer: {
   selectedCheckmark: {
     marginLeft: moderateScale(10),
   },
+  quoteContainer: {
+    padding: moderateScale(15),
+    alignItems: 'center',
+    marginBottom: moderateScale(10),
+  },
+  quoteIcon: {
+    marginBottom: moderateScale(15),
+  },
+  enhancedQuoteText: {
+    fontSize: moderateScale(16),
+    lineHeight: moderateScale(24),
+    textAlign: 'center',
+    color: '#222',
+    fontStyle: 'italic',
+    paddingHorizontal: moderateScale(10),
+  },
+  darkEnhancedQuoteText: {
+    color: '#EEE',
+  },
+  quoteActionButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: moderateScale(12),
+    paddingHorizontal: moderateScale(20),
+    borderRadius: moderateScale(25),
+    marginTop: moderateScale(10),
+    marginBottom: moderateScale(15),
+    alignSelf: 'center',
+    minWidth: moderateScale(120),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  darkQuoteActionButton: {
+    backgroundColor: '#66CCFF',
+  },
+  quoteActionButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    textAlign: 'center',
+    fontSize: moderateScale(16),
+  },
+  darkQuoteActionButtonText: {
+    color: 'white',
+  },
   ...loadingStateStyles,
 });

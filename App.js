@@ -1206,19 +1206,35 @@ export default function App() {
         onRequestClose={() => setIsQuoteModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isDarkMode && styles.darkModalContent]}>
-            <Text style={[styles.modalTitle, isDarkMode && styles.darkModalTitle]}>
-              {TRANSLATIONS[language].dailyQuote}
-            </Text>
-            <Text style={[styles.quoteModalText, isDarkMode && styles.darkQuoteModalText]}>
-              {dailyQuote}
-            </Text>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setIsQuoteModalVisible(false)}>
-              <Text style={[styles.closeButtonText, isDarkMode && styles.darkCloseButtonText]}>
-                {TRANSLATIONS[language].close}
+          <Animated.View style={[
+            styles.enhancedModalContent, 
+            isDarkMode && styles.darkEnhancedModalContent,
+          ]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.enhancedModalTitle, isDarkMode && styles.darkEnhancedModalTitle]}>
+                {TRANSLATIONS[language].dailyQuote}
               </Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity 
+                style={[styles.roundedCloseButton, isDarkMode && styles.darkRoundedCloseButton]} 
+                onPress={() => setIsQuoteModalVisible(false)}
+              >
+                <Icon name="close" size={20} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.quoteContainer}>
+              <FontAwesome6 
+                name="hands-praying" 
+                size={24} 
+                color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                style={styles.quoteIcon}
+              />
+              <Text style={[styles.enhancedQuoteText, isDarkMode && styles.darkEnhancedQuoteText]}>
+                {dailyQuote}
+              </Text>
+            </View>
+
+          </Animated.View>
         </View>
       </Modal>
       {/* Location Modal */}
