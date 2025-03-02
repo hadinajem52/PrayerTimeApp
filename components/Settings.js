@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { moderateScale } from 'react-native-size-matters';
+import useSettings from '../hooks/useSettings'; // Add this import
 
 const TRANSLATIONS = {
   en: {
@@ -22,10 +23,14 @@ const TRANSLATIONS = {
     arabic: "Arabic",
     back: "Back",
     hijriDate: "Hijri Date",
-    hijriAdjustment: "Date Adjustment",
+    hijriAdjustment: "Adjustment",
     daysForward: "days forward",
     daysBackward: "days backward",
     noAdjustment: "No adjustment",
+    timeFormatSetting: "Time Format",
+    hour24: "24-hour",
+    hour12: "12-hour",
+    timeFormatDescription: "Choose how prayer times are displayed"
   },
   ar: {
     settings: "الإعدادات",
@@ -40,11 +45,19 @@ const TRANSLATIONS = {
     daysForward: "أيام للأمام",
     daysBackward: "أيام للخلف",
     noAdjustment: "لا تعديل",
+    timeFormatSetting: "تنسيق الوقت",
+    hour24: "٢٤ ساعة",
+    hour12: "١٢ ساعة",
+    timeFormatDescription: " اختر طريقة عرض أوقات الصلاة"
   },
 };
 
 const Settings = ({ language, isDarkMode, toggleDarkMode, toggleLanguage, onClose, hijriDateOffset = 0, updateHijriOffset }) => {
   const translations = TRANSLATIONS[language];
+  
+  // Fix: get settings and setSettings as an array, not an object
+  const [settings, setSettings] = useSettings();
+  const timeFormat = settings.timeFormat || '24h';
 
   const renderHijriOffsetText = () => {
     if (hijriDateOffset === 0) {
@@ -54,6 +67,14 @@ const Settings = ({ language, isDarkMode, toggleDarkMode, toggleLanguage, onClos
     } else {
       return `${Math.abs(hijriDateOffset)} ${translations.daysBackward}`;
     }
+  };
+  
+  // Toggle function for time format
+  const toggleTimeFormat = () => {
+    setSettings(prev => ({
+      ...prev,
+      timeFormat: prev.timeFormat === '24h' ? '12h' : '24h'
+    }));
   };
 
   return (
@@ -199,6 +220,29 @@ const Settings = ({ language, isDarkMode, toggleDarkMode, toggleLanguage, onClos
               />
             )}
           </TouchableOpacity>
+        </View>
+
+        {/* Time Format Section */}
+        <View style={[styles.section, isDarkMode && styles.darkSection]}>
+          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
+            {translations.timeFormatSetting}
+          </Text>
+          
+          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+            <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
+              {timeFormat === '24h' ? translations.hour24 : translations.hour12}
+            </Text>
+            <Switch
+              value={timeFormat === '12h'}
+              onValueChange={toggleTimeFormat}
+              trackColor={{ false: "#767577", true: isDarkMode ? "#66CCFF" : "#007AFF" }}
+              thumbColor={isDarkMode ? "#FFA500" : "#f4f3f4"}
+            />
+          </View>
+          
+          <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
+            {translations.timeFormatDescription}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -346,6 +390,19 @@ const styles = StyleSheet.create({
   },
   darkOffsetValue: {
     color: '#fff',
+  },
+  
+  // Add the missing description styles
+  description: {
+    fontSize: moderateScale(13),
+    color: '#666',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    paddingTop: 4,
+    fontStyle: 'italic',
+  },
+  darkDescription: {
+    color: '#aaa',
   },
 });
 

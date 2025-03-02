@@ -1,6 +1,9 @@
-//useSettings.js
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Singleton pattern to ensure all components share the same settings state
+let currentSettings = null;
+let listeners = [];
 
 const initialSettings = {
   language: 'ar',
@@ -18,35 +21,75 @@ const initialSettings = {
   },
   scheduledNotifications: {},
   isSettingsLoaded: false,
+  timeFormat: '24h', // Add default time format (24-hour)
+};
+
+// Helper function to notify all listeners when settings change
+const notifyListeners = (newSettings) => {
+  listeners.forEach(listener => listener(newSettings));
 };
 
 export default function useSettings() {
-  const [settings, setSettings] = useState(initialSettings);
+  const [settings, setLocalSettings] = useState(currentSettings || initialSettings);
 
+  // Initialize settings on first mount
   useEffect(() => {
     async function loadSettings() {
       try {
         const savedSettings = await AsyncStorage.getItem('settings');
         if (savedSettings) {
-          setSettings({ ...initialSettings, ...JSON.parse(savedSettings), isSettingsLoaded: true });
+          const parsedSettings = { ...initialSettings, ...JSON.parse(savedSettings), isSettingsLoaded: true };
+          currentSettings = parsedSettings;
+          setLocalSettings(parsedSettings);
+          notifyListeners(parsedSettings);
         } else {
-          setSettings({ ...initialSettings, isSettingsLoaded: true });
+          const defaultSettings = { ...initialSettings, isSettingsLoaded: true };
+          currentSettings = defaultSettings;
+          setLocalSettings(defaultSettings);
+          notifyListeners(defaultSettings);
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
-        setSettings({ ...initialSettings, isSettingsLoaded: true });
+        const defaultSettings = { ...initialSettings, isSettingsLoaded: true };
+        currentSettings = defaultSettings;
+        setLocalSettings(defaultSettings);
+        notifyListeners(defaultSettings);
       }
     }
-    loadSettings();
+    
+    if (!currentSettings || !currentSettings.isSettingsLoaded) {
+      loadSettings();
+    }
   }, []);
 
+  // Register this component as a listener
   useEffect(() => {
-    if (settings.isSettingsLoaded) {
-      AsyncStorage.setItem('settings', JSON.stringify(settings)).catch((error) =>
-        console.error('Failed to save settings:', error)
-      );
-    }
-  }, [settings]);
+    const listener = (newSettings) => {
+      setLocalSettings(newSettings);
+    };
+    
+    listeners.push(listener);
+    
+    return () => {
+      listeners = listeners.filter(l => l !== listener);
+    };
+  }, []);
+
+  // Wrapped setSettings function that updates global state
+  const setSettings = useCallback((updater) => {
+    const newSettings = typeof updater === 'function' 
+      ? updater(currentSettings) 
+      : updater;
+    
+    currentSettings = newSettings;
+    
+    // Save settings to AsyncStorage
+    AsyncStorage.setItem('settings', JSON.stringify(newSettings))
+      .catch(error => console.error('Failed to save settings:', error));
+    
+    // Notify all listeners
+    notifyListeners(newSettings);
+  }, []);
 
   return [settings, setSettings];
 }
