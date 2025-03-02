@@ -52,7 +52,7 @@ def download_pdf(url, save_path, retries=5, delay=500):
 def parse_line(line):
     # Updated pattern to handle single-digit hour for Asr time
     new_pattern = (
-        r"(\d{2}:\d{2})\s+"   # midnight
+        r"(\d{1,2}:\d{2})\s+"   # midnight
         r"(\d{2}:\d{2})\s+"   # isha (العشاء)
         r"(\d{2}:\d{2})\s+"   # maghrib (المغرب)
         r"(\d{1,2}:\d{2})\s+" # asr (العصر) - Modified to accept 1 or 2 digits
@@ -83,13 +83,13 @@ def parse_line(line):
         
         # Although these seem to be already in 24h format in our data,
         # we'll handle them just to be safe
-        dhuhr = convert_to_24h_format(dhuhr)
+        # Note: Dhuhr is excluded from conversion as it should remain in its original format
         maghrib = convert_to_24h_format(maghrib)
         isha = convert_to_24h_format(isha)
         midnight = convert_to_24h_format(midnight)
         
         # Morning prayers (already in correct format, no need to convert)
-        # imsak, fajr, and shuruq remain as is
+        # imsak, fajr, shuruq and dhuhr remain as is
         
         return {
             "midnight": midnight,
