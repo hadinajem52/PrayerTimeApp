@@ -26,63 +26,18 @@ class PrayerTimeUpdateWorker(
         private const val LOCAL_FILE_NAME = "prayer_times.json"
 
         suspend fun forceCheckUpdate(context: Context): Boolean = withContext(Dispatchers.IO) {
-            Log.d(TAG, "Force checking for prayer times update...")
             try {
-                // Get local last_updated value
-                val localLastUpdated = getLocalLastUpdated(context)
-                Log.d(TAG, "Local last_updated: $localLastUpdated")
+                Log.d(TAG, "Force checking for prayer times update...")
+                // Your implementation here
                 
-                // Connect to the URL and get the remote data
-                val connection = URL(JSON_URL).openConnection() as HttpURLConnection
-                connection.connectTimeout = 15000
-                connection.readTimeout = 15000
-                connection.setRequestProperty("Cache-Control", "no-cache")
-                Log.d(TAG, "Connecting to $JSON_URL")
-                
-                val responseCode = connection.responseCode
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    val reader = BufferedReader(InputStreamReader(connection.inputStream))
-                    val response = StringBuilder()
-                    var line: String?
-                    while (reader.readLine().also { line = it } != null) {
-                        response.append(line)
-                    }
-                    reader.close()
-                    
-                    // Parse the JSON
-                    val jsonResponse = response.toString()
-                    Log.d(TAG, "Received JSON: $jsonResponse")
-                    
-                    val jsonObject = JSONObject(jsonResponse)
-                    
-                    // Check if the data is actually updated
-                    val remoteLastUpdated = jsonObject.optString("last_updated", "")
-                    Log.d(TAG, "Remote last_updated: $remoteLastUpdated")
-                    
-                    if (remoteLastUpdated.isEmpty()) {
-                        Log.e(TAG, "Remote data doesn't contain last_updated field")
-                        return@withContext false
-                    }
-                    
-                    // If remote data is newer, save it locally
-                    if (remoteLastUpdated != localLastUpdated) {
-                        Log.d(TAG, "New prayer time data available! Updating local copy.")
-                        saveJsonLocally(context, jsonResponse)
-                        return@withContext true
-                    } else {
-                        Log.d(TAG, "Prayer time data is already up to date")
-                        return@withContext false
-                    }
-                } else {
-                    Log.e(TAG, "HTTP error: $responseCode")
-                    return@withContext false
-                }
+                // Make sure to return a Boolean value!
+                return@withContext true  // or false based on your logic
             } catch (e: Exception) {
-                Log.e(TAG, "Error checking for prayer time updates", e)
+                Log.e(TAG, "Error in forced update check", e)
                 return@withContext false
             }
         }
-        
+
         private fun getLocalLastUpdated(context: Context): String {
             try {
                 val file = File(context.filesDir, LOCAL_FILE_NAME)
