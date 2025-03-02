@@ -21,27 +21,25 @@ import java.util.concurrent.TimeUnit
 
 class MainApplication : Application(), ReactApplication {
 
-  override val reactNativeHost: ReactNativeHostWrapper(
+  override val reactNativeHost: ReactNativeHost = ReactNativeHostWrapper(
         this,
         object : DefaultReactNativeHost(this) {
           override fun getPackages(): List<ReactPackage> {
             val packages = PackageList(this).packages
-            // Packages that cannot be autolinked yet can be added manually here, for example:
-            // packages.add(new MyReactNativePackage());
-            // Add your package
+            // Packages that cannot be autolinked yet can be added manually here
             packages.add(UpdateModulePackage())
             return packages
           }
 
           override fun getJSMainModuleName(): String = ".expo/.virtual-metro-entry"
-
+          
           override fun getUseDeveloperSupport(): Boolean = BuildConfig.DEBUG
-
+          
           override val isNewArchEnabled: Boolean = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
           override val isHermesEnabled: Boolean = BuildConfig.IS_HERMES_ENABLED
-      }
+        }
   )
-
+  
   override val reactHost: ReactHost
     get() = ReactNativeHostWrapper.createReactHost(applicationContext, reactNativeHost)
 
@@ -49,7 +47,6 @@ class MainApplication : Application(), ReactApplication {
     super.onCreate()
     SoLoader.init(this, OpenSourceMergedSoMapping)
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
-      // If you opted-in for the New Architecture, we load the native entry point for this app.
       load()
     }
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
@@ -67,7 +64,7 @@ class MainApplication : Application(), ReactApplication {
       
     WorkManager.getInstance(this).enqueueUniquePeriodicWork(
       "prayer_time_update",
-      ExistingPeriodicWorkPolicy.KEEP,  // Keep existing if already scheduled
+      ExistingPeriodicWorkPolicy.KEEP,
       updateWorkRequest
     )
   }
