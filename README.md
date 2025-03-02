@@ -1,47 +1,104 @@
-# Prayer Times & Qibla Compass App
+# ShiaPrayer Lebanon
 
-A React Native application that provides accurate Islamic prayer times, daily inspirational quotes, and a Qibla Compass to help users find the direction of the Kaaba. The app supports both English and Arabic, offers dark/light mode, and utilizes Notifee push notifications.
+A comprehensive React Native application providing accurate Islamic prayer times according to Shia jurisprudence, specifically tailored for Lebanese locations. The app features a Qibla compass, daily inspiration, customizable notifications, and full Arabic language support.
 
-## Features
+## ✨ Features
 
-- **Prayer Times Display:**  
-  View prayer times for your selected location along with Hijri dates. Animated transitions allow navigation through different days.
+- **📅 Prayer Times:** 
+  - Accurate prayer times following Shia methodology
+  - Beautiful animated transitions between days
+  - Complete Hijri calendar integration
+  - Multiple calculation methods support
 
-- **Location Selection:**  
-  Choose from multiple predefined locations to display prayer times for different regions.
+- **📍 Location Services:**
+  - Predefined Lebanese locations with accurate coordinates
+  - Manual location selection option
+  - Location-specific prayer time adjustments
 
-- **Daily Inspirational Quotes:**  
-  Receive a daily quote to inspire your day.
+- **🧭 Qibla Compass:**
+  - Real-time Qibla direction finding
+  - Accurate compass with degree display
+  - Map view option for visualization
+  - Works offline after initial setup
 
-- **Qibla Compass:**  
-  Use the integrated Qibla Compass to easily determine the direction of the Kaaba for your prayers.
+- **🌙 Customization Options:**
+  - Dark/Light theme with automatic switching
+  - Full Arabic language support with RTL layout
+  - Adjustable notification settings
+  - Multiple theme color options
 
-- **Dark/Light Mode & Multilingual Support:**  
-  Toggle between dark and light themes, and switch between English and Arabic (with RTL support).
+- **🔔 Smart Notifications:**
+  - Customizable prayer reminders powered by Notifee
+  - Battery-efficient background service
 
-- **Push Notifications:**  
-  Schedule notifications for prayer times using Firebase Cloud Messaging.
+- **✈️ Offline Functionality:**
+  - Works without internet connection
+  - Locally stored prayer calculations
+  - Cached inspiration quotes
+  - Minimal battery consumption
 
-- **Settings Persistence:**  
-  User preferences (language, theme, selected location) are saved locally using AsyncStorage.
+## 📱 Screenshots
 
-## Screenshots
-![WhatsApp Image 2025-02-18 at 14 55 19_7341a138](https://github.com/user-attachments/assets/8e4e1cc3-5cf4-427d-9927-b2846b2b6ccf)
-![WhatsApp Image 2025-02-18 at 14 55 19_0e32d28f](https://github.com/user-attachments/assets/bf57939b-0a74-4f08-8d5a-54bb579478db)
-![WhatsApp Image 2025-02-18 at 14 55 21_3b5dd101](https://github.com/user-attachments/assets/0b03e51d-da05-4804-9061-230693b41af0)
-![WhatsApp Image 2025-02-22 at 12 58 24_f0c33b4e](https://github.com/user-attachments/assets/edbcd651-cf31-4ff6-a358-51114c4ff001)
+<div style="display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 10px;">
+  <img src="screenshots/home-light.png" width="200" alt="Home Screen - Light Mode" />
+  <img src="screenshots/home-dark.png" width="200" alt="Home Screen - Dark Mode" />
+  <img src="screenshots/qibla.png" width="200" alt="Qibla Compass" />
+  <img src="screenshots/settings.png" width="200" alt="Settings Screen" />
+</div>
 
-## Technologies Used
+## 🛠️ Technologies
 
-- **React Native:** Framework for building native mobile apps using JavaScript.
-- **Notifee Notifications:** For push and scheduled notifications.
-- **AsyncStorage:** For local data persistence.
-- **Compass & Geolocation Libraries:**
-  - `react-native-compass-heading`
-  - `react-native-geolocation-service`
-- **Additional Libraries:**
-  - `react-native-vector-icons` for icons
-  - `react-native-safe-area-context` for improved UI rendering
-  - `moment-hijri` for Hijri date formatting
+- **Frontend Framework:**
+  - React Native (latest stable version)
+  - React Navigation 6
+  - React Native Reanimated for smooth animations
+
+- **State Management & Storage:**
+  - Redux Toolkit / Context API
+  - AsyncStorage for preferences
+  - MMKV for high-performance storage
+
+- **Prayer Times & Location:**
+  - Custom Shia prayer calculation algorithms
+  - React Native Geolocation Service
+  - React Native Compass Heading
+
+- **UI/UX Components:**
+  - React Native Paper
+  - React Native Vector Icons
+  - React Native Safe Area Context
+
+- **Notifications & Background Services:**
+  - Notifee for reliable notifications
+  - Background fetch for timely updates
+
+## 📋 Requirements
+
+- iOS 12+ / Android 6.0+
+- Node.js 14+
+- React Native CLI or Expo (SDK 45+)
+
+## 🚀 Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/ShiaPrayerLeb.git
+
+# Navigate to project directory
+cd ShiaPrayerLeb
+
+# Install dependencies
+yarn install
+# or
+npm install
+
+# iOS specific
+cd ios && pod install && cd ..
+
+# Start the app
+npx react-native run-android
+# or
+npx react-native run-ios
+```
 
 

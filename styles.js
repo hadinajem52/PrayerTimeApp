@@ -23,10 +23,10 @@ const loadingStateStyles = {
     opacity: 0.6,
   },
   skeletonAccent: {
-    backgroundColor: '#007AFF33', // Semi-transparent accent color
+    backgroundColor: '#007AFF33', 
   },
   darkSkeletonAccent: {
-    backgroundColor: '#66CCFF33', // Semi-transparent accent color
+    backgroundColor: '#66CCFF33',
   },
 };
 
@@ -47,10 +47,10 @@ export default StyleSheet.create({
   header: {
     fontSize: moderateScale(12),
     fontWeight: '700',
-    marginBottom: hp('1.5%'), // updated marginBottom for responsiveness
+    marginBottom: hp('1.5%'), 
     color: '#333',
     textAlign: 'center',
-    marginTop: hp('1%'), // updated marginTop for responsiveness
+    marginTop: hp('1%'), 
   },
   darkHeader: {
     color: '#FFF',
@@ -194,7 +194,8 @@ export default StyleSheet.create({
     justifyContent: 'space-evenly', // changed from 'space-between'
     alignItems: 'center',
     backgroundColor: '#EAEFF2',
-    // Removed paddingHorizontal and width for proper alignment
+    borderTopLeftRadius: moderateScale(10),
+    borderTopRightRadius: moderateScale(10),
   },
   darkNavigation: {
     backgroundColor: '#333',
@@ -354,7 +355,6 @@ darkEndIconContainer: {
   darkActiveHighlight: {
     backgroundColor: 'rgba(255, 165, 0, 0.1)',
   },
-  // Enhance transition for upcoming prayers
   upcomingTransition: {
     transitionProperty: 'all',
     transitionDuration: '300ms',
