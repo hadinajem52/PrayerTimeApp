@@ -91,7 +91,7 @@ def parse_line(line):
         r"(\d{2}:\d{2})\s+"   # isha (العشاء)
         r"(\d{2}:\d{2})\s+"   # maghrib (المغرب)
         r"(\d{1,2}:\d{2})\s+" # asr (العصر) - Modified to accept 1 or 2 digits
-        r"(\d{2}:\d{2})\s+"   # dhuhr (الظهر)
+        r"(\d{1}:\d{2})\s+"   # dhuhr (الظهر)
         r"(\d{1,2}:\d{2})\s+" # shuruq (الشروق)
         r"(\d{1,2}:\d{2})\s+" # fajr (الصبح)
         r"(\d{1,2}:\d{2})\s+" # imsak (الامساك)

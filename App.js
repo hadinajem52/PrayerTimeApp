@@ -1153,6 +1153,7 @@ export default function App() {
                 onToggleNotification={handleNotificationToggle}
                 isDarkMode={isDarkMode}
                 upcomingLabel={TRANSLATIONS[language].upcoming}
+                language={language} // Add the language prop here
               />
             ))}
             {isToday && (
