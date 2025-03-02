@@ -28,6 +28,15 @@ ASSETS_DIR = "assets"
 os.makedirs(PDFS_DIR, exist_ok=True)
 os.makedirs(ASSETS_DIR, exist_ok=True)
 
+# Add near the beginning of the script
+def clean_old_pdfs():
+    """Remove PDFs from previous months"""
+    if os.path.exists(PDFS_DIR):
+        for file in os.listdir(PDFS_DIR):
+            if file.endswith('.pdf') and not file.endswith(f"-{current_month}.pdf"):
+                os.remove(os.path.join(PDFS_DIR, file))
+                print(f"Removed old PDF: {file}")
+
 # Step 1: Download the PDF from the URL
 def download_pdf(url, save_path, retries=5, delay=500):
     attempt = 0
@@ -152,6 +161,9 @@ if __name__ == "__main__":
     
     # Add debug flag - set to True to see diagnostic info
     debug_mode = True
+
+    # Call this function before processing locations
+    clean_old_pdfs()
 
     for location, url in locations.items():
         print(f"\nProcessing location: {location}")
