@@ -7,7 +7,6 @@ import {
   I18nManager,
   Animated,
   StatusBar,
-  ActivityIndicator,
   Modal,
   Alert,
   PermissionsAndroid,

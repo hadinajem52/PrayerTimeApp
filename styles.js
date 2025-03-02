@@ -45,12 +45,12 @@ export default StyleSheet.create({
     backgroundColor: '#EAEFF2',
   },
   header: {
-    fontSize: moderateScale(15),
+    fontSize: moderateScale(12),
     fontWeight: '700',
     marginBottom: hp('1.5%'), // updated marginBottom for responsiveness
     color: '#333',
     textAlign: 'center',
-    marginTop: hp('3%'), // updated marginTop for responsiveness
+    marginTop: hp('1%'), // updated marginTop for responsiveness
   },
   darkHeader: {
     color: '#FFF',
