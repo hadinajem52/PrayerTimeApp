@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, NativeModules, Button, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import UpdateService from '../services/UpdateService';
 import { ForcedUpdateDialog, OptionalUpdateDialog } from './UpdateDialog';
@@ -83,6 +83,10 @@ export const UpdateManager = () => {
       clearTimeout(initialCheck);
       subscription.remove();
     };
+  }, []);
+
+  useEffect(() => {
+    checkForUpdates();
   }, []);
 
   if (!showUpdateDialog) {
