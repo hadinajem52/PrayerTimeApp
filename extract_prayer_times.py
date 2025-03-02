@@ -97,7 +97,6 @@ def parse_line(line):
         r"(\d{1,2}:\d{2})\s+" # imsak (الامساك)
         r"(\d{1,2}/\d{1,2}/\d{4})\s+" # date (التاريخ)
         r"([\u0600-\u06FF\s]+)\s+"  # day name in Arabic (اليوم)
-        r"([\u0600-\u06FF0-9\s]+)"  # Hijri date
     )
     
     match = re.search(new_pattern, line)
