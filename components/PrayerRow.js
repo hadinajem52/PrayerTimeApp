@@ -39,7 +39,8 @@ const PrayerRow = ({
   isEnabled, 
   onToggleNotification, 
   isDarkMode,
-  upcomingLabel
+  upcomingLabel,
+  language // Add language prop
 }) => {
   // Animation values
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -54,9 +55,10 @@ const PrayerRow = ({
   // Format the time according to user preference
   const formattedTime = formatTimeString(time, timeFormat);
   
-  // Key based on time format to force re-renders when format changes
-  const renderKey = useCallback(() => `${prayerKey}-${timeFormat}-${isUpcoming ? 1 : 0}`, 
-    [prayerKey, timeFormat, isUpcoming]);
+  // Key based on time format and language to force re-renders when either changes
+  const renderKey = useCallback(() => 
+    `${prayerKey}-${timeFormat}-${language}-${isUpcoming ? 1 : 0}`, 
+    [prayerKey, timeFormat, language, isUpcoming]);
 
   // Animation when row becomes the upcoming prayer
   useEffect(() => {
@@ -139,7 +141,9 @@ export default React.memo(PrayerRow, (prevProps, nextProps) => {
   return prevProps.time === nextProps.time &&
          prevProps.isUpcoming === nextProps.isUpcoming &&
          prevProps.isEnabled === nextProps.isEnabled &&
-         prevProps.isDarkMode === nextProps.isDarkMode;
-  // Note: We intentionally don't compare based on time format, as we want
-  // the component to re-render when the global time format setting changes
+         prevProps.isDarkMode === nextProps.isDarkMode &&
+         prevProps.label === nextProps.label &&
+         prevProps.upcomingLabel === nextProps.upcomingLabel;
+  // Note: We intentionally don't compare based on time format or language,
+  // as we want the component to re-render when these global settings change
 });
