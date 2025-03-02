@@ -182,6 +182,9 @@ if __name__ == "__main__":
     json_file_path = os.path.join(ASSETS_DIR, "prayer_times.json")
     
     # Save extracted data to a JSON file inside /assets
+    # Add timestamp for when data was last updated
+    all_data["last_updated"] = datetime.datetime.now().isoformat()
+    
     with open(json_file_path, "w", encoding="utf-8") as f:
         json.dump(all_data, f, ensure_ascii=False, indent=2)
     
