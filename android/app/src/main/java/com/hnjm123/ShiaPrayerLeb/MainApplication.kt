@@ -21,13 +21,15 @@ import java.util.concurrent.TimeUnit
 
 class MainApplication : Application(), ReactApplication {
 
-  override val reactNativeHost: ReactNativeHost = ReactNativeHostWrapper(
+  override val reactNativeHost: ReactNativeHostWrapper(
         this,
         object : DefaultReactNativeHost(this) {
           override fun getPackages(): List<ReactPackage> {
             val packages = PackageList(this).packages
             // Packages that cannot be autolinked yet can be added manually here, for example:
             // packages.add(new MyReactNativePackage());
+            // Add your package
+            packages.add(UpdateModulePackage())
             return packages
           }
 
