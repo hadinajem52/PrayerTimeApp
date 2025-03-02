@@ -2,7 +2,9 @@ package com.hnjm123.ShiaPrayerLeb
 
 import android.app.Application
 import android.content.res.Configuration
-
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactNativeHost
@@ -12,9 +14,10 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.load
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
-
+import com.hnjm123.ShiaPrayerLeb.workers.PrayerTimeUpdateWorker
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
+import java.util.concurrent.TimeUnit
 
 class MainApplication : Application(), ReactApplication {
 
@@ -48,6 +51,23 @@ class MainApplication : Application(), ReactApplication {
       load()
     }
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
+    
+    // Schedule prayer time updates
+    schedulePrayerTimeUpdates()
+  }
+
+  private fun schedulePrayerTimeUpdates() {
+    val updateWorkRequest = PeriodicWorkRequestBuilder<PrayerTimeUpdateWorker>(
+      24, TimeUnit.HOURS  // Run once a day
+    )
+    .setInitialDelay(1, TimeUnit.HOURS)  // Wait a bit after app starts
+    .build()
+      
+    WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+      "prayer_time_update",
+      ExistingPeriodicWorkPolicy.KEEP,  // Keep existing if already scheduled
+      updateWorkRequest
+    )
   }
 
   override fun onConfigurationChanged(newConfig: Configuration) {
