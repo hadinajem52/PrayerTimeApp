@@ -35,6 +35,10 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Firebase configuration files
+android/app/google-services.json
+# Do NOT ignore the template
+!android/app/google-services.json.template
 
 
 
