@@ -189,16 +189,25 @@ export default StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: hp('12%'), // updated height for responsiveness
+    height: hp('12%'),
     flexDirection: 'row',
-    justifyContent: 'space-evenly', // changed from 'space-between'
+    justifyContent: 'space-evenly',
     alignItems: 'center',
     backgroundColor: '#EAEFF2',
-    borderTopLeftRadius: moderateScale(10),
-    borderTopRightRadius: moderateScale(10),
+    borderTopLeftRadius: moderateScale(25),
+    borderTopRightRadius: moderateScale(25),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
+    paddingBottom: moderateScale(10),
+    paddingTop: moderateScale(5),
   },
   darkNavigation: {
-    backgroundColor: '#333',
+    backgroundColor: '#2A2A2A',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
   },
   modalOverlay: {
     flex: 1,
@@ -509,6 +518,48 @@ darkEndIconContainer: {
   },
   darkQuoteActionButtonText: {
     color: 'white',
+  },
+  navItem: {
+    alignItems: 'center',
+    justifyContent: 'center', 
+    width: moderateScale(70),
+    height: moderateScale(65),
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(5),
+  },
+  navItemActive: {
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    borderRadius: moderateScale(20),
+  },
+  darkNavItemActive: {
+    backgroundColor: 'rgba(255, 165, 0, 0.15)',
+  },
+  navIconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: moderateScale(4),
+    width: '100%',
+  },
+  navIcon: {
+    alignSelf: 'center',
+    marginBottom: moderateScale(4),
+  },
+  navLabel: {
+    fontSize: moderateScale(11),
+    color: '#555',
+    textAlign: 'center',
+    fontWeight: '500',
+    width: '100%',
+  },
+  navLabelActive: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  darkNavLabel: {
+    color: '#AAA',
+  },
+  darkNavLabelActive: {
+    color: '#FFA500',
   },
   ...loadingStateStyles,
 });

@@ -1193,37 +1193,121 @@ export default function App() {
           }
         ]}
       >
-        <Animated.View style={{ transform: [{ scale: settingsButtonAnim }] }}>
-          <TouchableOpacity onPress={animateSettingsButton}>
-            <Icon
-              name="settings-outline"
-              size={50}
-              color={isDarkMode ? "#66CCFF" : "#007AFF"}
-            />
-          </TouchableOpacity>
-        </Animated.View>
+        <TouchableOpacity 
+          style={[
+            styles.navItem,
+            isSettingsVisible && styles.navItemActive,
+            isSettingsVisible && isDarkMode && styles.darkNavItemActive
+          ]} 
+          onPress={animateSettingsButton}
+        >
+          <Animated.View style={[
+            { transform: [{ scale: settingsButtonAnim }] },
+            { alignItems: 'center', width: '100%' }
+          ]}>
+            <View style={styles.navIconContainer}>
+              <Icon
+                name="settings-outline"
+                size={28}
+                color={isDarkMode ? 
+                  (isSettingsVisible ? "#FFA500" : "#66CCFF") : 
+                  (isSettingsVisible ? "#007AFF" : "#555")}
+              />
+            </View>
+            <Text style={[
+              styles.navLabel,
+              isDarkMode && styles.darkNavLabel,
+              isSettingsVisible && styles.navLabelActive,
+              isSettingsVisible && isDarkMode && styles.darkNavLabelActive
+            ]}>
+              {TRANSLATIONS[language].settings}
+            </Text>
+          </Animated.View>
+        </TouchableOpacity>
         
-        <Animated.View style={{ transform: [{ scale: calendarButtonAnim }] }}>
-          <TouchableOpacity onPress={animateCalendarButton}>
+        <TouchableOpacity 
+          style={[
+            styles.navItem,
+            isCalendarVisible && styles.navItemActive,
+            isCalendarVisible && isDarkMode && styles.darkNavItemActive
+          ]} 
+          onPress={animateCalendarButton}
+        >
+          <Animated.View style={{ transform: [{ scale: calendarButtonAnim }] }}>
             <Icon
               name="calendar-outline"
-              size={50}
-              color={isDarkMode ? "#66CCFF" : "#007AFF"}
+              size={28}
+              color={isDarkMode ? 
+                (isCalendarVisible ? "#FFA500" : "#66CCFF") : 
+                (isCalendarVisible ? "#007AFF" : "#555")}
+              style={styles.navIcon}
             />
-          </TouchableOpacity>
-        </Animated.View>
+            <Text style={[
+              styles.navLabel,
+              isDarkMode && styles.darkNavLabel,
+              isCalendarVisible && styles.navLabelActive,
+              isCalendarVisible && isDarkMode && styles.darkNavLabelActive
+            ]}>
+              {TRANSLATIONS[language].calendar}
+            </Text>
+          </Animated.View>
+        </TouchableOpacity>
         
-        <Animated.View style={{ transform: [{ scale: locationButtonAnim }] }}>
-          <TouchableOpacity onPress={animateLocationButton}>
-            <Icon name="location-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
-          </TouchableOpacity>
-        </Animated.View>
+        <TouchableOpacity 
+          style={[
+            styles.navItem,
+            isLocationModalVisible && styles.navItemActive,
+            isLocationModalVisible && isDarkMode && styles.darkNavItemActive
+          ]} 
+          onPress={animateLocationButton}
+        >
+          <Animated.View style={{ transform: [{ scale: locationButtonAnim }] }}>
+            <Icon 
+              name="location-outline" 
+              size={28} 
+              color={isDarkMode ? 
+                (isLocationModalVisible ? "#FFA500" : "#66CCFF") : 
+                (isLocationModalVisible ? "#007AFF" : "#555")}
+              style={styles.navIcon}
+            />
+            <Text style={[
+              styles.navLabel,
+              isDarkMode && styles.darkNavLabel,
+              isLocationModalVisible && styles.navLabelActive,
+              isLocationModalVisible && isDarkMode && styles.darkNavLabelActive
+            ]}>
+              {TRANSLATIONS[language].selectLocation}
+            </Text>
+          </Animated.View>
+        </TouchableOpacity>
         
-        <Animated.View style={{ transform: [{ scale: compassButtonAnim }] }}>
-          <TouchableOpacity onPress={animateCompassButton}>
-            <Icon name="compass-outline" size={50} color={isDarkMode ? "#66CCFF" : "#007AFF"} />
-          </TouchableOpacity>
-        </Animated.View>
+        <TouchableOpacity 
+          style={[
+            styles.navItem,
+            isCompassVisible && styles.navItemActive,
+            isCompassVisible && isDarkMode && styles.darkNavItemActive
+          ]} 
+          onPress={animateCompassButton}
+        >
+          <Animated.View style={{ transform: [{ scale: compassButtonAnim }] }}>
+            <Icon 
+              name="compass-outline" 
+              size={28} 
+              color={isDarkMode ? 
+                (isCompassVisible ? "#FFA500" : "#66CCFF") : 
+                (isCompassVisible ? "#007AFF" : "#555")}
+              style={styles.navIcon}
+            />
+            <Text style={[
+              styles.navLabel,
+              isDarkMode && styles.darkNavLabel,
+              isCompassVisible && styles.navLabelActive,
+              isCompassVisible && isDarkMode && styles.darkNavLabelActive
+            ]}>
+              {language === 'en' ? 'Qibla' : 'القبلة'}
+            </Text>
+          </Animated.View>
+        </TouchableOpacity>
       </Animated.View>
       
       {/* Calendar Modal */}
