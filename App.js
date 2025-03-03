@@ -44,6 +44,32 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MonthTransitionNotice from './components/MonthTransitionNotice';
 import { formatTimeString } from './utils/timeFormatters';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// In your settings initialization or first run logic:
+const initializeSettings = async () => {
+  const existingSettings = await AsyncStorage.getItem('user_settings');
+  
+  if (!existingSettings) {
+    // Default all prayer notifications to OFF for first-time users
+    const defaultEnabledPrayers = {
+      imsak: false,
+      fajr: false, 
+      shuruq: false,
+      dhuhr: false,
+      asr: false,
+      maghrib: false,
+      isha: false,
+      midnight: false
+    };
+    
+    // Save default settings
+    await AsyncStorage.setItem('user_settings', JSON.stringify({
+      // your other defaults
+      enabledPrayers: defaultEnabledPrayers,
+    }));
+  }
+};
 
 // ----- Translations & Constants -----
 const TRANSLATIONS = {
@@ -59,7 +85,7 @@ const TRANSLATIONS = {
     isha: "Isha",
     imsak: "Imsak",
     upcoming: "Upcoming",
-    selectLocation: "Select Location",
+    selectLocation: "Location",
     dailyQuote: "Daily Quote",
     close: "Close",
     changeLocationMessage:
@@ -189,15 +215,8 @@ const Countdown = ({
         const minutes = String(duration.minutes()).padStart(2, '0');
         const seconds = String(duration.seconds()).padStart(2, '0');
         
-        // Format the countdown according to current time format preference
-        // For countdown, we don't need AM/PM indicator even in 12h format
-        if (timeFormat === '12h') {
-          // Convert to 12-hour format without AM/PM
-          const h12 = String(Math.floor(duration.asHours()) % 12 || 12);
-          setTimeRemaining(`${h12}:${minutes}:${seconds}`);
-        } else {
-          setTimeRemaining(`${hours}:${minutes}:${seconds}`);
-        }
+        // Always use 24h format for countdown regardless of user preference
+        setTimeRemaining(`${hours}:${minutes}:${seconds}`);
 
         const progressFraction = Math.min(Math.max(elapsed / totalDuration, 0), 1);
         setProgress(progressFraction);

@@ -1,8 +1,9 @@
 //useNotificationScheduler.js
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import moment from 'moment-hijri';
 import notifee, { TriggerType, EventType, AndroidImportance } from '@notifee/react-native';
 import prayerData from '../assets/prayer_times.json';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PRAYER_NAMES = {
   imsak: { en: 'Imsak', ar: 'الإمساك' },
@@ -15,132 +16,149 @@ const PRAYER_NAMES = {
   midnight: { en: 'Midnight', ar: 'منتصف الليل' },
 };
 
+// Optimize your background event handler
 notifee.onBackgroundEvent(async ({ type, detail }) => {
-  console.log('[Background] Event received:', type);
-  
-  if (type === EventType.TRIGGER_NOTIFICATION_CREATED) {
-    const notification = detail.notification;
-    
-    // Check if this is our daily refresh notification
-    if (notification?.id === 'daily-refresh' && notification?.data?.type === 'daily-refresh') {
-      console.log('[Background] Processing daily refresh');
-      
-      try {
-        // Extract data from notification
-        const location = notification.data.location;
-        const enabledPrayers = JSON.parse(notification.data.enabledPrayers || '{}');
-        
-        // Validate data
-        if (!location || Object.keys(enabledPrayers).length === 0) {
-          console.error('[Background] Missing location or enabledPrayers');
-          return;
-        }
-        
-        console.log('[Background] Rescheduling notifications for', location);
-        
-        // Cancel existing notifications
-        await notifee.cancelAllNotifications();
-        
-        // Schedule new notifications for today and tomorrow
-        const today = new Date();
-        const availableDays = prayerData[location]
-          .filter((dayData) => {
-            const dayDate = moment(dayData.date, 'D/M/YYYY').toDate();
-            return dayDate >= today;
-          })
-          .slice(0, 2);
-        
-        if (availableDays.length === 0) {
-          console.warn('[Background] No prayer time data available');
-          return;
-        }
-        
-        // Schedule new notifications
-        for (const dayData of availableDays) {
-          for (const prayerKey of ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"]) {
-            if (!enabledPrayers[prayerKey]) continue;
-            
-            const timeStr = dayData[prayerKey];
-            if (!timeStr) continue;
-            
-            const [hour, minute] = timeStr.split(':').map(Number);
-            const prayerMoment = moment(dayData.date, 'D/M/YYYY')
-              .hour(hour)
-              .minute(minute)
-              .second(0);
-              
-            if (prayerMoment.toDate() > today) {
-              const numericId = moment(prayerMoment).format('YYYYMMDDHHmm');
-              const prayerName = PRAYER_NAMES[prayerKey]['en']; // Default to English in background
-              
-              await notifee.createTriggerNotification(
-                {
-                  id: numericId,
-                  title: 'Prayer Reminder',
-                  body: `It's time for ${prayerName} prayer.`,
-                  android: {
-                    channelId: 'prayer-channel',
-                    smallIcon: 'ic_launcher',
-                    importance: AndroidImportance.HIGH,
-                    sound: 'default',
-                  },
-                },
-                {
-                  type: TriggerType.TIMESTAMP,
-                  timestamp: prayerMoment.toDate().getTime(),
-                }
-              );
-            }
-          }
-        }
-        
-        // Schedule the next day's refresh
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(0, 0, 5, 0);
-        
-        await notifee.createTriggerNotification(
-          {
-            id: 'daily-refresh',
-            title: 'Updating prayer times',
-            body: 'Refreshing prayer times for today',
-            data: {
-              location: location,
-              enabledPrayers: JSON.stringify(enabledPrayers),
-              type: 'daily-refresh'
-            },
-            android: {
-              channelId: 'system-tasks',
-              smallIcon: 'ic_launcher',
-              pressAction: { id: 'default' },
-              asForegroundService: true,
-              importance: AndroidImportance.HIGH,
-              wakeLockTimeout: 10000,
-            },
-          },
-          {
-            type: TriggerType.TIMESTAMP,
-            timestamp: tomorrow.getTime(),
-            alarmManager: {
-              allowWhileIdle: true,
-              exact: true,
-              wakeup: true,
-            },
-          }
-        );
-        
-        console.log('[Background] Successfully completed daily refresh');
-      } catch (error) {
-        console.error('[Background] Error in background handler:', error);
-      }
-    }
+  if (type !== EventType.TRIGGER_NOTIFICATION_CREATED) {
+    return Promise.resolve();
   }
   
-  // Return void to indicate we've handled the event
+  const notification = detail.notification;
+  
+  // Check if this is our daily refresh notification
+  if (notification?.id !== 'daily-refresh' || notification?.data?.type !== 'daily-refresh') {
+    return Promise.resolve();
+  }
+  
+  console.log('[Background] Processing daily refresh');
+  
+  try {
+    // Debounce processing with timestamp check
+    const lastProcessed = await AsyncStorage.getItem('last_daily_refresh');
+    const now = Date.now();
+    if (lastProcessed && (now - parseInt(lastProcessed)) < 60000) {
+      console.log('[Background] Skipping - processed recently');
+      return Promise.resolve();
+    }
+    
+    // Save timestamp immediately to prevent duplicate processing
+    await AsyncStorage.setItem('last_daily_refresh', now.toString());
+    
+    // Extract data from notification
+    const location = notification.data.location;
+    const enabledPrayers = JSON.parse(notification.data.enabledPrayers || '{}');
+    
+    // Avoid unnecessary processing
+    if (!location || !Object.values(enabledPrayers).some(val => val === true)) {
+      console.log('[Background] No enabled prayers, skipping');
+      return Promise.resolve();
+    }
+    
+    // The rest of your background processing...
+    console.log('[Background] Rescheduling notifications for', location);
+        
+    // Cancel existing notifications
+    await notifee.cancelAllNotifications();
+    
+    // Schedule new notifications for today and tomorrow
+    const today = new Date();
+    const availableDays = prayerData[location]
+      .filter((dayData) => {
+        const dayDate = moment(dayData.date, 'D/M/YYYY').toDate();
+        return dayDate >= today;
+      })
+      .slice(0, 2);
+    
+    if (availableDays.length === 0) {
+      console.warn('[Background] No prayer time data available');
+      return;
+    }
+    
+    // Schedule new notifications
+    for (const dayData of availableDays) {
+      for (const prayerKey of ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"]) {
+        if (!enabledPrayers[prayerKey]) continue;
+        
+        const timeStr = dayData[prayerKey];
+        if (!timeStr) continue;
+        
+        const [hour, minute] = timeStr.split(':').map(Number);
+        const prayerMoment = moment(dayData.date, 'D/M/YYYY')
+          .hour(hour)
+          .minute(minute)
+          .second(0);
+          
+        if (prayerMoment.toDate() > today) {
+          const numericId = moment(prayerMoment).format('YYYYMMDDHHmm');
+          const prayerName = PRAYER_NAMES[prayerKey]['en']; // Default to English in background
+          
+          await notifee.createTriggerNotification(
+            {
+              id: numericId,
+              title: 'Prayer Reminder',
+              body: `It's time for ${prayerName} prayer.`,
+              android: {
+                channelId: 'prayer-channel',
+                smallIcon: 'ic_launcher',
+                importance: AndroidImportance.HIGH,
+                sound: 'default',
+              },
+            },
+            {
+              type: TriggerType.TIMESTAMP,
+              timestamp: prayerMoment.toDate().getTime(),
+            }
+          );
+        }
+      }
+    }
+    
+    // Schedule the next day's refresh
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 5, 0);
+    
+    await notifee.createTriggerNotification(
+      {
+        id: 'daily-refresh',
+        title: 'Updating prayer times',
+        body: 'Refreshing prayer times for today',
+        data: {
+          location: location,
+          enabledPrayers: JSON.stringify(enabledPrayers),
+          type: 'daily-refresh'
+        },
+        android: {
+          channelId: 'system-tasks',
+          smallIcon: 'ic_launcher',
+          pressAction: { id: 'default' },
+          asForegroundService: true,
+          importance: AndroidImportance.HIGH,
+          wakeLockTimeout: 10000,
+        },
+      },
+      {
+        type: TriggerType.TIMESTAMP,
+        timestamp: tomorrow.getTime(),
+        alarmManager: {
+          allowWhileIdle: true,
+          exact: true,
+          wakeup: true,
+        },
+      }
+    );
+    
+    console.log('[Background] Successfully completed daily refresh');
+  } catch (error) {
+    console.error('[Background] Error in background handler:', error);
+  }
+  
   return Promise.resolve();
 });
 
 export function useNotificationScheduler(language) {
+  // Cache for parsed prayer times
+  const parsedTimesCache = useRef({});
+
   const scheduleLocalNotification = useCallback(
     async (notificationId, prayerKey, prayerDateTime) => {
       console.log(`Attempting to schedule notification for ${prayerKey} at ${prayerDateTime}`);
@@ -304,109 +322,167 @@ export function useNotificationScheduler(language) {
   const scheduleRollingNotifications = useCallback(
     async (location, enabledPrayers) => {
       try {
-        // Cancel any existing notifications first
-        const existingChannelGroups = await notifee.getChannelGroups();
-        if (existingChannelGroups.length > 0) {
-          await notifee.cancelAllNotifications();
-          console.log('Cancelled all existing notifications');
+        // Check if any prayers are enabled before proceeding
+        if (!Object.values(enabledPrayers).some(val => val === true)) {
+          console.log('No prayers enabled, skipping notification scheduling');
+          return [];
         }
         
+        // Cancel existing notifications first
+        await notifee.cancelAllNotifications();
+        
+        // Get today's data and tomorrow's data efficiently
         const today = new Date();
-        // Format today's date to match the prayer data format
         const formattedToday = moment(today).format('D/M/YYYY');
-        console.log(`Today's formatted date: ${formattedToday}`);
         
-        // Find today's data first
-        const todayData = prayerData[location].find(day => day.date.trim() === formattedToday);
-        if (!todayData) {
-          console.warn(`Could not find prayer data for today (${formattedToday})`);
-        } else {
-          console.log(`Found today's prayer data: ${JSON.stringify(todayData)}`);
-        }
-        
-        // Find data for today and tomorrow
-        const availableDays = prayerData[location]
-          .filter((dayData) => {
-            try {
-              const [day, month, year] = dayData.date.trim().split('/').map(Number);
-              // Create date at noon to avoid timezone issues
-              const dayDate = new Date(year, month - 1, day, 12, 0, 0);
-              const todayAtNoon = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
-              
-              // Debug log 
-              console.log(`Comparing ${dayData.date} (${dayDate.toISOString()}) with today (${todayAtNoon.toISOString()}): ${dayDate >= todayAtNoon}`);
-              
-              return dayDate >= todayAtNoon;
-            } catch (error) {
-              console.error(`Error parsing date ${dayData.date}:`, error);
-              return false;
-            }
-          })
-          .slice(0, 2); // Only get today and tomorrow
+        // Find data for today and tomorrow more efficiently
+        const availableDays = getAvailableDays(prayerData[location], today);
         
         if (availableDays.length === 0) {
           console.warn('No prayer time data available for scheduling');
           return [];
         }
         
-        console.log(`Found ${availableDays.length} days for notifications:`);
-        availableDays.forEach(day => console.log(`- ${day.date}`));
+        // Batch notifications for better performance
+        const notificationsToSchedule = [];
         
-        // Schedule notifications for available days
-        const scheduledNotificationPromises = [];
+        // Prepare all notifications first
         for (const dayData of availableDays) {
-          console.log(`Processing notifications for date: ${dayData.date}`);
-          
           for (const prayerKey of ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"]) {
-            if (!enabledPrayers[prayerKey]) {
-              console.log(`${prayerKey} is disabled, skipping`);
-              continue;
-            }
+            if (!enabledPrayers[prayerKey]) continue;
             
             const timeStr = dayData[prayerKey];
-            if (!timeStr) {
-              console.log(`No time data for ${prayerKey}, skipping`);
-              continue;
-            }
+            if (!timeStr) continue;
             
             try {
-              const [hour, minute] = timeStr.split(':').map(Number);
-              const [day, month, year] = dayData.date.trim().split('/').map(Number);
+              // Create date object more efficiently by caching
+              const prayerTime = getParsedTime(dayData.date, timeStr, parsedTimesCache);
               
-              // Create a date object for this prayer time
-              const prayerDate = new Date(year, month - 1, day, hour, minute, 0);
-              
-              console.log(`${prayerKey} time: ${timeStr} (${prayerDate.toISOString()})`);
-              
-              if (prayerDate > today) {
-                const numericId = `${year}${month.toString().padStart(2, '0')}${day.toString().padStart(2, '0')}${hour.toString().padStart(2, '0')}${minute.toString().padStart(2, '0')}`;
-                console.log(`Scheduling ${prayerKey} notification with ID ${numericId} for ${prayerDate.toLocaleString()}`);
+              if (prayerTime > today) {
+                const numericId = `${moment(prayerTime).format('YYYYMMDDHHmm')}`;
+                const prayerName = PRAYER_NAMES[prayerKey][language];
                 
-                scheduledNotificationPromises.push(
-                  scheduleLocalNotification(numericId, prayerKey, prayerDate).then(() => numericId)
-                );
-              } else {
-                console.log(`${prayerKey} time is in the past, skipping`);
+                notificationsToSchedule.push({
+                  id: numericId,
+                  prayerKey,
+                  prayerTime,
+                  prayerName
+                });
               }
             } catch (error) {
-              console.error(`Error scheduling ${prayerKey}:`, error);
+              console.error(`Error preparing ${prayerKey}:`, error);
             }
           }
         }
         
-        const scheduledNotificationIds = (await Promise.all(scheduledNotificationPromises)).filter(Boolean);
-        console.log(`Scheduled ${scheduledNotificationIds.length} notifications for the next ${availableDays.length} days`);
-        return scheduledNotificationIds;
+        // Now batch schedule all notifications
+        const scheduledIds = await batchScheduleNotifications(notificationsToSchedule, language);
+        
+        console.log(`Scheduled ${scheduledIds.length} notifications for the next ${availableDays.length} days`);
+        return scheduledIds;
       } catch (error) {
         console.error('Failed to schedule rolling notifications:', error);
         return [];
       }
     },
-    [scheduleLocalNotification]
+    [language]
   );
+  
+  // Implement efficient helper functions
+  const getAvailableDays = (prayerDataArray, today) => {
+    const todayAtNoon = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
+    const formattedToday = moment(today).format('D/M/YYYY');
+    
+    // Try to find today's data first (exact match is fastest)
+    const todayIndex = prayerDataArray.findIndex(day => day.date.trim() === formattedToday);
+    
+    if (todayIndex !== -1) {
+      // Return today and tomorrow
+      return prayerDataArray.slice(todayIndex, todayIndex + 2);
+    } else {
+      // Fallback to filtering dates
+      return prayerDataArray
+        .filter(dayData => {
+          try {
+            const [day, month, year] = dayData.date.trim().split('/').map(Number);
+            const dayDate = new Date(year, month - 1, day, 12, 0, 0);
+            return dayDate >= todayAtNoon;
+          } catch (error) {
+            return false;
+          }
+        })
+        .slice(0, 2);
+    }
+  };
+  
+  const getParsedTime = (dateStr, timeStr, cache) => {
+    const cacheKey = `${dateStr}-${timeStr}`;
+    
+    if (cache.current[cacheKey]) {
+      return cache.current[cacheKey];
+    }
+    
+    const [day, month, year] = dateStr.trim().split('/').map(Number);
+    const [hour, minute] = timeStr.split(':').map(Number);
+    const result = new Date(year, month - 1, day, hour, minute, 0);
+    
+    // Cache the result
+    cache.current[cacheKey] = result;
+    return result;
+  };
+  
+  const batchScheduleNotifications = async (notificationsArray, language) => {
+    const scheduledIds = [];
+    
+    // Use Promise.all with batching for better performance
+    const batchSize = 5;
+    for (let i = 0; i < notificationsArray.length; i += batchSize) {
+      const batch = notificationsArray.slice(i, i + batchSize);
+      const batchPromises = batch.map(notification => {
+        const { id, prayerKey, prayerTime, prayerName } = notification;
+        
+        const title = language === 'ar' ? 'تذكير الصلاة' : 'Prayer Reminder';
+        const body = language === 'ar' 
+          ? `حان موعد ${prayerName}` 
+          : `It's time for ${prayerName} prayer.`;
+        
+        return notifee.createTriggerNotification(
+          {
+            id,
+            title,
+            body,
+            android: {
+              channelId: 'prayer-channel',
+              smallIcon: 'ic_launcher',
+              importance: AndroidImportance.HIGH,
+              sound: 'default',
+            },
+          },
+          {
+            type: TriggerType.TIMESTAMP,
+            timestamp: prayerTime.getTime(),
+          }
+        ).then(() => id).catch(err => {
+          console.error(`Failed to schedule ${prayerKey}:`, err);
+          return null;
+        });
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      scheduledIds.push(...batchResults.filter(Boolean));
+    }
+    
+    return scheduledIds;
+  };
 
   const setupDailyRefresh = useCallback(
     async (location, enabledPrayers) => {
+      // Don't set up refresh if no prayers are enabled
+      if (!Object.values(enabledPrayers).some(val => val === true)) {
+        console.log('No prayers enabled, skipping daily refresh setup');
+        return null;
+      }
+      
       console.log(`Setting up daily refresh for location: ${location}`);
       
       // Validate location parameter
@@ -415,21 +491,31 @@ export function useNotificationScheduler(language) {
         return null;
       }
       
-      // Create a notification channel for system tasks if it doesn't exist
-      await notifee.createChannel({
-        id: 'system-tasks',
-        name: 'System Tasks',
-        importance: AndroidImportance.LOW,
-      });
+      // Only create channel once
+      const channelExists = await notifee.getChannel('system-tasks');
+      if (!channelExists) {
+        await notifee.createChannel({
+          id: 'system-tasks',
+          name: 'System Tasks',
+          importance: AndroidImportance.LOW,
+        });
+      }
 
       // Calculate time for midnight (for rescheduling notifications)
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       tomorrow.setHours(0, 0, 5, 0); // 12:00:05 AM
       
-      console.log(`Setting up refresh trigger for: ${tomorrow.toISOString()}`);
-
       try {
+        // Check if we already have a daily refresh scheduled with the same data
+        const enabledPrayersStr = JSON.stringify(enabledPrayers);
+        const existingRefresh = await AsyncStorage.getItem('daily_refresh_data');
+        
+        if (existingRefresh === `${location}:${enabledPrayersStr}`) {
+          console.log('Daily refresh already set up with same parameters');
+          return true;
+        }
+        
         // Add location data directly to the notification
         await notifee.createTriggerNotification(
           {
@@ -437,23 +523,16 @@ export function useNotificationScheduler(language) {
             title: 'Updating prayer times',
             body: 'Refreshing prayer times for today',
             data: {
-              location: location,
-              enabledPrayers: JSON.stringify(enabledPrayers),
-              type: 'daily-refresh' // Identifier for background task
+              location,
+              enabledPrayers: enabledPrayersStr,
+              type: 'daily-refresh'
             },
             android: {
               channelId: 'system-tasks',
               smallIcon: 'ic_launcher',
-              // Important settings for background execution:
-              pressAction: {
-                id: 'default',
-              },
+              pressAction: { id: 'default' },
               asForegroundService: true,
-              // Allow background execution
-              actions: [],
-              // Wake the device up for this notification
-              wakeLockTimeout: 10000, // 10 seconds
-              // Importance to ensure delivery
+              wakeLockTimeout: 10000,
               importance: AndroidImportance.HIGH,
             },
           },
@@ -467,6 +546,9 @@ export function useNotificationScheduler(language) {
             },
           }
         );
+        
+        // Save the parameters we used
+        await AsyncStorage.setItem('daily_refresh_data', `${location}:${enabledPrayersStr}`);
         console.log('✅ Daily refresh notification scheduled successfully');
         return true;
       } catch (error) {
@@ -474,7 +556,7 @@ export function useNotificationScheduler(language) {
         return false;
       }
     },
-    [scheduleRollingNotifications]
+    []
   );
 
   const cancelLocalNotification = useCallback(async (notificationId) => {
@@ -496,4 +578,23 @@ export function useNotificationScheduler(language) {
     cancelLocalNotification,
     cancelAllNotifications,
   };
+}
+
+function optimizeAvailableDays(prayerData, location) {
+  const today = new Date();
+  const todayNoon = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
+  
+  // Memoize all parsed dates in a single pass
+  const parsedDates = prayerData[location].map(dayData => {
+    const [day, month, year] = dayData.date.trim().split('/').map(Number);
+    return {
+      ...dayData,
+      parsedDate: new Date(year, month - 1, day, 12, 0, 0),
+    };
+  });
+  
+  // Filter once with the parsed dates
+  return parsedDates
+    .filter(dayData => dayData.parsedDate >= todayNoon)
+    .slice(0, 2); // Only get today and tomorrow
 }

@@ -81,15 +81,25 @@ export const UpdateManager = () => {
       console.log('forceUpdateCheck result:', hasUpdate);
       
       if (hasUpdate) {
+        // Store a flag indicating data was updated
+        await AsyncStorage.setItem('PRAYER_DATA_UPDATED', 'true');
+        
         Alert.alert(
           "Prayer Times Updated", 
           "New prayer times data has been downloaded. The app will now refresh.",
           [{ 
             text: "OK",
             onPress: () => {
-              // Force reload app data here
-              // This depends on how your app loads data, but could be:
-              // global.fetchPrayerData(); or similar refresh mechanism
+              // Implement proper refresh mechanism
+              if (global.fetchPrayerData && typeof global.fetchPrayerData === 'function') {
+                global.fetchPrayerData();
+              } else {
+                // If no global refresh function, use RN's DevSettings to reload
+                const DevSettings = require('react-native').DevSettings;
+                if (DevSettings && DevSettings.reload) {
+                  DevSettings.reload();
+                }
+              }
             }
           }]
         );
@@ -119,8 +129,9 @@ export const UpdateManager = () => {
   }, []);
 
   useEffect(() => {
+    // Only run update check once at startup
     checkForUpdates();
-    checkForPrayerTimeUpdates(); // Called here
+    // Don't call checkForPrayerTimeUpdates() here
   }, []);
 
   if (!showUpdateDialog) {
