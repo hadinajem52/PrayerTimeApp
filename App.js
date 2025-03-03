@@ -190,10 +190,14 @@ const Countdown = ({
         const seconds = String(duration.seconds()).padStart(2, '0');
         
         // Format the countdown according to current time format preference
-        const timeStr = `${hours}:${minutes}:${seconds}`;
-        setTimeRemaining(timeFormat === '12h' 
-          ? formatTimeString(timeStr, timeFormat, true)
-          : timeStr);
+        // For countdown, we don't need AM/PM indicator even in 12h format
+        if (timeFormat === '12h') {
+          // Convert to 12-hour format without AM/PM
+          const h12 = String(Math.floor(duration.asHours()) % 12 || 12);
+          setTimeRemaining(`${h12}:${minutes}:${seconds}`);
+        } else {
+          setTimeRemaining(`${hours}:${minutes}:${seconds}`);
+        }
 
         const progressFraction = Math.min(Math.max(elapsed / totalDuration, 0), 1);
         setProgress(progressFraction);
