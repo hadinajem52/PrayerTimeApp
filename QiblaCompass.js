@@ -10,10 +10,13 @@ import {
   Animated,
   Easing,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CompassHeading from 'react-native-compass-heading';
 import Geolocation from 'react-native-geolocation-service';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} }) => {
   // Translations for English and Arabic
@@ -202,72 +205,122 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
         { direction: language === "ar" ? "rtl" : "ltr" },
       ]}
     >
-      <View style={[styles.card, isDarkMode && styles.darkCard]}>
-        {/* Close button */}
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Text style={[styles.closeButtonText, isDarkMode && styles.darkCloseButtonText]}>
-            {TRANSLATIONS[language].close}
-          </Text>
-        </TouchableOpacity>
-        <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
+      <StatusBar 
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        backgroundColor="transparent"
+        translucent={true}
+      />
+      
+      {/* Header */}
+      <View style={[styles.header, isDarkMode && styles.darkHeader]}>
+        <Text style={[styles.headerText, isDarkMode && styles.darkHeaderText]}>
           {TRANSLATIONS[language].qiblaCompass}
         </Text>
-        <Text style={[styles.noticeText, isDarkMode && styles.darkNoticeText]}>
-          {TRANSLATIONS[language].flatSurfaceNotice}
-        </Text>
-        <View style={styles.infoContainer}>
-          <Text style={[styles.infoText, isDarkMode && styles.darkInfoText]}>
-            {TRANSLATIONS[language].deviceHeading}: {deviceHeading.toFixed(2)}°
-          </Text>
-          <Text style={[styles.infoText, isDarkMode && styles.darkInfoText]}>
-            {TRANSLATIONS[language].qiblaDirection}: {qiblaDirection.toFixed(2)}°
-          </Text>
-          <Text style={[styles.infoText, isDarkMode && styles.darkInfoText]}>
-            {TRANSLATIONS[language].rotateNeedle}: {currentAnimatedRotation.toFixed(2)}°
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.compassContainer,
-            {
-              width: compassSize,
-              height: compassSize,
-              borderRadius: compassSize / 2,
-            },
-          ]}
-        >
-          {/* Vertical Alignment Indicator */}
-          <View style={[styles.verticalIndicator, { left: center - 10 }]} />
-          
-          {/* Compass Needle */}
-          <Animated.Image
-            source={require('./assets/compass-needle.png')}
-            style={[
-              styles.needle,
-              {
-                transform: [
+        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <Icon name="close-circle" size={28} color={isDarkMode ? "#FFA500" : "#007AFF"} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Main content */}
+      <View style={[styles.card, isDarkMode && styles.darkCard]}>
+        {!location ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator
+              size="large"
+              color={isDarkMode ? '#66CCFF' : '#007AFF'}
+            />
+            <Text style={[styles.loadingText, isDarkMode && styles.darkLoadingText]}>
+              {TRANSLATIONS[language].loading}
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Text style={[styles.noticeText, isDarkMode && styles.darkNoticeText]}>
+              {TRANSLATIONS[language].flatSurfaceNotice}
+            </Text>
+
+            {/* Animated info section */}
+            <Animated.View style={styles.infoContainer}>
+              <View style={[styles.infoBox, isDarkMode && styles.darkInfoBox]}>
+                <Icon name="compass" size={20} color={isDarkMode ? "#FFA500" : "#007AFF"} />
+                <Text style={[styles.infoLabel, isDarkMode && styles.darkInfoLabel]}>
+                  {TRANSLATIONS[language].deviceHeading}:
+                </Text>
+                <Text style={[styles.infoValue, isDarkMode && styles.darkInfoValue]}>
+                  {deviceHeading.toFixed(1)}°
+                </Text>
+              </View>
+
+              <View style={[styles.infoBox, isDarkMode && styles.darkInfoBox]}>
+                <Icon name="location" size={20} color={isDarkMode ? "#FFA500" : "#007AFF"} />
+                <Text style={[styles.infoLabel, isDarkMode && styles.darkInfoLabel]}>
+                  {TRANSLATIONS[language].qiblaDirection}:
+                </Text>
+                <Text style={[styles.infoValue, isDarkMode && styles.darkInfoValue]}>
+                  {qiblaDirection.toFixed(1)}°
+                </Text>
+              </View>
+            </Animated.View>
+
+            {/* Compass View */}
+            <View style={styles.compassWrapper}>
+              <LinearGradient
+                colors={isDarkMode ? ['#2A2A2A', '#333', '#2A2A2A'] : ['#F0F8FF', '#F5F5F5', '#F0F8FF']}
+                style={[
+                  styles.compassContainer,
                   {
-                    rotate: animatedRotation.interpolate({
-                      inputRange: [-360, 360],
-                      outputRange: ['-360deg', '360deg'],
-                    }),
+                    width: compassSize,
+                    height: compassSize,
+                    borderRadius: compassSize / 2,
                   },
-                ],
-              },
-            ]}
-          />
-          {/* Kaaba Icon */}
-          <Image
-            source={require('./assets/kaaba.png')}
-            style={[styles.kaabaIcon, { left: kaabaX, top: kaabaY }]}
-          />
-          <View style={styles.centerDot} />
-        </View>
+                ]}
+              >
+                {/* Compass markers */}
+                <View style={[styles.compassMarker, styles.northMarker]} />
+                <View style={[styles.compassMarker, styles.eastMarker]} />
+                <View style={[styles.compassMarker, styles.southMarker]} />
+                <View style={[styles.compassMarker, styles.westMarker]} />
+                
+                {/* Cardinal directions */}
+                <Text style={[styles.cardinalDirection, styles.northDirection, isDarkMode && styles.darkCardinalDirection]}>N</Text>
+                <Text style={[styles.cardinalDirection, styles.eastDirection, isDarkMode && styles.darkCardinalDirection]}>E</Text>
+                <Text style={[styles.cardinalDirection, styles.southDirection, isDarkMode && styles.darkCardinalDirection]}>S</Text>
+                <Text style={[styles.cardinalDirection, styles.westDirection, isDarkMode && styles.darkCardinalDirection]}>W</Text>
 
-        <Text style={[styles.noticeText, isDarkMode && styles.darkNoticeText,{marginTop: 60}]}>
-          {TRANSLATIONS[language].magnetometerNotice}
-        </Text>
+                {/* Compass Needle */}
+                <Animated.Image
+                  source={require('./assets/compass-needle.png')}
+                  style={[
+                    styles.needle,
+                    {
+                      transform: [
+                        {
+                          rotate: animatedRotation.interpolate({
+                            inputRange: [-360, 360],
+                            outputRange: ['-360deg', '360deg'],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                />
 
+                {/* Kaaba Icon */}
+                <Image
+                  source={require('./assets/kaaba.png')}
+                  style={[styles.kaabaIcon, { left: kaabaX, top: kaabaY }]}
+                />
+                
+                {/* Center dot */}
+                <View style={[styles.centerDot, isDarkMode && styles.darkCenterDot]} />
+              </LinearGradient>
+            </View>
+
+            <Text style={[styles.noticeText, isDarkMode && styles.darkNoticeText, styles.bottomNotice]}>
+              {TRANSLATIONS[language].magnetometerNotice}
+            </Text>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -278,95 +331,179 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#EAEFF2',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'android' ? 35 : 10,
   },
   darkContainer: {
     backgroundColor: '#121212',
   },
-  card: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    paddingVertical: 25,
-    paddingHorizontal: 20,
-    width: '100%',
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 6,
-    marginBottom: 20,
-    minHeight: 590, // Increased height for more space at the bottom
   },
-  darkCard: {
-    backgroundColor: '#333',
+  darkHeader: {
+    borderBottomColor: '#333',
+  },
+  headerText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    textAlign: 'center',
+  },
+  darkHeaderText: {
+    color: '#FFFFFF',
   },
   closeButton: {
     position: 'absolute',
-    top: 15,
-    right: 15,
-    backgroundColor: '#007AFF',
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    zIndex: 2,
+    right: 20,
+    padding: 5,
   },
-  closeButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: 25,
+    paddingVertical: 25,
+    paddingHorizontal: 20,
+    width: '90%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 15,
+    elevation: 10,
+    marginBottom: 20,
+    marginTop: 10,
+    flex: 1,
   },
-  darkCloseButtonText: {
-    color: '#FFF',
-  },
-  header: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 8,
-    color: '#333',
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  darkHeader: {
-    color: '#66CCFF',
+  darkCard: {
+    backgroundColor: '#2A2A2A',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
   },
   noticeText: {
     fontSize: 14,
     color: '#555',
     textAlign: 'center',
-    marginVertical: 8,
-    paddingHorizontal: 10,
+    marginVertical: 15,
+    paddingHorizontal: 15,
+    lineHeight: 20,
   },
   darkNoticeText: {
     color: '#AAA',
   },
+  bottomNotice: {
+    marginTop: 25,
+    fontSize: 13,
+    fontStyle: 'italic',
+    opacity: 0.8,
+  },
   infoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    width: '100%',
     marginVertical: 15,
   },
-  infoText: {
-    fontSize: 16,
-    color: '#007AFF',
-    textAlign: 'center',
-    marginVertical: 3,
+  infoBox: {
+    backgroundColor: 'rgba(102, 204, 255, 0.1)',
+    borderRadius: 15,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '47%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  darkInfoText: {
+  darkInfoBox: {
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  darkInfoLabel: {
+    color: '#DDD',
+  },
+  infoValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#007AFF',
+    marginTop: 3,
+  },
+  darkInfoValue: {
     color: '#FFA500',
+  },
+  compassWrapper: {
+    padding: 10,
+    marginVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   compassContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: '#66CCFF',
-    backgroundColor: '#F0F4F7',
-    marginTop: 40,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowRadius: 8,
+    elevation: 7,
     overflow: 'visible',
+  },
+  compassMarker: {
+    position: 'absolute',
+    width: 4,
+    height: 12,
+    backgroundColor: '#007AFF',
+    borderRadius: 2,
+  },
+  northMarker: {
+    top: 10,
+    transform: [{ translateX: 0 }],
+  },
+  eastMarker: {
+    right: 10,
+    transform: [{ rotate: '90deg' }],
+  },
+  southMarker: {
+    bottom: 10,
+    transform: [{ translateX: 0 }],
+  },
+  westMarker: {
+    left: 10,
+    transform: [{ rotate: '90deg' }],
+  },
+  cardinalDirection: {
+    position: 'absolute',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#007AFF',
+  },
+  darkCardinalDirection: {
+    color: '#FFA500',
+  },
+  northDirection: {
+    top: 25,
+  },
+  eastDirection: {
+    right: 25,
+  },
+  southDirection: {
+    bottom: 25,
+  },
+  westDirection: {
+    left: 25,
   },
   needle: {
     width: 150,
@@ -374,40 +511,37 @@ const styles = StyleSheet.create({
     position: 'absolute',
     resizeMode: 'contain',
   },
-  verticalIndicator: {
-    position: 'absolute',
-    top: -20,
-    width: 0,
-    height: 0,
-    borderLeftWidth: 10,
-    borderRightWidth: 10,
-    borderBottomWidth: 20,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: '#66CCFF',
-    zIndex: 10,
-  },
   kaabaIcon: {
     position: 'absolute',
-    width: 30,
-    height: 30,
+    width: 36,
+    height: 36,
     resizeMode: 'contain',
   },
   centerDot: {
     width: 12,
     height: 12,
-    backgroundColor: 'red',
+    backgroundColor: '#FF4136',
     borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#FFF',
     position: 'absolute',
     zIndex: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  darkCenterDot: {
+    borderColor: '#333',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 15,
     fontSize: 16,
     color: '#007AFF',
   },
