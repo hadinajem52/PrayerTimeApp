@@ -55,11 +55,6 @@ const PrayerRow = ({
   // Format the time according to user preference
   const formattedTime = formatTimeString(time, timeFormat);
   
-  // Key based on time format and language to force re-renders when either changes
-  const renderKey = useCallback(() => 
-    `${prayerKey}-${timeFormat}-${language}-${isUpcoming ? 1 : 0}`, 
-    [prayerKey, timeFormat, language, isUpcoming]);
-
   // Animation when row becomes the upcoming prayer
   useEffect(() => {
     if (isUpcoming) {
@@ -79,13 +74,13 @@ const PrayerRow = ({
   useEffect(() => {
     fadeAnim.setValue(0);
     AnimationUtils.fadeIn(fadeAnim, 400);
-  }, [fadeAnim]);
+  }, []); // Empty dependency array
   
   const IconComponent = getIconComponent(prayerKey);
   
   return (
     <Animated.View 
-      key={renderKey()}
+      key={prayerKey}
       style={[
         styles.prayerRow,
         isUpcoming ? 
@@ -137,13 +132,9 @@ const PrayerRow = ({
 
 // Ensure component re-renders when settings change
 export default React.memo(PrayerRow, (prevProps, nextProps) => {
-  // Re-render if any of these props change
+  // Only include props that actually need re-renders
   return prevProps.time === nextProps.time &&
          prevProps.isUpcoming === nextProps.isUpcoming &&
          prevProps.isEnabled === nextProps.isEnabled &&
-         prevProps.isDarkMode === nextProps.isDarkMode &&
-         prevProps.label === nextProps.label &&
-         prevProps.upcomingLabel === nextProps.upcomingLabel;
-  // Note: We intentionally don't compare based on time format or language,
-  // as we want the component to re-render when these global settings change
+         prevProps.isDarkMode === nextProps.isDarkMode;
 });
