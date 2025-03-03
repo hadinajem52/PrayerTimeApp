@@ -47,6 +47,7 @@ const PrayerRow = ({
   const notificationAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const [wasEnabled, setWasEnabled] = useState(isEnabled);
+  const isFirstRender = useRef(true);
   
   // Get time format from settings
   const [settings] = useSettings();
@@ -72,9 +73,12 @@ const PrayerRow = ({
   
   // Handle initial mount animation
   useEffect(() => {
-    fadeAnim.setValue(0);
-    AnimationUtils.fadeIn(fadeAnim, 400);
-  }, []); // Empty dependency array
+    if (isFirstRender.current) {
+      fadeAnim.setValue(0);
+      AnimationUtils.fadeIn(fadeAnim, 400);
+      isFirstRender.current = false;
+    }
+  }, []);
   
   const IconComponent = getIconComponent(prayerKey);
   
@@ -132,9 +136,9 @@ const PrayerRow = ({
 
 // Ensure component re-renders when settings change
 export default React.memo(PrayerRow, (prevProps, nextProps) => {
-  // Only include props that actually need re-renders
   return prevProps.time === nextProps.time &&
          prevProps.isUpcoming === nextProps.isUpcoming &&
          prevProps.isEnabled === nextProps.isEnabled &&
-         prevProps.isDarkMode === nextProps.isDarkMode;
+         prevProps.isDarkMode === nextProps.isDarkMode &&
+         prevProps.language === nextProps.language;
 });
