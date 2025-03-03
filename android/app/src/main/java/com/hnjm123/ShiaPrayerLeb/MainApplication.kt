@@ -18,6 +18,10 @@ import com.hnjm123.ShiaPrayerLeb.workers.PrayerTimeUpdateWorker
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
 import java.util.concurrent.TimeUnit
+import android.util.Log
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import java.util.Calendar
 
 class MainApplication : Application(), ReactApplication {
 
@@ -56,17 +60,59 @@ class MainApplication : Application(), ReactApplication {
   }
 
   private fun schedulePrayerTimeUpdates() {
-    val updateWorkRequest = PeriodicWorkRequestBuilder<PrayerTimeUpdateWorker>(
-      24, TimeUnit.HOURS  // Run once a day
-    )
-    .setInitialDelay(1, TimeUnit.HOURS)  // Wait a bit after app starts
-    .build()
-      
-    WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-      "prayer_time_update",
-      ExistingPeriodicWorkPolicy.KEEP,
-      updateWorkRequest
-    )
+    Log.d("PrayerApp", "Starting to schedule prayer time updates")
+    
+    // Calculate delay until next 12:20 AM
+    val calendar = Calendar.getInstance()
+    val now = calendar.timeInMillis
+    
+    // Log current time
+    val currentTime = Calendar.getInstance()
+    Log.d("PrayerApp", "Current time: ${currentTime.time}")
+    
+    // Set target time to 12:20 AM
+    calendar.set(Calendar.HOUR_OF_DAY, 0)
+    calendar.set(Calendar.MINUTE, 20)
+    calendar.set(Calendar.SECOND, 0)
+    calendar.set(Calendar.MILLISECOND, 0)
+    
+    // If current time is after today's 12:20 AM, schedule for tomorrow
+    if (now > calendar.timeInMillis) {
+        calendar.add(Calendar.DAY_OF_YEAR, 1)
+        Log.d("PrayerApp", "Scheduling for tomorrow at 12:20 AM: ${calendar.time}")
+    } else {
+        Log.d("PrayerApp", "Scheduling for today at 12:20 AM: ${calendar.time}")
+    }
+    
+    // Calculate initial delay in milliseconds
+    val initialDelay = calendar.timeInMillis - now
+    val initialDelayHours = initialDelay / (1000 * 60 * 60)
+    val initialDelayMinutes = (initialDelay / (1000 * 60)) % 60
+    Log.d("PrayerApp", "Initial delay: $initialDelay ms (approximately $initialDelayHours hours and $initialDelayMinutes minutes)")
+    
+    // Set network and charging constraints
+    val constraints = Constraints.Builder()
+        .setRequiredNetworkType(NetworkType.CONNECTED)
+        .build()
+    Log.d("PrayerApp", "Network constraint set: requires network connection")
+    
+    try {
+        val updateWorkRequest = PeriodicWorkRequestBuilder<PrayerTimeUpdateWorker>(
+            24, TimeUnit.HOURS  // Run once every 24 hours
+        )
+        .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
+        .setConstraints(constraints)
+        .build()
+        
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "prayer_time_update",
+            ExistingPeriodicWorkPolicy.KEEP,
+            updateWorkRequest
+        )
+        Log.d("PrayerApp", "Prayer time update work successfully scheduled with ID: ${updateWorkRequest.id}")
+    } catch (e: Exception) {
+        Log.e("PrayerApp", "Failed to schedule prayer time updates", e)
+    }
   }
 
   override fun onConfigurationChanged(newConfig: Configuration) {
