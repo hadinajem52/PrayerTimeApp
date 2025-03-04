@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,14 @@ import {
   ScrollView,
   Switch,
   StatusBar,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { moderateScale } from 'react-native-size-matters';
-import useSettings from '../hooks/useSettings'; // Add this import
+import useSettings from '../hooks/useSettings';
+import { checkForPrayerTimeUpdates } from './UpdateManager'; // Import the function
 
 const TRANSLATIONS = {
   en: {
@@ -30,7 +33,9 @@ const TRANSLATIONS = {
     timeFormatSetting: "Time Format",
     hour24: "24-hour",
     hour12: "12-hour",
-    timeFormatDescription: "Choose how prayer times are displayed"
+    timeFormatDescription: "Choose how prayer times are displayed",
+    updatePrayerTimes: "Update Prayer Times",
+    updating: "Updating...",
   },
   ar: {
     settings: "الإعدادات",
@@ -48,16 +53,17 @@ const TRANSLATIONS = {
     timeFormatSetting: "تنسيق الوقت",
     hour24: "٢٤ ساعة",
     hour12: "١٢ ساعة",
-    timeFormatDescription: " اختر طريقة عرض أوقات الصلاة"
+    timeFormatDescription: " اختر طريقة عرض أوقات الصلاة",
+    updatePrayerTimes:  "تحقق من بيانات أوقات الصلاة الجديدة",
+    updating: "جاري التحديث...",
   },
 };
 
 const Settings = ({ language, isDarkMode, toggleDarkMode, toggleLanguage, onClose, hijriDateOffset = 0, updateHijriOffset }) => {
   const translations = TRANSLATIONS[language];
-  
-  // Fix: get settings and setSettings as an array, not an object
   const [settings, setSettings] = useSettings();
   const timeFormat = settings.timeFormat || '24h';
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const renderHijriOffsetText = () => {
     if (hijriDateOffset === 0) {
@@ -69,12 +75,26 @@ const Settings = ({ language, isDarkMode, toggleDarkMode, toggleLanguage, onClos
     }
   };
   
-  // Toggle function for time format
   const toggleTimeFormat = () => {
     setSettings(prev => ({
       ...prev,
       timeFormat: prev.timeFormat === '24h' ? '12h' : '24h'
     }));
+  };
+
+  const handleUpdatePrayerTimes = async () => {
+    setIsUpdating(true);
+    try {
+      await checkForPrayerTimeUpdates();
+      // The function itself will show an alert if data was updated
+      // Add a small delay before setting isUpdating to false
+      setTimeout(() => {
+        setIsUpdating(false);
+      }, 1500);
+    } catch (error) {
+      setIsUpdating(false);
+      Alert.alert("Update Failed", error.message || "Could not update prayer times. Please try again later.");
+    }
   };
 
   return (
@@ -244,6 +264,46 @@ const Settings = ({ language, isDarkMode, toggleDarkMode, toggleLanguage, onClos
             {translations.timeFormatDescription}
           </Text>
         </View>
+
+        {/* Prayer Time Updates Section */}
+        <View style={[styles.section, isDarkMode && styles.darkSection]}>
+          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
+            {translations.updatePrayerTimes}
+          </Text>
+          
+          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+
+            
+            <TouchableOpacity
+              style={[
+                styles.updateButton,
+                isDarkMode && styles.darkUpdateButton,
+                isUpdating && styles.disabledButton
+              ]}
+              onPress={handleUpdatePrayerTimes}
+              disabled={isUpdating}
+            >
+              {isUpdating ? (
+                <ActivityIndicator 
+                  size="small"
+                  color={isDarkMode ? "#222" : "#fff"} 
+                />
+              ) : (
+                <Icon
+                  name="refresh"
+                  size={18}
+                  color={isDarkMode ? "#222" : "#fff"}
+                />
+              )}
+              <Text style={[
+                styles.updateButtonText,
+                isDarkMode && styles.darkUpdateButtonText
+              ]}>
+                {isUpdating ? translations.updating : translations.updatePrayerTimes}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -403,6 +463,30 @@ const styles = StyleSheet.create({
   },
   darkDescription: {
     color: '#aaa',
+  },
+  updateButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(12),
+    borderRadius: moderateScale(8),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  darkUpdateButton: {
+    backgroundColor: '#FFA500',
+  },
+  disabledButton: {
+    opacity: 0.7,
+  },
+  updateButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    marginLeft: 8,
+    fontSize: moderateScale(14),
+  },
+  darkUpdateButtonText: {
+    color: '#222',
   },
 });
 

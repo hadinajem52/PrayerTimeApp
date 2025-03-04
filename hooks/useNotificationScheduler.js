@@ -2,8 +2,8 @@
 import { useCallback, useRef } from 'react';
 import moment from 'moment-hijri';
 import notifee, { TriggerType, EventType, AndroidImportance } from '@notifee/react-native';
-import prayerData from '../assets/prayer_times.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { usePrayerTimes } from '../components/PrayerTimesProvider'; // Import the context hook
 
 const PRAYER_NAMES = {
   imsak: { en: 'Imsak', ar: 'الإمساك' },
@@ -16,7 +16,7 @@ const PRAYER_NAMES = {
   midnight: { en: 'Midnight', ar: 'منتصف الليل' },
 };
 
-// Optimize your background event handler
+// First, update the background handler to get prayer data from storage
 notifee.onBackgroundEvent(async ({ type, detail }) => {
   if (type !== EventType.TRIGGER_NOTIFICATION_CREATED) {
     return Promise.resolve();
@@ -53,7 +53,23 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
       return Promise.resolve();
     }
     
-    // The rest of your background processing...
+    // Get the prayer data - we need to get it from storage in background context
+    let prayerData;
+    try {
+      // Try to get updated data first
+      const updatedData = await fetch(`file://${context.filesDir}/updated_prayer_times.json`).then(res => res.json());
+      if (updatedData) {
+        prayerData = updatedData;
+      } else {
+        // Fallback to bundled data
+        prayerData = require('../assets/prayer_times.json');
+      }
+    } catch (e) {
+      console.error('[Background] Error loading prayer data:', e);
+      // Fallback to bundled data
+      prayerData = require('../assets/prayer_times.json');
+    }
+    
     console.log('[Background] Rescheduling notifications for', location);
         
     // Cancel existing notifications
@@ -156,6 +172,9 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
 });
 
 export function useNotificationScheduler(language) {
+  // Get prayer times from context
+  const { prayerTimes } = usePrayerTimes();
+  
   // Cache for parsed prayer times
   const parsedTimesCache = useRef({});
 
@@ -217,6 +236,11 @@ export function useNotificationScheduler(language) {
       console.log(`Starting to schedule notifications for location: ${location}`);
       console.log(`Enabled prayers:`, enabledPrayers);
       
+      if (!prayerTimes || !prayerTimes[location]) {
+        console.error(`No prayer times data available for location: ${location}`);
+        return [];
+      }
+      
       const today = new Date();
       console.log(`Today's date: ${today.toISOString()}`);
       
@@ -224,7 +248,7 @@ export function useNotificationScheduler(language) {
       const formattedToday = moment(today).format('D/M/YYYY');
       console.log(`Formatted today: ${formattedToday}`);
       
-      const upcomingDays = prayerData[location]
+      const upcomingDays = prayerTimes[location]
         .filter((dayData) => {
           try {
             const [day, month, year] = dayData.date.trim().split('/').map(Number);
@@ -316,7 +340,7 @@ export function useNotificationScheduler(language) {
       
       return validIds;
     },
-    [scheduleLocalNotification]
+    [prayerTimes, scheduleLocalNotification] // Add prayerTimes to dependency array
   );
 
   const scheduleRollingNotifications = useCallback(
@@ -328,6 +352,11 @@ export function useNotificationScheduler(language) {
           return [];
         }
         
+        if (!prayerTimes || !prayerTimes[location]) {
+          console.error(`No prayer times data available for location: ${location}`);
+          return [];
+        }
+        
         // Cancel existing notifications first
         await notifee.cancelAllNotifications();
         
@@ -336,7 +365,7 @@ export function useNotificationScheduler(language) {
         const formattedToday = moment(today).format('D/M/YYYY');
         
         // Find data for today and tomorrow more efficiently
-        const availableDays = getAvailableDays(prayerData[location], today);
+        const availableDays = getAvailableDays(prayerTimes[location], today);
         
         if (availableDays.length === 0) {
           console.warn('No prayer time data available for scheduling');
@@ -385,7 +414,7 @@ export function useNotificationScheduler(language) {
         return [];
       }
     },
-    [language]
+    [language, prayerTimes] // Add prayerTimes to dependency array
   );
   
   // Implement efficient helper functions
@@ -486,8 +515,8 @@ export function useNotificationScheduler(language) {
       console.log(`Setting up daily refresh for location: ${location}`);
       
       // Validate location parameter
-      if (!location || !prayerData[location]) {
-        console.error(`Invalid location: ${location}`);
+      if (!location || !prayerTimes || !prayerTimes[location]) {
+        console.error(`Invalid location or no prayer data: ${location}`);
         return null;
       }
       
@@ -556,7 +585,7 @@ export function useNotificationScheduler(language) {
         return false;
       }
     },
-    []
+    [prayerTimes] // Add prayerTimes to dependency array
   );
 
   const cancelLocalNotification = useCallback(async (notificationId) => {
@@ -580,12 +609,18 @@ export function useNotificationScheduler(language) {
   };
 }
 
-function optimizeAvailableDays(prayerData, location) {
+// Function optimizeAvailableDays needs to be updated too
+function optimizeAvailableDays(prayerTimesData, location) {
+  if (!prayerTimesData || !prayerTimesData[location]) {
+    console.error('Invalid prayer times data in optimizeAvailableDays');
+    return [];
+  }
+  
   const today = new Date();
   const todayNoon = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
   
   // Memoize all parsed dates in a single pass
-  const parsedDates = prayerData[location].map(dayData => {
+  const parsedDates = prayerTimesData[location].map(dayData => {
     const [day, month, year] = dayData.date.trim().split('/').map(Number);
     return {
       ...dayData,
