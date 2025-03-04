@@ -11,19 +11,6 @@ const UPDATE_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 const LAST_UPDATE_CHECK_KEY = 'last_update_check';
 const POSTPONED_VERSION_KEY = 'postponed_update_version';
 
-// Add this translation object at the top of the file
-const TRANSLATIONS = {
-  en: {
-    prayerTimesUpdatedTitle: "Prayer Times Updated",
-    prayerTimesUpdatedMessage: "New prayer times data has been downloaded. The app will now refresh.",
-    okButton: "OK"
-  },
-  ar: {
-    prayerTimesUpdatedTitle: "تم تحديث أوقات الصلاة",
-    prayerTimesUpdatedMessage: "تم تنزيل بيانات أوقات صلاة جديدة. سيتم تحديث التطبيق الآن.",
-    okButton: "موافق"
-  }
-};
 
 export const UpdateManager = () => {
   const [updateInfo, setUpdateInfo] = useState({
@@ -95,51 +82,27 @@ export const UpdateManager = () => {
       }
       
       console.log('Calling forceUpdateCheck...');
-      const hasUpdate = await NativeModules.UpdateModule.forceUpdateCheck();
-      console.log('forceUpdateCheck result:', hasUpdate);
+      const result = await NativeModules.UpdateModule.forceUpdateCheck();
+      console.log('forceUpdateCheck result:', result);
       
-      if (hasUpdate) {
+      // Instead of showing alerts, just handle the statuses directly
+      if (result.status === "updated") {
         // Store a flag indicating data was updated
         await AsyncStorage.setItem('PRAYER_DATA_UPDATED', 'true');
         
-        // Get the current language setting
-        let language = 'en';
-        try {
-          const settings = await AsyncStorage.getItem('user_settings');
-          if (settings) {
-            const parsedSettings = JSON.parse(settings);
-            language = parsedSettings.language || 'en';
+        // Directly trigger refresh without showing alert
+        if (refreshPrayerTimes) {
+          refreshPrayerTimes();
+        } else if (global.fetchPrayerData && typeof global.fetchPrayerData === 'function') {
+          global.fetchPrayerData();
+        } else {
+          const DevSettings = require('react-native').DevSettings;
+          if (DevSettings && DevSettings.reload) {
+            DevSettings.reload();
           }
-        } catch (err) {
-          console.error('Error getting language setting:', err);
         }
-        
-        const messages = TRANSLATIONS[language] || TRANSLATIONS.en;
-        
-        Alert.alert(
-          messages.prayerTimesUpdatedTitle,
-          messages.prayerTimesUpdatedMessage,
-          [{ 
-            text: messages.okButton,
-            onPress: () => {
-              // Use the context's refresh function
-              if (refreshPrayerTimes) {
-                refreshPrayerTimes();
-              } else {
-                // Fallback if context isn't available
-                if (global.fetchPrayerData && typeof global.fetchPrayerData === 'function') {
-                  global.fetchPrayerData();
-                } else {
-                  const DevSettings = require('react-native').DevSettings;
-                  if (DevSettings && DevSettings.reload) {
-                    DevSettings.reload();
-                  }
-                }
-              }
-            }
-          }]
-        );
       }
+      // Other statuses (offline, current) just return silently
     } catch (error) {
       console.error("Error in checkForPrayerTimeUpdates:", error);
     }
@@ -196,7 +159,8 @@ export const UpdateManager = () => {
   }
 };
 
-export const checkForPrayerTimeUpdates = async () => {
+// Standalone exported function
+export const checkForPrayerTimeUpdates = async (customLanguage = null) => {
   console.log('Attempting to check for prayer time updates...');
   try {
     if (!NativeModules.UpdateModule) {
@@ -205,48 +169,26 @@ export const checkForPrayerTimeUpdates = async () => {
     }
     
     console.log('Calling forceUpdateCheck...');
-    const hasUpdate = await NativeModules.UpdateModule.forceUpdateCheck();
-    console.log('forceUpdateCheck result:', hasUpdate);
+    const result = await NativeModules.UpdateModule.forceUpdateCheck();
+    console.log('forceUpdateCheck result:', result);
     
-    if (hasUpdate) {
+    // No need to get language since we're not showing alerts anymore
+    if (result.status === "updated") {
       // Store a flag indicating data was updated
       await AsyncStorage.setItem('PRAYER_DATA_UPDATED', 'true');
       
-      // Get the current language setting
-      let language = 'en';
-      try {
-        const settings = await AsyncStorage.getItem('user_settings');
-        if (settings) {
-          const parsedSettings = JSON.parse(settings);
-          language = parsedSettings.language || 'en';
+      // Directly trigger refresh without showing alert
+      if (global.fetchPrayerData && typeof global.fetchPrayerData === 'function') {
+        global.fetchPrayerData();
+      } else {
+        const DevSettings = require('react-native').DevSettings;
+        if (DevSettings && DevSettings.reload) {
+          DevSettings.reload();
         }
-      } catch (err) {
-        console.error('Error getting language setting:', err);
       }
-      
-      const messages = TRANSLATIONS[language] || TRANSLATIONS.en;
-      
-      Alert.alert(
-        messages.prayerTimesUpdatedTitle,
-        messages.prayerTimesUpdatedMessage,
-        [{ 
-          text: messages.okButton,
-          onPress: () => {
-            // Use the global function set by PrayerTimesProvider
-            if (global.fetchPrayerData && typeof global.fetchPrayerData === 'function') {
-              global.fetchPrayerData();
-            } else {
-              // Fall back to app reload if needed
-              const DevSettings = require('react-native').DevSettings;
-              if (DevSettings && DevSettings.reload) {
-                DevSettings.reload();
-              }
-            }
-          }
-        }]
-      );
       return true;
     }
+    // For other statuses, just return false
     return false;
   } catch (error) {
     console.error("Error in checkForPrayerTimeUpdates:", error);

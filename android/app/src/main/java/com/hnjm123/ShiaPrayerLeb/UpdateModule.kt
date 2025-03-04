@@ -17,6 +17,8 @@ import com.facebook.react.bridge.WritableNativeMap
 import com.facebook.react.bridge.WritableMap
 import com.google.gson.Gson
 import org.json.JSONObject
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 
 class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
     override fun getName(): String {
@@ -26,22 +28,46 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
     @ReactMethod
     fun forceUpdateCheck(promise: Promise) {
         try {
-            // Create a one-time work request for immediate execution
+            // First check if device is online
+            val connectivityManager = reactApplicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val networkCapabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+            val isOnline = networkCapabilities != null && 
+                (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || 
+                 networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR))
+            
+            // Create a single result map that we'll populate based on conditions
+            val result = WritableNativeMap()
+            
+            if (!isOnline) {
+                // Return a specific status code for offline
+                result.putString("status", "offline")
+                result.putString("message", "Device is offline")
+                promise.resolve(result)
+                return
+            }
+            
+            // Create a one-time work request
             val updateWork = OneTimeWorkRequestBuilder<PrayerTimeUpdateWorker>()
                 .build()
-                
-            // Enqueue the work request
+            
+            // Enqueue the work with a unique name
             WorkManager.getInstance(reactApplicationContext)
                 .enqueueUniqueWork(
                     "manual_prayer_time_update",
                     ExistingWorkPolicy.REPLACE,
                     updateWork
                 )
-                
-            Log.d("PrayerApp", "Manual update check initiated")
-            promise.resolve(true)
+            
+            Log.d("PrayerApp", "Manual update check initiated, ID: ${updateWork.id}")
+            
+            // Since WorkManager runs asynchronously, we can't know immediately if it updated the data
+            // For simplicity, we'll return "updated" status - the worker will show notifications if needed
+            result.putString("status", "updated")
+            result.putString("message", "Prayer times check initiated")
+            promise.resolve(result)
+            
         } catch (e: Exception) {
-            Log.e("PrayerApp", "Error during manual update check", e)
+            Log.e("PrayerApp", "Error during update check", e)
             promise.reject("ERROR", "Failed to check for prayer time updates", e)
         }
     }

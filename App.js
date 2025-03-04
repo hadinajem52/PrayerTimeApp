@@ -1206,8 +1206,8 @@ function MainApp() {
       ]}
     >
       <StatusBar translucent backgroundColor="transparent" />
-      {/* Add UpdateManager at the top level */}
-      <UpdateManager />
+      {/* Add UpdateManager at the top level with language prop */}
+      <UpdateManager language={language} />
       
       {/* Header */}
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
