@@ -352,6 +352,69 @@ const QuoteIconButton = ({ isDarkMode, onPress }) => {
   );
 };
 
+// Add this outside the component to avoid recreation
+const LocationItem = React.memo(({ 
+  loc, 
+  locDisplay, 
+  isSelected, 
+  isDarkMode, 
+  onPress 
+}) => {
+  const iconColor = isSelected 
+    ? (isDarkMode ? "#FFA500" : "#007AFF") 
+    : (isDarkMode ? "#66CCFF" : "#555");
+    
+  return (
+    <TouchableOpacity
+      key={loc}
+      style={[
+        styles.enhancedLocationOption,
+        isDarkMode && styles.darkEnhancedLocationOption,
+        isSelected && styles.selectedLocationOption,
+        isSelected && isDarkMode && styles.darkSelectedLocationOption
+      ]}
+      onPress={onPress}
+    >
+      <View style={[
+        styles.locationIconContainer,
+        isDarkMode ? styles.darkLocationIconContainer : styles.lightLocationIconContainer,
+        isSelected && styles.selectedLocationIconContainer
+      ]}>
+        {loc === 'hermel' ? (
+          <FontAwesome5
+            name="mountain"
+            size={18}
+            color={iconColor}
+            solid
+          />
+        ) : (
+          <MaterialCommunityIcons
+            name={LOCATION_ICONS[loc] || "map-marker"}
+            size={24}
+            color={iconColor}
+          />
+        )}
+      </View>
+      <Text style={[
+        styles.enhancedLocationText,
+        isDarkMode && styles.darkEnhancedLocationText,
+        isSelected && styles.selectedLocationText,
+        isSelected && isDarkMode && styles.darkSelectedLocationText
+      ]}>
+        {locDisplay}
+      </Text>
+      {isSelected && (
+        <Icon 
+          name="checkmark-circle" 
+          size={22} 
+          color={isDarkMode ? "#FFA500" : "#007AFF"}
+          style={styles.selectedCheckmark}
+        />
+      )}
+    </TouchableOpacity>
+  );
+});
+
 // ----- Main App Component -----
 export default function App() {
   return (
@@ -412,6 +475,11 @@ function MainApp() {
   const locationData = useMemo(() => {
     return (prayerTimes && prayerTimes[selectedLocation]) || [];
   }, [prayerTimes, selectedLocation]);
+
+  const locationKeys = useMemo(() => 
+    Object.keys(prayerTimes || {}).filter(loc => loc !== "last_updated"),
+    [prayerTimes]
+  );
 
   const dailyQuote = useMemo(() => {
     const todayIndex = new Date().getDate() % dailyQuotes.length;
@@ -1464,63 +1532,19 @@ function MainApp() {
             </View>
             
             <ScrollView style={styles.locationListContainer}>
-              {Object.keys(prayerTimes)
-                .filter(loc => loc !== "last_updated") // Filter out the last_updated metadata
-                .map((loc) => {
+              {locationKeys.map((loc) => {
                 const locDisplay = LOCATION_NAMES[loc] ? LOCATION_NAMES[loc][language] : loc;
                 const isSelected = selectedLocation === loc;
-                const iconColor = isSelected 
-                  ? (isDarkMode ? "#FFA500" : "#007AFF") 
-                  : (isDarkMode ? "#66CCFF" : "#555");
                 
                 return (
-                  <TouchableOpacity
+                  <LocationItem
                     key={loc}
-                    style={[
-                      styles.enhancedLocationOption,
-                      isDarkMode && styles.darkEnhancedLocationOption,
-                      isSelected && styles.selectedLocationOption,
-                      isSelected && isDarkMode && styles.darkSelectedLocationOption
-                    ]}
+                    loc={loc}
+                    locDisplay={locDisplay}
+                    isSelected={isSelected}
+                    isDarkMode={isDarkMode}
                     onPress={() => handleLocationChange(loc)}
-                  >
-                    <View style={[
-                      styles.locationIconContainer,
-                      isDarkMode ? styles.darkLocationIconContainer : styles.lightLocationIconContainer,
-                      isSelected && styles.selectedLocationIconContainer
-                    ]}>
-                      {loc === 'hermel' ? (
-                        <FontAwesome5
-                          name="mountain"
-                          size={18}
-                          color={iconColor}
-                          solid
-                        />
-                      ) : (
-                        <MaterialCommunityIcons
-                          name={LOCATION_ICONS[loc] || "map-marker"}
-                          size={24}
-                          color={iconColor}
-                        />
-                      )}
-                    </View>
-                    <Text style={[
-                      styles.enhancedLocationText,
-                      isDarkMode && styles.darkEnhancedLocationText,
-                      isSelected && styles.selectedLocationText,
-                      isSelected && isDarkMode && styles.darkSelectedLocationText
-                    ]}>
-                      {locDisplay}
-                    </Text>
-                    {isSelected && (
-                      <Icon 
-                        name="checkmark-circle" 
-                        size={22} 
-                        color={isDarkMode ? "#FFA500" : "#007AFF"}
-                        style={styles.selectedCheckmark}
-                      />
-                    )}
-                  </TouchableOpacity>
+                  />
                 );
               })}
             </ScrollView>

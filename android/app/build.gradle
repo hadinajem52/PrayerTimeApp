@@ -27,8 +27,8 @@ android {
         applicationId 'com.hnjm123.ShiaPrayerLeb'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 25
-        versionName "1.0.25"
+        versionCode 26
+        versionName "1.0.26"
     }
     
     signingConfigs {
