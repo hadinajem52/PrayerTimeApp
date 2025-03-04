@@ -42,7 +42,7 @@ import './firebase';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MonthTransitionNotice from './components/MonthTransitionNotice';
-import { formatTimeString } from './utils/timeFormatters';
+import { formatTimeString, toArabicNumerals } from './utils/timeFormatters';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PrayerTimesProvider, usePrayerTimes } from './components/PrayerTimesProvider';
 
@@ -183,9 +183,9 @@ const Countdown = ({
   const [timeRemaining, setTimeRemaining] = useState('');
   const [progress, setProgress] = useState(0);
   
-  // Get time format directly from settings
+  // Get time format and useArabicNumerals from settings
   const [settings] = useSettings();
-  const { timeFormat } = settings;
+  const { timeFormat, useArabicNumerals } = settings;
 
   // Force update when time format changes
   const forceUpdate = useRef(0);
@@ -193,7 +193,7 @@ const Countdown = ({
   // Listen for time format changes and trigger re-render
   useEffect(() => {
     forceUpdate.current += 1;
-  }, [timeFormat]);
+  }, [timeFormat, useArabicNumerals]);
 
   useEffect(() => {
     if (!nextPrayerTime || !lastPrayerTime) return;
@@ -215,8 +215,14 @@ const Countdown = ({
         const minutes = String(duration.minutes()).padStart(2, '0');
         const seconds = String(duration.seconds()).padStart(2, '0');
         
-        // Always use 24h format for countdown regardless of user preference
-        setTimeRemaining(`${hours}:${minutes}:${seconds}`);
+        let displayTime = `${hours}:${minutes}:${seconds}`;
+        
+        // Convert to Arabic numerals if needed
+        if (language === 'ar' && useArabicNumerals) {
+          displayTime = toArabicNumerals(displayTime);
+        }
+        
+        setTimeRemaining(displayTime);
 
         const progressFraction = Math.min(Math.max(elapsed / totalDuration, 0), 1);
         setProgress(progressFraction);
@@ -224,7 +230,7 @@ const Countdown = ({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [nextPrayerTime, lastPrayerTime, timeFormat]);
+  }, [nextPrayerTime, lastPrayerTime, timeFormat, useArabicNumerals, language]);
 
   const StartIcon = getIconComponent(lastPrayerKey);
   const EndIcon = getIconComponent(nextPrayerKey);
@@ -1594,6 +1600,8 @@ function MainApp() {
           onClose={() => setIsSettingsVisible(false)}
           hijriDateOffset={settings.hijriDateOffset || 0}
           updateHijriOffset={updateHijriOffset}
+          useArabicNumerals={settings.useArabicNumerals || false}
+          updateUseArabicNumerals={(value) => setSettings(prev => ({...prev, useArabicNumerals: value}))}
         />
       </Modal>
     </SafeAreaView>

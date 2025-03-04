@@ -30,6 +30,16 @@ const PRAYER_ICONS = {
   midnight: 'moon',
 };
 
+// Helper to convert to Arabic numerals
+const toArabicNumerals = (str) => {
+  const arabicNumerals = {
+    '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤',
+    '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩'
+  };
+  
+  return str.toString().replace(/[0-9]/g, match => arabicNumerals[match]);
+};
+
 const PrayerRow = ({ 
   prayerKey, 
   time, 
@@ -49,12 +59,15 @@ const PrayerRow = ({
   const [wasEnabled, setWasEnabled] = useState(isEnabled);
   const isFirstRender = useRef(true);
   
-  // Get time format from settings
+  // Get time format and useArabicNumerals from settings
   const [settings] = useSettings();
-  const { timeFormat } = settings;
+  const { timeFormat, useArabicNumerals } = settings;
 
-  // Format the time according to user preference
-  const formattedTime = formatTimeString(time, timeFormat);
+  // Format the time according to user preference, passing language and useArabicNumerals
+  const formattedTime = formatTimeString(time, timeFormat, language, useArabicNumerals);
+  
+  // No need for separate display time processing since it's handled in the formatTimeString function
+  const displayTime = formattedTime;
   
   // Animation when row becomes the upcoming prayer
   useEffect(() => {
@@ -116,7 +129,7 @@ const PrayerRow = ({
       </Text>
       
       <Text style={[styles.value, isDarkMode && styles.darkValue]}>
-        {formattedTime}
+        {displayTime}
       </Text>
       
       <Animated.View style={{

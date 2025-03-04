@@ -36,7 +36,8 @@ const TRANSLATIONS = {
     timeFormatDescription: "Choose how prayer times are displayed",
     updatePrayerTimes: "Update Prayer Times",
     updating: "Updating...",
-    updateDescription: "Internet connection is required to update prayer times"
+    updateDescription: "Internet connection is required to update prayer times",
+    useArabicNumerals: "Use Arabic Numerals",
   },
   ar: {
     settings: "الإعدادات",
@@ -57,11 +58,22 @@ const TRANSLATIONS = {
     timeFormatDescription: " اختر طريقة عرض أوقات الصلاة",
     updatePrayerTimes:  "تحقق من بيانات أوقات الصلاة الجديدة",
     updating: "جاري التحديث...",
-    updateDescription: "يلزم الاتصال بالإنترنت لتحديث أوقات الصلاة"
+    updateDescription: "يلزم الاتصال بالإنترنت لتحديث أوقات الصلاة",
+    useArabicNumerals: "استخدام الأرقام العربية",
   },
 };
 
-const Settings = ({ language, isDarkMode, toggleDarkMode, toggleLanguage, onClose, hijriDateOffset = 0, updateHijriOffset }) => {
+const Settings = ({ 
+  language, 
+  isDarkMode, 
+  toggleDarkMode, 
+  toggleLanguage, 
+  onClose, 
+  hijriDateOffset = 0, 
+  updateHijriOffset, 
+  useArabicNumerals, 
+  updateUseArabicNumerals 
+}) => {
   const translations = TRANSLATIONS[language];
   const [settings, setSettings] = useSettings();
   const timeFormat = settings.timeFormat || '24h';
@@ -242,6 +254,20 @@ const Settings = ({ language, isDarkMode, toggleDarkMode, toggleLanguage, onClos
               />
             )}
           </TouchableOpacity>
+
+          {language === 'ar' && (
+            <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+              <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
+                {translations.useArabicNumerals}
+              </Text>
+              <Switch
+                value={useArabicNumerals}
+                onValueChange={updateUseArabicNumerals}
+                trackColor={{ false: "#767577", true: isDarkMode ? "#66CCFF" : "#007AFF" }}
+                thumbColor={useArabicNumerals ? (isDarkMode ? "#FFA500" : "#007AFF") : "#f4f3f4"}
+              />
+            </View>
+          )}
         </View>
 
         {/* Time Format Section */}
