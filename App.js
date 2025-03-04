@@ -457,7 +457,9 @@ function MainApp() {
     cancelLocalNotification,
     cancelAllNotifications,
     scheduleRollingNotifications,
-    setupDailyRefresh  
+    setupDailyRefresh,
+    isLoading: notificationsLoading,
+    isDataAvailable
   } = useNotificationScheduler(language);
 
   // Animation refs
@@ -1060,27 +1062,41 @@ function MainApp() {
         // Refresh the current prayer data to ensure it matches the current time
         refreshCurrentPrayerData();
         
-        // Continue with notification refresh
-        if (settings.selectedLocation && settings.enabledPrayers) {
-          scheduleRollingNotifications(
-            settings.selectedLocation, 
-            settings.enabledPrayers
-          );
+        // Only schedule notifications if all required data is available
+        if (settings.selectedLocation && settings.enabledPrayers && isDataAvailable) {
+          console.log('Scheduling notifications with loaded prayer times data');
+          try {
+            scheduleRollingNotifications(
+              settings.selectedLocation, 
+              settings.enabledPrayers
+            );
+          } catch (error) {
+            console.error('Failed to schedule notifications on app foreground:', error);
+          }
+        } else {
+          console.log('Skipping notification scheduling - data not ready');
         }
       }
       appState.current = nextAppState;
     };
 
-    if (settings.selectedLocation && settings.enabledPrayers) {
-      scheduleRollingNotifications(
-        settings.selectedLocation, 
-        settings.enabledPrayers
-      );
-      
-      setupDailyRefresh(
-        settings.selectedLocation,
-        settings.enabledPrayers
-      );
+    // Only attempt to schedule if all data is available
+    if (settings.selectedLocation && settings.enabledPrayers && isDataAvailable) {
+      try {
+        scheduleRollingNotifications(
+          settings.selectedLocation, 
+          settings.enabledPrayers
+        );
+        
+        setupDailyRefresh(
+          settings.selectedLocation,
+          settings.enabledPrayers
+        );
+      } catch (error) {
+        console.error('Failed to schedule initial notifications:', error);
+      }
+    } else {
+      console.log('Waiting for prayer data to load before scheduling notifications');
     }
     
     const subscription = AppState.addEventListener('change', handleAppStateChange);
@@ -1088,7 +1104,7 @@ function MainApp() {
     return () => {
       subscription.remove();
     };
-  }, [scheduleRollingNotifications, setupDailyRefresh, settings, refreshCurrentPrayerData]); 
+  }, [scheduleRollingNotifications, setupDailyRefresh, settings, refreshCurrentPrayerData, isDataAvailable]);
 
   useEffect(() => {
     if (locationData.length > 0) {
@@ -1187,7 +1203,7 @@ function MainApp() {
   }
   
   // After all hooks are defined, we can have conditional rendering
-  if (!isSettingsLoaded || !currentPrayer || isLoading || prayerTimesLoading) {
+  if (!isSettingsLoaded || !currentPrayer || isLoading || prayerTimesLoading || notificationsLoading) {
     return (
       <SafeAreaView style={[{ flex: 1 }, isDarkMode && styles.darkContainer]}>
         <StatusBar translucent backgroundColor="transparent" />
@@ -1461,9 +1477,10 @@ function MainApp() {
             setCurrentPrayer(locationData[index]);
             setIsCalendarVisible(false);
           }}
-          prayerDates={prayerDates}
           currentSelectedDate={currentPrayer ? currentPrayer.date : null}
           todayIndex={getTodayIndex(locationData)}
+          selectedLocation={selectedLocation}
+          prayerTimes={prayerTimes} // Add this line to pass prayerTimes directly
         />
       </Modal>
       {/* Quote Modal */}

@@ -29,7 +29,7 @@ class PrayerTimeUpdateWorker(
 
     companion object {
         private const val TAG = "PrayerTimeUpdater"
-        private const val JSON_URL = "https://raw.githubusercontent.com/hadinajem52/PrayerTimeApp/main/assets/prayer_times.json"
+        private const val JSON_URL = "https://raw.githubusercontent.com/hadinajem52/PrayerTimeApp/refs/heads/main/assets/prayer_times.json"
         private const val LOCAL_FILE_NAME = "prayer_times.json"
         private const val CHANNEL_ID = "prayer-channel"
         private const val NOTIFICATION_ID = 1001

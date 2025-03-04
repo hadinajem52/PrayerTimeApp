@@ -36,6 +36,7 @@ const TRANSLATIONS = {
     timeFormatDescription: "Choose how prayer times are displayed",
     updatePrayerTimes: "Update Prayer Times",
     updating: "Updating...",
+    updateDescription: "Internet connection is required to update prayer times"
   },
   ar: {
     settings: "الإعدادات",
@@ -56,6 +57,7 @@ const TRANSLATIONS = {
     timeFormatDescription: " اختر طريقة عرض أوقات الصلاة",
     updatePrayerTimes:  "تحقق من بيانات أوقات الصلاة الجديدة",
     updating: "جاري التحديث...",
+    updateDescription: "يلزم الاتصال بالإنترنت لتحديث أوقات الصلاة"
   },
 };
 
@@ -303,6 +305,10 @@ const Settings = ({ language, isDarkMode, toggleDarkMode, toggleLanguage, onClos
               </Text>
             </TouchableOpacity>
           </View>
+          
+          <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
+            {translations.updateDescription}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>

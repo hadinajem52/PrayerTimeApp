@@ -142,13 +142,8 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             val prefs = reactApplicationContext.getSharedPreferences("PrayerAppPrefs", Context.MODE_PRIVATE)
             val hasUpdates = prefs.getBoolean("HAS_UPDATED_PRAYER_DATA", false)
             
-            if (hasUpdates) {
-                // Reset the flag after reading it
-                prefs.edit().putBoolean("HAS_UPDATED_PRAYER_DATA", false).apply()
-                promise.resolve(true)
-            } else {
-                promise.resolve(false)
-            }
+            // Simply return the value, don't reset it
+            promise.resolve(hasUpdates)
         } catch (e: Exception) {
             promise.reject("ERROR", "Failed to check for prayer time updates", e)
         }
