@@ -15,12 +15,38 @@ export const PrayerTimesProvider = ({ children }) => {
     setIsLoading(true);
     
     try {
-      // Check if we need to load updated data
-      const hasUpdates = await AsyncStorage.getItem('PRAYER_DATA_UPDATED');
+      // Check if this is first launch
+      const isFirstLaunch = await AsyncStorage.getItem('FIRST_LAUNCH') === null;
       
-      if (hasUpdates === 'true') {
+      if (isFirstLaunch) {
+        console.log('First launch detected, downloading latest data from GitHub...');
+        try {
+          // Download fresh data from GitHub
+          const downloadSuccess = await NativeModules.UpdateModule.downloadLatestPrayerTimesFromGitHub();
+          
+          if (downloadSuccess) {
+            console.log('Successfully downloaded prayer times data from GitHub');
+            // Mark first launch complete
+            await AsyncStorage.setItem('FIRST_LAUNCH', 'false');
+            
+            // Set update flag to true so we load the downloaded data
+            await AsyncStorage.setItem('PRAYER_DATA_UPDATED', 'true');
+          }
+        } catch (downloadErr) {
+          console.error('Failed to download from GitHub:', downloadErr);
+          // Will fall back to bundled data
+        }
+      }
+      
+      // Check if native code has updated data
+      let hasUpdates = false;
+      if (NativeModules.UpdateModule) {
+        hasUpdates = await NativeModules.UpdateModule.checkForPrayerDataUpdates();
+      }
+      
+      if (hasUpdates || await AsyncStorage.getItem('PRAYER_DATA_UPDATED') === 'true') {
         console.log('Loading updated prayer times data from native module');
-        // Clear the flag
+        // Clear the AsyncStorage flag
         await AsyncStorage.removeItem('PRAYER_DATA_UPDATED');
         
         // Try to get the updated data from native storage
