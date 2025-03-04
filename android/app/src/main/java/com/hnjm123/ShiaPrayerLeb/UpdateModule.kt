@@ -19,6 +19,13 @@ import com.google.gson.Gson
 import org.json.JSONObject
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
 
 class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
     override fun getName(): String {
@@ -126,6 +133,67 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
         } catch (e: Exception) {
             Log.e("PrayerApp", "Failed to get prayer times data", e)
             promise.reject("ERROR", "Failed to get prayer times data", e)
+        }
+    }
+
+    @ReactMethod
+    fun checkForPrayerDataUpdates(promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences("PrayerAppPrefs", Context.MODE_PRIVATE)
+            val hasUpdates = prefs.getBoolean("HAS_UPDATED_PRAYER_DATA", false)
+            
+            if (hasUpdates) {
+                // Reset the flag after reading it
+                prefs.edit().putBoolean("HAS_UPDATED_PRAYER_DATA", false).apply()
+                promise.resolve(true)
+            } else {
+                promise.resolve(false)
+            }
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to check for prayer time updates", e)
+        }
+    }
+
+    @ReactMethod
+    fun downloadLatestPrayerTimesFromGitHub(promise: Promise) {
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                // Replace with your actual GitHub username and repository
+                val url = URL("https://raw.githubusercontent.com/hadinajem52/PrayerTimeApp/refs/heads/main/assets/prayer_times.json")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 15000
+                connection.readTimeout = 15000
+                
+                val responseCode = connection.responseCode
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    val inputStream = connection.inputStream
+                    val reader = BufferedReader(InputStreamReader(inputStream))
+                    val stringBuilder = StringBuilder()
+                    var line: String?
+                    
+                    while (reader.readLine().also { line = it } != null) {
+                        stringBuilder.append(line)
+                    }
+                    
+                    inputStream.close()
+                    val jsonData = stringBuilder.toString()
+                    
+                    // Save to file
+                    val file = File(reactApplicationContext.filesDir, "updated_prayer_times.json")
+                    file.writeText(jsonData)
+                    
+                    // Set update flag
+                    val prefs = reactApplicationContext.getSharedPreferences("PrayerAppPrefs", Context.MODE_PRIVATE)
+                    prefs.edit().putBoolean("HAS_UPDATED_PRAYER_DATA", true).apply()
+                    
+                    promise.resolve(true)
+                } else {
+                    promise.reject("DOWNLOAD_FAILED", "Failed to download, response code: $responseCode")
+                }
+            } catch (e: Exception) {
+                promise.reject("DOWNLOAD_ERROR", e.message, e)
+            }
         }
     }
 }
