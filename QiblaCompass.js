@@ -45,9 +45,13 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
   
 
   const [deviceHeading, setDeviceHeading] = useState(0);
+  const [smoothedHeading, setSmoothedHeading] = useState(0);
   const [qiblaDirection, setQiblaDirection] = useState(0);
   const [location, setLocation] = useState(null);
   const [currentAnimatedRotation, setCurrentAnimatedRotation] = useState(0);
+
+  // Smoothing factor (0-1): lower = smoother but less responsive
+  const SMOOTHING_FACTOR = 0.1;
 
   // Animated value for needle rotation and a ref to track last rotation
   const animatedRotation = useRef(new Animated.Value(0)).current;
@@ -63,11 +67,16 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
     };
   }, [animatedRotation]);
 
-  // Start compass sensor updates
+  // Start compass sensor updates with smoothing
   useEffect(() => {
     const degree_update_rate = 1; // update when heading changes by at least 1°
     CompassHeading.start(degree_update_rate, ({ heading }) => {
-      setDeviceHeading(heading);
+      // Apply low-pass filter
+      setSmoothedHeading(prev => {
+        const smoothed = prev + SMOOTHING_FACTOR * ((heading - prev + 540) % 360 - 180);
+        return (smoothed + 360) % 360;
+      });
+      setDeviceHeading(heading); // Keep original for display purposes
     });
     return () => {
       CompassHeading.stop();
@@ -148,9 +157,9 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
     return bearing;
   };
 
-  // Update the needle rotation using the shortest path
+  // Update the needle rotation using the smoothed heading rather than raw deviceHeading
   useEffect(() => {
-    const newRotation = ((qiblaDirection - deviceHeading) + 360) % 360;
+    const newRotation = ((qiblaDirection - smoothedHeading) + 360) % 360;
     let diff = newRotation - lastRotationRef.current;
     if (diff > 180) {
       diff -= 360;
@@ -166,12 +175,12 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
     }).start(() => {
       lastRotationRef.current = targetRotation;
     });
-  }, [deviceHeading, qiblaDirection, animatedRotation]);
+  }, [smoothedHeading, qiblaDirection, animatedRotation]);
 
   // --- Updated Compass Dimensions & Calculations ---
   const compassSize = 220; // Increased overall size
   const center = compassSize / 2; // e.g., 110
-  const kaabaSize = 40;
+  const kaabaSize = 35;
   const kaabaMargin = 11;
   const rIcon = center + (kaabaSize / 2) + kaabaMargin;
   const kaabaAngleRad = (currentAnimatedRotation - 90) * (Math.PI / 180);
@@ -202,7 +211,6 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
       style={[
         styles.safeArea,
         isDarkMode && styles.darkContainer,
-        { direction: language === "ar" ? "rtl" : "ltr" },
       ]}
     >
       <StatusBar 
@@ -247,7 +255,7 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
                   {TRANSLATIONS[language].deviceHeading}:
                 </Text>
                 <Text style={[styles.infoValue, isDarkMode && styles.darkInfoValue]}>
-                  {deviceHeading.toFixed(1)}°
+                  {smoothedHeading.toFixed(1)}°
                 </Text>
               </View>
 

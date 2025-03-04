@@ -1439,7 +1439,7 @@ function MainApp() {
               isCompassVisible && styles.navLabelActive,
               isCompassVisible && isDarkMode && styles.darkNavLabelActive
             ]}>
-              {language === 'en' ? 'Qibla' : 'القبلة'}
+              {language === 'en' ? 'Qibla' : 'القبلة '}
             </Text>
           </Animated.View>
         </TouchableOpacity>
