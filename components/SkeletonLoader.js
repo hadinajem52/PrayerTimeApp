@@ -32,6 +32,7 @@ const SkeletonLoader = ({ isDarkMode }) => {
   const cardBgColor = isDarkMode ? '#333' : '#FFF';
   const navBgColor = isDarkMode ? '#222' : '#EAEFF2';
   const accentColor = isDarkMode ? '#66CCFF33' : '#007AFF33'; // Semi-transparent accent color
+  const activeColor = isDarkMode ? '#FFA50033' : '#007AFF33'; // For active nav item
 
   // Animated gradient
   const ShimmerEffect = () => (
@@ -50,7 +51,7 @@ const SkeletonLoader = ({ isDarkMode }) => {
   // Skeleton components
   const HeaderSkeleton = () => (
     <View style={styles.header}>
-      <View style={[styles.headerText, { backgroundColor: baseColor }]}>
+      <View style={[styles.headerText, { backgroundColor: baseColor, overflow: 'hidden' }]}>
         <ShimmerEffect />
       </View>
     </View>
@@ -59,16 +60,16 @@ const SkeletonLoader = ({ isDarkMode }) => {
   const CardSkeleton = () => (
     <View style={[styles.card, { backgroundColor: cardBgColor }]}>
       {/* Date */}
-      <View style={[styles.dateText, { backgroundColor: baseColor }]}>
+      <View style={[styles.dateText, { backgroundColor: baseColor, overflow: 'hidden' }]}>
         <ShimmerEffect />
       </View>
       
       {/* Hijri date + location */}
       <View style={styles.dateRow}>
-        <View style={[styles.hijriDate, { backgroundColor: baseColor }]}>
+        <View style={[styles.hijriDate, { backgroundColor: baseColor, overflow: 'hidden' }]}>
           <ShimmerEffect />
         </View>
-        <View style={[styles.locationText, { backgroundColor: accentColor }]}>
+        <View style={[styles.locationText, { backgroundColor: accentColor, overflow: 'hidden' }]}>
           <ShimmerEffect />
         </View>
       </View>
@@ -76,16 +77,16 @@ const SkeletonLoader = ({ isDarkMode }) => {
       {/* Prayer rows - create 7 of them */}
       {[...Array(7)].map((_, i) => (
         <View key={i} style={styles.prayerRow}>
-          <View style={[styles.prayerIcon, { backgroundColor: baseColor }]}>
+          <View style={[styles.prayerIcon, { backgroundColor: baseColor, overflow: 'hidden' }]}>
             <ShimmerEffect />
           </View>
-          <View style={[styles.prayerLabel, { backgroundColor: baseColor }]}>
+          <View style={[styles.prayerLabel, { backgroundColor: baseColor, overflow: 'hidden' }]}>
             <ShimmerEffect />
           </View>
-          <View style={[styles.prayerTime, { backgroundColor: baseColor }]}>
+          <View style={[styles.prayerTime, { backgroundColor: baseColor, overflow: 'hidden' }]}>
             <ShimmerEffect />
           </View>
-          <View style={[styles.notifIcon, { backgroundColor: baseColor }]}>
+          <View style={[styles.notifIcon, { backgroundColor: baseColor, overflow: 'hidden' }]}>
             <ShimmerEffect />
           </View>
         </View>
@@ -93,20 +94,20 @@ const SkeletonLoader = ({ isDarkMode }) => {
 
       {/* Countdown */}
       <View style={styles.countdownContainer}>
-        <View style={[styles.countdownLabel, { backgroundColor: baseColor }]}>
+        <View style={[styles.countdownLabel, { backgroundColor: baseColor, overflow: 'hidden' }]}>
           <ShimmerEffect />
         </View>
-        <View style={[styles.countdownTime, { backgroundColor: accentColor }]}>
+        <View style={[styles.countdownTime, { backgroundColor: accentColor, overflow: 'hidden' }]}>
           <ShimmerEffect />
         </View>
         <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBarIcon, { backgroundColor: baseColor }]}>
+          <View style={[styles.progressBarIcon, { backgroundColor: baseColor, overflow: 'hidden' }]}>
             <ShimmerEffect />
           </View>
-          <View style={[styles.progressBar, { backgroundColor: baseColor }]}>
+          <View style={[styles.progressBar, { backgroundColor: baseColor, overflow: 'hidden' }]}>
             <ShimmerEffect />
           </View>
-          <View style={[styles.progressBarIconEnd, { backgroundColor: accentColor }]}>
+          <View style={[styles.progressBarIconEnd, { backgroundColor: accentColor, overflow: 'hidden' }]}>
             <ShimmerEffect />
           </View>
         </View>
@@ -117,8 +118,13 @@ const SkeletonLoader = ({ isDarkMode }) => {
   const NavSkeleton = () => (
     <View style={[styles.navbar, { backgroundColor: navBgColor }]}>
       {[...Array(4)].map((_, i) => (
-        <View key={i} style={[styles.navIcon, { backgroundColor: accentColor }]}>
-          <ShimmerEffect />
+        <View key={i} style={styles.navItemContainer}>
+          <View style={[styles.navIcon, { backgroundColor: i === 0 ? activeColor : accentColor, overflow: 'hidden' }]}>
+            <ShimmerEffect />
+          </View>
+          <View style={[styles.navLabel, { backgroundColor: i === 0 ? activeColor : baseColor, overflow: 'hidden' }]}>
+            <ShimmerEffect />
+          </View>
         </View>
       ))}
     </View>
@@ -127,10 +133,10 @@ const SkeletonLoader = ({ isDarkMode }) => {
   // Today indicator + Quote button
   const IndicatorButtons = () => (
     <View style={styles.topButtons}>
-      <View style={[styles.todayIndicator, { backgroundColor: accentColor }]}>
+      <View style={[styles.todayIndicator, { backgroundColor: accentColor, overflow: 'hidden' }]}>
         <ShimmerEffect />
       </View>
-      <View style={[styles.quoteButton, { backgroundColor: accentColor }]}>
+      <View style={[styles.quoteButton, { backgroundColor: accentColor, overflow: 'hidden' }]}>
         <ShimmerEffect />
       </View>
     </View>
@@ -287,10 +293,20 @@ const styles = StyleSheet.create({
     height: hp('12%'),
     paddingBottom: moderateScale(10),
   },
+  navItemContainer: {
+    alignItems: 'center',
+    width: '20%',
+  },
   navIcon: {
-    width: moderateScale(50),
-    height: moderateScale(50),
-    borderRadius: moderateScale(25),
+    width: moderateScale(28),
+    height: moderateScale(28),
+    borderRadius: moderateScale(14),
+    marginBottom: moderateScale(4),
+  },
+  navLabel: {
+    width: moderateScale(40),
+    height: moderateScale(12),
+    borderRadius: moderateScale(4),
   },
   topButtons: {
     position: 'absolute',
