@@ -28,9 +28,6 @@ export const PrayerTimesProvider = ({ children }) => {
             console.log('Successfully downloaded prayer times data from GitHub');
             // Mark first launch complete
             await AsyncStorage.setItem('FIRST_LAUNCH', 'false');
-            
-            // Set update flag to true so we load the downloaded data
-            await AsyncStorage.setItem('PRAYER_DATA_UPDATED', 'true');
           }
         } catch (downloadErr) {
           console.error('Failed to download from GitHub:', downloadErr);
@@ -38,36 +35,21 @@ export const PrayerTimesProvider = ({ children }) => {
         }
       }
       
-      // Check if native code has updated data
-      let hasUpdates = false;
-      if (NativeModules.UpdateModule) {
-        hasUpdates = await NativeModules.UpdateModule.checkForPrayerDataUpdates();
+      // SIMPLIFIED: Always try to load from file first
+      const updatedData = await NativeModules.UpdateModule.getUpdatedPrayerTimes();
+
+      if (updatedData) {
+        // Use the updated data from file
+        console.log('Using updated prayer times data from file');
+        setPrayerTimes(JSON.parse(updatedData));
+      } else {
+        // Fall back to bundled data
+        console.log('No updated file found, using bundled data');
+        setPrayerTimes(require('../assets/prayer_times.json'));
       }
-      
-      if (hasUpdates || await AsyncStorage.getItem('PRAYER_DATA_UPDATED') === 'true') {
-        console.log('Loading updated prayer times data from native module');
-        // Clear the AsyncStorage flag
-        await AsyncStorage.removeItem('PRAYER_DATA_UPDATED');
-        
-        // Try to get the updated data from native storage
-        const updatedData = await NativeModules.UpdateModule.getUpdatedPrayerTimes();
-        
-        if (updatedData) {
-          // Parse and use the updated data
-          const parsedData = JSON.parse(updatedData);
-          setPrayerTimes(parsedData);
-          console.log('Successfully loaded updated prayer times data');
-          setIsLoading(false);
-          return;
-        }
-      }
-      
-      // If no updates or failed to get updated data, fall back to bundled data
-      console.log('Loading bundled prayer times data');
-      const bundledData = require('../assets/prayer_times.json');
-      setPrayerTimes(bundledData);
       
     } catch (err) {
+      // Error handling remains the same...
       console.error('Failed to load prayer times:', err);
       setError(err.message);
       
