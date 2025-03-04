@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { moderateScale } from 'react-native-size-matters';
 import moment from 'moment-hijri';
+import { usePrayerTimes } from './PrayerTimesProvider'; // Import the context hook
 
 const MONTHS = {
   en: [
@@ -45,12 +46,21 @@ const CalendarView = ({
   isDarkMode, 
   onClose, 
   onSelectDate, 
-  prayerDates, 
   currentSelectedDate, 
-  todayIndex 
+  todayIndex,
+  selectedLocation // Add this prop to know which location we're viewing 
 }) => {
+  const { prayerTimes } = usePrayerTimes(); // Get prayer times from context
   const translations = TRANSLATIONS[language];
   
+  // Extract prayer dates for the selected location from context
+  const prayerDates = useMemo(() => {
+    if (!prayerTimes || !selectedLocation || !prayerTimes[selectedLocation]) {
+      return [];
+    }
+    return prayerTimes[selectedLocation].map(item => item.date);
+  }, [prayerTimes, selectedLocation]);
+
   const currentDate = useMemo(() => {
     if (currentSelectedDate) {
       return moment(currentSelectedDate, "DD/MM/YYYY");

@@ -203,6 +203,17 @@ class PrayerTimeUpdateWorker(
                 Log.d(TAG, "New prayer time data available: $remoteLastUpdated vs local: $localLastUpdated")
                 saveJsonLocally(jsonResponse)
                 
+                // Save the new data to file
+                val file = File(applicationContext.filesDir, "updated_prayer_times.json") 
+                file.writeText(jsonResponse)
+                
+                // Mark that we have updated data
+                val prefs = applicationContext.getSharedPreferences("PrayerAppPrefs", Context.MODE_PRIVATE)
+                prefs.edit().putBoolean("HAS_UPDATED_PRAYER_DATA", true).apply()
+                
+                // Show notification
+                showUpdateNotification()
+                
                 return true
             } else {
                 Log.d(TAG, "Prayer time data is already up to date")

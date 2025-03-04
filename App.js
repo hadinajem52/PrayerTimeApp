@@ -19,7 +19,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import moment from 'moment-hijri';
 import ProgressBar from 'react-native-progress/Bar'; 
-import prayerData from './assets/prayer_times.json';
 import dailyQuotes from './data/quotes';
 import QiblaCompass from './QiblaCompass';
 import notifee, { AndroidImportance } from '@notifee/react-native';
@@ -45,6 +44,7 @@ import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MonthTransitionNotice from './components/MonthTransitionNotice';
 import { formatTimeString } from './utils/timeFormatters';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PrayerTimesProvider, usePrayerTimes } from './components/PrayerTimesProvider';
 
 // In your settings initialization or first run logic:
 const initializeSettings = async () => {
@@ -354,7 +354,18 @@ const QuoteIconButton = ({ isDarkMode, onPress }) => {
 
 // ----- Main App Component -----
 export default function App() {
+  return (
+    <PrayerTimesProvider>
+      <MainApp />
+    </PrayerTimesProvider>
+  );
+}
+
+function MainApp() {
   const [settings, setSettings] = useSettings();
+  // Add this line to get prayer times from context
+  const { prayerTimes, isLoading: prayerTimesLoading, error: prayerTimesError, refreshPrayerTimes } = usePrayerTimes();
+  
   const {
     language,
     isDarkMode,
@@ -399,8 +410,8 @@ export default function App() {
 
   // All useMemo calls should be at top level
   const locationData = useMemo(() => {
-    return prayerData[selectedLocation] || [];
-  }, [selectedLocation]);
+    return (prayerTimes && prayerTimes[selectedLocation]) || [];
+  }, [prayerTimes, selectedLocation]);
 
   const dailyQuote = useMemo(() => {
     const todayIndex = new Date().getDate() % dailyQuotes.length;
@@ -1070,8 +1081,45 @@ export default function App() {
     };
   }, [scheduleRollingNotifications, setupDailyRefresh, settings]); 
   
+  // Expose the refresh function globally for the update manager
+  useEffect(() => {
+    global.fetchPrayerData = refreshPrayerTimes;
+    
+    return () => {
+      global.fetchPrayerData = undefined;
+    };
+  }, [refreshPrayerTimes]);
+  
+  // Inside MainApp function, add this error handling
+  if (prayerTimesError) {
+    console.error("Prayer Times Error:", prayerTimesError);
+    // You could show an error UI or retry loading
+    return (
+      <SafeAreaView style={[{ flex: 1 }, isDarkMode && styles.darkContainer]}>
+        <StatusBar translucent backgroundColor="transparent" />
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20}}>
+          <Text style={{color: isDarkMode ? '#FFF' : '#000', marginBottom: 20}}>
+            {language === 'en' ? 'Failed to load prayer times' : 'فشل تحميل أوقات الصلاة'}
+          </Text>
+          <TouchableOpacity 
+            style={{
+              padding: 10, 
+              backgroundColor: isDarkMode ? '#FFA500' : '#007AFF',
+              borderRadius: 8
+            }}
+            onPress={refreshPrayerTimes}
+          >
+            <Text style={{color: '#FFF'}}>
+              {language === 'en' ? 'Try Again' : 'حاول مرة أخرى'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
   // After all hooks are defined, we can have conditional rendering
-  if (!isSettingsLoaded || !currentPrayer || isLoading) {
+  if (!isSettingsLoaded || !currentPrayer || isLoading || prayerTimesLoading) {
     return (
       <SafeAreaView style={[{ flex: 1 }, isDarkMode && styles.darkContainer]}>
         <StatusBar translucent backgroundColor="transparent" />
@@ -1416,7 +1464,7 @@ export default function App() {
             </View>
             
             <ScrollView style={styles.locationListContainer}>
-              {Object.keys(prayerData)
+              {Object.keys(prayerTimes)
                 .filter(loc => loc !== "last_updated") // Filter out the last_updated metadata
                 .map((loc) => {
                 const locDisplay = LOCATION_NAMES[loc] ? LOCATION_NAMES[loc][language] : loc;

@@ -118,6 +118,7 @@ dependencies {
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation("androidx.work:work-runtime-ktx:2.8.1")
+    implementation 'com.google.code.gson:gson:2.10.1'  // Add this line
 }
 
 apply plugin: 'com.google.gms.google-services'
