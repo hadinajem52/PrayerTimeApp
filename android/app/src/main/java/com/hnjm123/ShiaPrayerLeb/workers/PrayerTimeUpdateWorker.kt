@@ -229,7 +229,18 @@ class PrayerTimeUpdateWorker(
         val context = applicationContext
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
-        // Create intent to open app when notification is tapped
+        // Create notification channel for Android 8.0+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "تحديثات أوقات الصلاة", 
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "إشعارات لتحديثات أوقات الصلاة"  
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+        
         val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -238,11 +249,10 @@ class PrayerTimeUpdateWorker(
             PendingIntent.FLAG_IMMUTABLE
         )
         
-        // Build the notification
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_popup_sync) // You should use your app's icon
-            .setContentTitle("Prayer Times Updated")
-            .setContentText("The prayer times data has been updated to the latest version")
+            .setSmallIcon(android.R.drawable.ic_popup_sync)
+            .setContentTitle("تم تحديث أوقات الصلاة")  
+            .setContentText("تم تحديث بيانات أوقات الصلاة إلى أحدث إصدار")  
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
@@ -251,6 +261,6 @@ class PrayerTimeUpdateWorker(
         // Show the notification
         notificationManager.notify(NOTIFICATION_ID, notification)
         
-        Log.d(TAG, "Update notification displayed to user")
+        Log.d(TAG, "Update notification displayed to user (Arabic)")
     }
 }
