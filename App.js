@@ -46,31 +46,6 @@ import { formatTimeString, toArabicNumerals } from './utils/timeFormatters';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PrayerTimesProvider, usePrayerTimes } from './components/PrayerTimesProvider';
 
-// In your settings initialization or first run logic:
-const initializeSettings = async () => {
-  const existingSettings = await AsyncStorage.getItem('user_settings');
-  
-  if (!existingSettings) {
-    // Default all prayer notifications to OFF for first-time users
-    const defaultEnabledPrayers = {
-      imsak: false,
-      fajr: false, 
-      shuruq: false,
-      dhuhr: false,
-      asr: false,
-      maghrib: false,
-      isha: false,
-      midnight: false
-    };
-    
-    // Save default settings
-    await AsyncStorage.setItem('user_settings', JSON.stringify({
-      // your other defaults
-      enabledPrayers: defaultEnabledPrayers,
-    }));
-  }
-};
-
 // ----- Translations & Constants -----
 const TRANSLATIONS = {
   en: {
