@@ -36,20 +36,19 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import Settings from './components/Settings';
 import CalendarView from './components/Calendar';
 import SkeletonLoader from './components/SkeletonLoader';
-import { Animations, AnimationUtils } from './utils/animations';
+import {AnimationUtils } from './utils/animations';
 import { UpdateManager } from './components/UpdateManager';
 import './firebase';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MonthTransitionNotice from './components/MonthTransitionNotice';
-import { formatTimeString, toArabicNumerals } from './utils/timeFormatters';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {toArabicNumerals } from './utils/timeFormatters';
 import { PrayerTimesProvider, usePrayerTimes } from './components/PrayerTimesProvider';
 
 // ----- Translations & Constants -----
 const TRANSLATIONS = {
   en: {
-    prayerTimes: "According to the opinion of His Eminence Imam Khamenei",
+    prayerTimes: "Prayer Schedule",
     loading: "Loading...",
     day: "Day",
     fajr: "Morning",
@@ -77,7 +76,7 @@ const TRANSLATIONS = {
     calendar: "Calendar",
   },
   ar: {
-    prayerTimes: "طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
+    prayerTimes: "جدول الصلوات",
     loading: "جار التحميل...",
     day: "اليوم",
     fajr: "الصبح",
