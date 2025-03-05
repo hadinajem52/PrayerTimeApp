@@ -7,7 +7,7 @@ let listeners = [];
 
 const initialSettings = {
   language: 'ar',
-  isDarkMode: true, // Set dark mode as default
+  isDarkMode: true, 
   selectedLocation: 'beirut',
   enabledPrayers: {
     imsak: false,
@@ -21,7 +21,8 @@ const initialSettings = {
   },
   scheduledNotifications: {},
   isSettingsLoaded: false,
-  timeFormat: '24h', // Add default time format (24-hour)
+  timeFormat: '12h',
+  useArabicNumerals: true, 
 };
 
 // Helper function to notify all listeners when settings change
