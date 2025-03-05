@@ -33,12 +33,13 @@ const TRANSLATIONS = {
     timeFormatSetting: "Time Format",
     hour24: "24-hour",
     hour12: "12-hour",
-    timeFormatDescription: "Choose how prayer times are displayed",
+    timeFormatDescription: "Choose how prayer times are displayed (13:00 or 1:00 PM)",
     updatePrayerTimes: "Update Prayer Times",
     updating: "Updating...",
     updateDescription: "Internet connection is required to update prayer times",
     useArabicNumerals: "Use Arabic Numerals",
     disclaimer: "All prayer times according to the opinion of His Eminence Imam Khamenei",
+    hijriAdjustmentDescription: "Shift the hijri date based on your marjaa",
   },
   ar: {
     settings: "الإعدادات",
@@ -56,12 +57,13 @@ const TRANSLATIONS = {
     timeFormatSetting: "تنسيق الوقت",
     hour24: "٢٤ ساعة",
     hour12: "١٢ ساعة",
-    timeFormatDescription: " اختر طريقة عرض أوقات الصلاة",
+    timeFormatDescription: " اختر طريقة عرض أوقات الصلاة (١٣:٠٠ أو ١:٠٠ م)",
     updatePrayerTimes:  "تحقق من بيانات أوقات الصلاة الجديدة",
     updating: "جاري التحديث...",
     updateDescription: "يلزم الاتصال بالإنترنت لتحديث أوقات الصلاة",
     useArabicNumerals: "استخدام الأرقام العربية",
     disclaimer: "جميع المواقيت طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
+    hijriAdjustmentDescription: "ضبط التاريخ الهجري حسب مرجعك",
   },
 };
 
@@ -206,6 +208,10 @@ const Settings = ({
               </TouchableOpacity>
             </View>
           </View>
+          
+          <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
+            {translations.hijriAdjustmentDescription}
+          </Text>
         </View>
         
         {/* Language Section */}
