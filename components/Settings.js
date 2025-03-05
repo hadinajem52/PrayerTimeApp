@@ -38,6 +38,7 @@ const TRANSLATIONS = {
     updating: "Updating...",
     updateDescription: "Internet connection is required to update prayer times",
     useArabicNumerals: "Use Arabic Numerals",
+    disclaimer: "All prayer times according to the opinion of His Eminence Imam Khamenei",
   },
   ar: {
     settings: "الإعدادات",
@@ -60,6 +61,7 @@ const TRANSLATIONS = {
     updating: "جاري التحديث...",
     updateDescription: "يلزم الاتصال بالإنترنت لتحديث أوقات الصلاة",
     useArabicNumerals: "استخدام الأرقام العربية",
+    disclaimer: "جميع المواقيت طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
   },
 };
 
@@ -135,6 +137,15 @@ const Settings = ({
         </Text>
         <View style={styles.placeholder} />
       </View>
+      
+      {/* Disclaimer Note */}
+      <Text style={[
+        styles.disclaimer,
+        isDarkMode && styles.darkDisclaimer,
+        language === 'ar' && styles.rtlText
+      ]}>
+        {translations.disclaimer}
+      </Text>
       
       <ScrollView style={styles.scrollView}>
         {/* Appearance Section */}
@@ -519,6 +530,23 @@ const styles = StyleSheet.create({
   },
   darkUpdateButtonText: {
     color: '#222',
+  },
+  disclaimer: {
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    fontSize: moderateScale(14),
+    color: '#666',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  darkDisclaimer: {
+    color: '#aaa',
+    borderBottomColor: '#333',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
 
