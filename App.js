@@ -1183,7 +1183,8 @@ function MainApp() {
   }
   
   // After all hooks are defined, we can have conditional rendering
-  if (!isSettingsLoaded || !currentPrayer || isLoading || prayerTimesLoading || notificationsLoading) {
+  if (!isSettingsLoaded || !currentPrayer || isLoading || prayerTimesLoading || 
+    (notificationsLoading && !isOperationInProgress)){
     return (
       <SafeAreaView style={[{ flex: 1 }, isDarkMode && styles.darkContainer]}>
         <StatusBar translucent backgroundColor="transparent" />
