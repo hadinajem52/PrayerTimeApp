@@ -84,6 +84,15 @@ export const useNotificationScheduler = (language) => {
     try {
       setIsOperationInProgress(true); // Use new state instead of isLoading
       
+      // Check if this notification already exists
+      const existingNotifications = await notifee.getTriggerNotifications();
+      const alreadyScheduled = existingNotifications.some(n => n.notification.id === String(id));
+      
+      if (alreadyScheduled) {
+        console.log(`[Notification] Skipping ${prayerKey} - already scheduled with ID: ${id}`);
+        return id; // Return the ID but don't schedule again
+      }
+      
       // Skip scheduling if time is in the past
       if (prayerTime < new Date()) {
         console.log(`[Notification] Skipping ${prayerKey} - time already passed:`, prayerTime);
@@ -235,10 +244,10 @@ export const useNotificationScheduler = (language) => {
    * 
    * @param {string} location - Location key (e.g., "beirut")
    * @param {Object} enabledPrayers - Object with prayer keys as keys and boolean values
-   * @param {number} days - Number of days to schedule for (default: 3)
+   * @param {number} days - Number of days to schedule for (default: 2)
    * @returns {Array} - Array of scheduled notification IDs
    */
-  const scheduleNotificationsForUpcomingPeriod = useCallback(async (location, enabledPrayers, days = 3) => {
+  const scheduleNotificationsForUpcomingPeriod = useCallback(async (location, enabledPrayers, days = 2) => {
     try {
       setIsOperationInProgress(true); // Use new state
       const scheduledIds = [];
@@ -272,13 +281,14 @@ export const useNotificationScheduler = (language) => {
             // Create a unique ID for this notification
             const notificationId = `${dateStr}${prayer}`;
             
+            // Move debug logs here so they only print when actually scheduling
+            console.log("Scheduling notification for:", prayer);
+            console.log("Prayer time parsed:", prayerTime, "Original string:", dayPrayers[prayer]);
+            
             // Schedule the notification
             const scheduledId = await scheduleLocalNotification(notificationId, prayer, prayerTime);
             if (scheduledId) scheduledIds.push(scheduledId);
           }
-          console.log("Available prayer times for day:", dayPrayers);
-          console.log("Enabled prayers:", enabledPrayers);
-          console.log("Prayer time parsed:", prayerTime, "Original string:", dayPrayers[prayer]);
         }
       }
       
@@ -293,7 +303,7 @@ export const useNotificationScheduler = (language) => {
   }, [getPrayerTimesForDay, parsePrayerTime, scheduleLocalNotification]);
   
   /**
-   * Schedule rolling notifications for the next week
+   * Schedule rolling notifications for today and tomorrow
    * 
    * @param {string} location - Location key
    * @param {Object} enabledPrayers - Enabled prayers configuration
@@ -302,12 +312,19 @@ export const useNotificationScheduler = (language) => {
   const scheduleRollingNotifications = useCallback(async (location, enabledPrayers) => {
     try {
       console.log('[Notification] Scheduling rolling notifications for', location);
-      return await scheduleNotificationsForUpcomingPeriod(location, enabledPrayers, 7);
+      
+      // First, schedule today and tomorrow (2 days)
+      const scheduledIds = await scheduleNotificationsForUpcomingPeriod(location, enabledPrayers, 2);
+      
+      // Then set up the daily refresh to maintain the rolling window
+      await setupDailyRefresh(location, enabledPrayers);
+      
+      return scheduledIds;
     } catch (error) {
       console.error('[Notification] Error scheduling rolling notifications:', error);
       throw error;
     }
-  }, [scheduleNotificationsForUpcomingPeriod]);
+  }, [scheduleNotificationsForUpcomingPeriod, setupDailyRefresh]);
   
   /**
    * Set up a daily refresh notification to prompt app to update schedules
@@ -317,7 +334,7 @@ export const useNotificationScheduler = (language) => {
    */
   const setupDailyRefresh = useCallback(async (location, enabledPrayers) => {
     try {
-      setIsOperationInProgress(true); // Use new state
+      setIsOperationInProgress(true);
       
       // Cancel any existing refresh notification
       await notifee.cancelTriggerNotification('daily-refresh');
@@ -355,13 +372,42 @@ export const useNotificationScheduler = (language) => {
       await notifee.createTriggerNotification(notification, trigger);
       console.log('[Notification] Setup daily refresh at midnight');
       
+      // Also schedule one notification for day+2 (maintaining the rolling window)
+      const dayAfterTomorrow = new Date();
+      dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+      
+      // Schedule only for the day after tomorrow
+      const targetDate = dayAfterTomorrow;
+      const dayPrayers = getPrayerTimesForDay(location, targetDate);
+      
+      if (dayPrayers) {
+        // Format date for logging and ID generation
+        const dateStr = moment(targetDate).format('YYYYMMDD');
+        const scheduledIds = [];
+        
+        // Schedule notifications for each enabled prayer
+        const prayerKeys = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
+        
+        for (const prayer of prayerKeys) {
+          if (!enabledPrayers[prayer] || !dayPrayers[prayer]) continue;
+          
+          const prayerTime = parsePrayerTime(dayPrayers[prayer], targetDate);
+          const notificationId = `${dateStr}${prayer}`;
+          
+          const scheduledId = await scheduleLocalNotification(notificationId, prayer, prayerTime);
+          if (scheduledId) scheduledIds.push(scheduledId);
+        }
+        
+        console.log(`[Notification] Scheduled ${scheduledIds.length} notifications for day after tomorrow`);
+      }
+      
     } catch (error) {
       console.error('[Notification] Error setting up daily refresh:', error);
       throw error;
     } finally {
-      setIsOperationInProgress(false); // Reset new state
+      setIsOperationInProgress(false);
     }
-  }, [translate]);
+  }, [translate, getPrayerTimesForDay, parsePrayerTime, scheduleLocalNotification]);
 
   /**
    * Display an immediate notification without scheduling
