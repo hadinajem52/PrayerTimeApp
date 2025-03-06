@@ -3,7 +3,6 @@ import notifee, { TriggerType, RepeatFrequency, AndroidImportance } from '@notif
 import moment from 'moment-hijri';
 import { usePrayerTimes } from '../components/PrayerTimesProvider';
 
-// Translation keys for notifications
 const TRANSLATIONS = {
   en: {
     prayerTime: "Prayer Time",
@@ -11,12 +10,12 @@ const TRANSLATIONS = {
     dailyRefresh: "Prayer Schedule Updated",
     dailyRefreshBody: "Your prayer notifications have been refreshed for today",
     fajr: "Morning Prayer",
-    shuruq: "Sunrise",
-    dhuhr: "Noon Prayer",
-    asr: "Afternoon Prayer",
-    maghrib: "Sunset Prayer",
-    isha: "Night Prayer",
-    imsak: "Pre-dawn meal time",
+    shuruq: "shuruq",
+    dhuhr: "dhuhr",
+    asr: "Asr",
+    maghrib: "Maghrib",
+    isha: "Isha",
+    imsak: "Imsak",
     midnight: "Midnight"
   },
   ar: {
@@ -36,14 +35,13 @@ const TRANSLATIONS = {
 };
 
 /**
- * Custom hook for managing prayer time notifications
  * 
  * @param {string} language - The current app language (en/ar)
  * @returns {Object} - Functions and state for notification management
  */
 export const useNotificationScheduler = (language) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [isOperationInProgress, setIsOperationInProgress] = useState(false); // New state
+  const [isOperationInProgress, setIsOperationInProgress] = useState(false); 
   const [isDataAvailable, setIsDataAvailable] = useState(false);
   
   // Access prayer times from context
@@ -84,13 +82,16 @@ export const useNotificationScheduler = (language) => {
     try {
       setIsOperationInProgress(true); // Use new state instead of isLoading
       
+      // Standardize notification ID format - ensure consistent format across app
+      const standardizedId = `prayer_${moment(prayerTime).format('YYYYMMDD')}_${prayerKey}`;
+      
       // Check if this notification already exists
       const existingNotifications = await notifee.getTriggerNotifications();
-      const alreadyScheduled = existingNotifications.some(n => n.notification.id === String(id));
+      const alreadyScheduled = existingNotifications.some(n => n.notification.id === standardizedId);
       
       if (alreadyScheduled) {
-        console.log(`[Notification] Skipping ${prayerKey} - already scheduled with ID: ${id}`);
-        return id; // Return the ID but don't schedule again
+        console.log(`[Notification] Skipping ${prayerKey} - already scheduled with ID: ${standardizedId}`);
+        return standardizedId; // Return standardized ID
       }
       
       // Skip scheduling if time is in the past
@@ -108,15 +109,25 @@ export const useNotificationScheduler = (language) => {
         timestamp: prayerTime.getTime(),
       };
       
+      // Format date - "Today" or actual date for future days
+      const isToday = new Date().toDateString() === prayerTime.toDateString();
+      const isTomorrow = new Date(new Date().setDate(new Date().getDate() + 1)).toDateString() === prayerTime.toDateString();
+      
+      let datePrefix = '';
+      if (isToday) {
+        datePrefix = language === 'ar' ? 'اليوم: ' : 'Today: ';
+      } else if (isTomorrow) {
+        datePrefix = language === 'ar' ? 'غدًا: ' : 'Tomorrow: ';
+      }
+      
       // Create notification content
       const notification = {
-        id: String(id),
+        id: standardizedId,
         title: translate('prayerTime'),
-        body: translate('prayerApproaching', { prayer: prayerName }),
+        body: `${datePrefix}${translate('prayerApproaching', { prayer: prayerName })}`,
         android: {
           channelId: 'prayer-channel',
           smallIcon: 'ic_launcher', // Use your app icon (already exists)
-          // Alternatively: try "ic_stat_notify"
           pressAction: {
             id: 'default',
           },
@@ -129,16 +140,16 @@ export const useNotificationScheduler = (language) => {
       
       // Schedule the notification
       await notifee.createTriggerNotification(notification, trigger);
-      console.log(`[Notification] Scheduled ${prayerKey} at ${prayerTime.toLocaleString()}`);
+      console.log(`[Notification] Scheduled ${prayerKey} at ${prayerTime.toLocaleString()} with ID: ${standardizedId}`);
       
-      return id;
+      return standardizedId;
     } catch (error) {
       console.error('[Notification] Error scheduling notification:', error);
       throw error;
     } finally {
       setIsOperationInProgress(false); // Reset new state
     }
-  }, [translate]);
+  }, [translate, language]);
   
   /**
    * Parse a prayer time string into a Date object
@@ -249,8 +260,12 @@ export const useNotificationScheduler = (language) => {
    */
   const scheduleNotificationsForUpcomingPeriod = useCallback(async (location, enabledPrayers, days = 2) => {
     try {
-      setIsOperationInProgress(true); // Use new state
+      setIsOperationInProgress(true);
       const scheduledIds = [];
+      
+      // First, get all existing notifications to avoid duplicates
+      const existingNotifications = await notifee.getTriggerNotifications();
+      const existingIds = existingNotifications.map(n => n.notification.id);
       
       // Schedule notifications for each day in the period
       for (let i = 0; i < days; i++) {
@@ -276,11 +291,17 @@ export const useNotificationScheduler = (language) => {
           // Parse the prayer time string to a Date object
           const prayerTime = parsePrayerTime(dayPrayers[prayer], targetDate);
           
+          // Use standardized ID format matching scheduleLocalNotification
+          const notificationId = `prayer_${moment(targetDate).format('YYYYMMDD')}_${prayer}`;
+          
+          // Skip if already in trigger notifications list
+          if (existingIds.includes(String(notificationId))) {
+            console.log(`[Notification] Skipping ${prayer} - already in pending notifications`);
+            continue;
+          }
+          
           // Only schedule if the prayer time is in the future
           if (prayerTime > new Date()) {
-            // Create a unique ID for this notification
-            const notificationId = `${dateStr}${prayer}`;
-            
             // Move debug logs here so they only print when actually scheduling
             console.log("Scheduling notification for:", prayer);
             console.log("Prayer time parsed:", prayerTime, "Original string:", dayPrayers[prayer]);
@@ -372,6 +393,10 @@ export const useNotificationScheduler = (language) => {
       await notifee.createTriggerNotification(notification, trigger);
       console.log('[Notification] Setup daily refresh at midnight');
       
+      // Get existing notifications before scheduling more
+      const existingNotifications = await notifee.getTriggerNotifications();
+      const existingIds = existingNotifications.map(n => n.notification.id);
+      
       // Also schedule one notification for day+2 (maintaining the rolling window)
       const dayAfterTomorrow = new Date();
       dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
@@ -392,7 +417,15 @@ export const useNotificationScheduler = (language) => {
           if (!enabledPrayers[prayer] || !dayPrayers[prayer]) continue;
           
           const prayerTime = parsePrayerTime(dayPrayers[prayer], targetDate);
-          const notificationId = `${dateStr}${prayer}`;
+          
+          // Use standardized ID format matching scheduleLocalNotification
+          const notificationId = `prayer_${moment(targetDate).format('YYYYMMDD')}_${prayer}`;
+          
+          // Skip if already scheduled
+          if (existingIds.includes(String(notificationId))) {
+            console.log(`[Notification] Skipping ${prayer} - already scheduled for day+2`);
+            continue;
+          }
           
           const scheduledId = await scheduleLocalNotification(notificationId, prayer, prayerTime);
           if (scheduledId) scheduledIds.push(scheduledId);
@@ -409,78 +442,6 @@ export const useNotificationScheduler = (language) => {
     }
   }, [translate, getPrayerTimesForDay, parsePrayerTime, scheduleLocalNotification]);
 
-  /**
-   * Display an immediate notification without scheduling
-   * 
-   * @returns {Promise<string>} - The notification ID
-   */
-  const displayImmediateNotification = useCallback(async () => {
-    try {
-      setIsOperationInProgress(true); // Use new state
-      
-      // Create a unique ID for this notification
-      const id = `immediate-${Date.now()}`;
-      
-      // Create notification content
-      const notification = {
-        id,
-        title: translate('prayerTime'),
-        body: language === 'en' ? 'This is an immediate test notification' : 'هذا إشعار تجريبي فوري',
-        android: {
-          channelId: 'prayer-channel',
-          smallIcon: 'ic_launcher', // Use your app icon (already exists)
-          // Alternatively: try "ic_stat_notify"
-          pressAction: {
-            id: 'default',
-          },
-          importance: AndroidImportance.HIGH,
-        },
-        ios: {
-          sound: 'default',
-        }
-      };
-      
-      // Display the notification immediately
-      await notifee.displayNotification(notification);
-      console.log(`[Notification] Displayed immediate notification with ID: ${id}`);
-      
-      return id;
-    } catch (error) {
-      console.error('[Notification] Error displaying notification:', error);
-      throw error;
-    } finally {
-      setIsOperationInProgress(false); // Reset new state
-    }
-  }, [translate, language]);
-  
-  /**
-   * Schedule a test notification 10 seconds in the future
-   * 
-   * @returns {Promise<string>} - The notification ID
-   */
-  const scheduleTestNotification = useCallback(async () => {
-    try {
-      // Create a date object 10 seconds in the future
-      const testTime = new Date();
-      testTime.setSeconds(testTime.getSeconds() + 10);
-      
-      // Create a unique ID
-      const id = `test-${Date.now()}`;
-      
-      // Use existing function to schedule the notification
-      const result = await scheduleLocalNotification(
-        id, 
-        'test', 
-        testTime
-      );
-      
-      return result;
-    } catch (error) {
-      console.error('[Notification] Error scheduling test notification:', error);
-      throw error;
-    }
-  }, [scheduleLocalNotification]);
-
   return {
     scheduleLocalNotification,
     scheduleNotificationsForUpcomingPeriod,
@@ -488,10 +449,8 @@ export const useNotificationScheduler = (language) => {
     cancelAllNotifications,
     scheduleRollingNotifications,
     setupDailyRefresh,
-    displayImmediateNotification,  // Add this new function
-    scheduleTestNotification,      // Add this new function
-    isLoading, // Keep this for initial loading only
-    isOperationInProgress, // Add this new state
+    isLoading, 
+    isOperationInProgress, 
     isDataAvailable
   };
 };
