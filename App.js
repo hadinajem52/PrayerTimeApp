@@ -430,6 +430,7 @@ function MainApp() {
   const [isLoading, setIsLoading] = useState(true);
   const [timeRemaining, setTimeRemaining] = useState(''); 
   const [isShowingLastAvailableDay, setIsShowingLastAvailableDay] = useState(false);
+  const [notificationsScheduled, setNotificationsScheduled] = useState(false);
 
   const {
     scheduleLocalNotification,
@@ -1060,31 +1061,25 @@ function MainApp() {
       appState.current = nextAppState;
     };
 
-    // Only attempt to schedule if all data is available
-    if (settings.selectedLocation && settings.enabledPrayers && isDataAvailable) {
-      try {
-        scheduleRollingNotifications(
-          settings.selectedLocation, 
-          settings.enabledPrayers
-        );
-        
-        setupDailyRefresh(
-          settings.selectedLocation,
-          settings.enabledPrayers
-        );
-      } catch (error) {
-        console.error('Failed to schedule initial notifications:', error);
-      }
-    } else {
-      console.log('Waiting for prayer data to load before scheduling notifications');
-    }
-    
+    // Only attempt to schedule if all data is available and when coming from background state
+    // but let the dedicated effect handle the initial scheduling
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     
     return () => {
       subscription.remove();
     };
-  }, [scheduleRollingNotifications, setupDailyRefresh, settings, refreshCurrentPrayerData, isDataAvailable]);
+  }, [scheduleRollingNotifications, settings, refreshCurrentPrayerData, isDataAvailable]);
+
+  // Add a new effect to schedule notifications only once when data becomes available
+  useEffect(() => { 
+    if (isDataAvailable && !notificationsScheduled) { 
+      scheduleRollingNotifications(selectedLocation, enabledPrayers)
+        .then(() => { 
+          setNotificationsScheduled(true); // Only schedule once 
+        })
+        .catch(error => console.error('Failed to schedule notifications:', error)); 
+    } 
+  }, [isDataAvailable, notificationsScheduled, scheduleRollingNotifications, selectedLocation, enabledPrayers]);
 
   useEffect(() => {
     if (locationData.length > 0) {
@@ -1125,13 +1120,9 @@ function MainApp() {
       }
       appState.current = nextAppState;
     };
-
+    
+    // Only set up the daily refresh but don't schedule notifications here
     if (settings.selectedLocation && settings.enabledPrayers) {
-      scheduleRollingNotifications(
-        settings.selectedLocation, 
-        settings.enabledPrayers
-      );
-      
       setupDailyRefresh(
         settings.selectedLocation,
         settings.enabledPrayers
@@ -1143,7 +1134,7 @@ function MainApp() {
     return () => {
       subscription.remove();
     };
-  }, [scheduleRollingNotifications, setupDailyRefresh, settings]); 
+  }, [setupDailyRefresh, settings]); 
   
   // Expose the refresh function globally for the update manager
   useEffect(() => {
