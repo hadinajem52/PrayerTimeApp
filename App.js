@@ -21,7 +21,7 @@ import moment from 'moment-hijri';
 import ProgressBar from 'react-native-progress/Bar'; 
 import dailyQuotes from './data/quotes';
 import QiblaCompass from './QiblaCompass';
-import notifee, { AndroidImportance } from '@notifee/react-native';
+import notifee, { AndroidImportance,EventType  } from '@notifee/react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 import styles from './styles';
@@ -44,6 +44,7 @@ import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MonthTransitionNotice from './components/MonthTransitionNotice';
 import {toArabicNumerals } from './utils/timeFormatters';
 import { PrayerTimesProvider, usePrayerTimes } from './components/PrayerTimesProvider';
+
 
 // ----- Translations & Constants -----
 const TRANSLATIONS = {
@@ -104,6 +105,22 @@ const TRANSLATIONS = {
     calendar: "التقويم",
   },
 };
+
+// Register background handler
+notifee.onBackgroundEvent(async ({ type, detail }) => {
+  if (type === EventType.TRIGGER) {
+    // The notification has been triggered in the background
+    const { notification } = detail;
+    
+    if (notification?.data?.type === 'refresh') {
+      // We'll handle this when the app opens, don't duplicate notifications here
+      console.log('[Background] Daily refresh trigger received');
+    }
+    
+    // Return null to prevent duplicate notification display
+    return null;
+  }
+});
 
 const LOCATION_NAMES = {
   beirut: { en: "Beirut", ar: "بيروت" },

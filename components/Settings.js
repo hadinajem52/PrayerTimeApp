@@ -83,7 +83,7 @@ const Settings = ({
   const [settings, setSettings] = useSettings();
   const timeFormat = settings.timeFormat || '24h';
   const [isUpdating, setIsUpdating] = useState(false);
-  const { displayImmediateNotification, scheduleTestNotification } = useNotificationScheduler(language);
+  const { isOperationInProgress } = useNotificationScheduler(language);
 
   const renderHijriOffsetText = () => {
     if (hijriDateOffset === 0) {
@@ -354,58 +354,6 @@ const Settings = ({
           <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
             {translations.updateDescription}
           </Text>
-        </View>
-
-        {/* Test Notifications Section */}
-        <View style={[styles.section, isDarkMode && styles.darkSection]}>
-          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-            {language === 'en' ? 'Test Notifications' : 'اختبار الإشعارات'}
-          </Text>
-          
-          <View style={styles.row}>
-            <TouchableOpacity 
-              style={[
-                styles.button, 
-                isDarkMode ? { backgroundColor: '#66CCFF' } : { backgroundColor: '#007AFF' }
-              ]}
-              onPress={() => {
-                displayImmediateNotification()
-                  .then(() => {
-                    Alert.alert(
-                      language === 'en' ? 'Notification Sent' : 'تم إرسال الإشعار',
-                      language === 'en' ? 'Check your notification tray' : 'تحقق من لوحة الإشعارات'
-                    );
-                  })
-                  .catch(error => console.error('Failed to display notification:', error));
-              }}
-            >
-              <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>
-                {language === 'en' ? 'Test Immediate' : 'إشعار فوري'}
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[
-                styles.button, 
-                isDarkMode ? { backgroundColor: '#FFA500' } : { backgroundColor: '#007AFF' },
-                { marginLeft: 10 }
-              ]}
-              onPress={() => {
-                scheduleTestNotification()
-                  .then(() => {
-                    Alert.alert(
-                      language === 'en' ? 'Notification Scheduled' : 'تم جدولة الإشعار',
-                      language === 'en' ? 'A notification will appear in 10 seconds' : 'سيظهر إشعار خلال ١٠ ثوانٍ'
-                    );
-                  })
-                  .catch(error => console.error('Failed to schedule notification:', error));
-              }}
-            >
-              <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>
-                {language === 'en' ? 'Test in 10s' : 'إشعار بعد ١٠ ثوانٍ'}
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -1,11 +1,13 @@
-import remoteConfig from '@react-native-firebase/remote-config';
-import { Platform, Linking } from 'react-native';
+import { getApp, initializeApp } from '@react-native-firebase/app';
+import { getRemoteConfig, getValue, fetchAndActivate, setDefaults } from '@react-native-firebase/remote-config';
+import { Linking } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import VersionCheck from 'react-native-version-check';
 
 class UpdateService {
   constructor() {
-    this.remoteConfig = remoteConfig();
+    // We'll initialize the remote config instance in the initialize method
+    this.remoteConfig = null;
     this.initialized = false;
   }
 
@@ -13,8 +15,18 @@ class UpdateService {
     if (this.initialized) return;
     
     try {
+      // Get or initialize Firebase app
+      try {
+        this.app = getApp();
+      } catch (e) {
+        this.app = initializeApp();
+      }
+      
+      // Get remote config instance
+      this.remoteConfig = getRemoteConfig(this.app);
+      
       // Set default values
-      await this.remoteConfig.setDefaults({
+      await setDefaults(this.remoteConfig, {
         minimum_version_code: '0',
         latest_version_code: '0',
         update_title: 'Update Available',
@@ -23,7 +35,7 @@ class UpdateService {
       });
       
       // Fetch and activate
-      await this.remoteConfig.fetchAndActivate();
+      await fetchAndActivate(this.remoteConfig);
       this.initialized = true;
     } catch (error) {
       console.error('Failed to initialize remote config:', error);
@@ -35,19 +47,19 @@ class UpdateService {
     
     try {
       const currentVersion = parseInt(DeviceInfo.getBuildNumber(), 10);
-      const minimumVersion = parseInt(this.remoteConfig.getValue('minimum_version_code').asString(), 10);
-      const latestVersion = parseInt(this.remoteConfig.getValue('latest_version_code').asString(), 10);
-      const isCritical = this.remoteConfig.getValue('is_update_critical').asBoolean();
+      const minimumVersion = parseInt(getValue(this.remoteConfig, 'minimum_version_code').asString(), 10);
+      const latestVersion = parseInt(getValue(this.remoteConfig, 'latest_version_code').asString(), 10);
+      const isCritical = getValue(this.remoteConfig, 'is_update_critical').asBoolean();
       
       return {
         currentVersion,
         minimumVersion,
         latestVersion,
-        updateTitle: this.remoteConfig.getValue('update_title').asString(),
-        updateMessage: this.remoteConfig.getValue('update_message').asString(),
+        updateTitle: getValue(this.remoteConfig, 'update_title').asString(),
+        updateMessage: getValue(this.remoteConfig, 'update_message').asString(),
         needsUpdate: currentVersion < latestVersion,
         isForcedUpdate: currentVersion < minimumVersion || isCritical,
-        storeUrl: await VersionCheck.getStoreUrl({ appID: Platform.OS === 'ios' ? 'YOUR_IOS_APP_ID' : undefined })
+        storeUrl: await VersionCheck.getStoreUrl() // Simplified for Android-only
       };
     } catch (error) {
       console.error('Error checking for updates:', error);
