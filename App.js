@@ -106,18 +106,14 @@ const TRANSLATIONS = {
   },
 };
 
-// Register background handler
 notifee.onBackgroundEvent(async ({ type, detail }) => {
   if (type === EventType.TRIGGER) {
-    // The notification has been triggered in the background
     const { notification } = detail;
     
     if (notification?.data?.type === 'refresh') {
-      // We'll handle this when the app opens, don't duplicate notifications here
       console.log('[Background] Daily refresh trigger received');
     }
-    
-    // Return null to prevent duplicate notification display
+
     return null;
   }
 });
@@ -174,14 +170,10 @@ const Countdown = ({
   const [timeRemaining, setTimeRemaining] = useState('');
   const [progress, setProgress] = useState(0);
   
-  // Get time format and useArabicNumerals from settings
   const [settings] = useSettings();
   const { timeFormat, useArabicNumerals } = settings;
-
-  // Force update when time format changes
   const forceUpdate = useRef(0);
 
-  // Listen for time format changes and trigger re-render
   useEffect(() => {
     forceUpdate.current += 1;
   }, [timeFormat, useArabicNumerals]);
@@ -208,7 +200,6 @@ const Countdown = ({
         
         let displayTime = `${hours}:${minutes}:${seconds}`;
         
-        // Convert to Arabic numerals if needed
         if (language === 'ar' && useArabicNumerals) {
           displayTime = toArabicNumerals(displayTime);
         }
@@ -349,7 +340,6 @@ const QuoteIconButton = ({ isDarkMode, onPress }) => {
   );
 };
 
-// Add this outside the component to avoid recreation
 const LocationItem = React.memo(({ 
   loc, 
   locDisplay, 
@@ -423,7 +413,6 @@ export default function App() {
 
 function MainApp() {
   const [settings, setSettings] = useSettings();
-  // Add this line to get prayer times from context
   const { prayerTimes, isLoading: prayerTimesLoading, error: prayerTimesError, refreshPrayerTimes } = usePrayerTimes();
   
   const {
@@ -433,7 +422,7 @@ function MainApp() {
     enabledPrayers,
     scheduledNotifications,
     isSettingsLoaded,
-    timeFormat, // Get timeFormat from settings
+    timeFormat, 
   } = settings;
 
   const [currentPrayer, setCurrentPrayer] = useState(null);
@@ -460,7 +449,6 @@ function MainApp() {
     isDataAvailable
   } = useNotificationScheduler(language);
 
-  // Animation refs
   const animation = useRef(new Animated.Value(0)).current;
   const cardScaleAnim = useRef(new Animated.Value(1)).current;
   const locationChangeAnim = useRef(new Animated.Value(1)).current;
@@ -471,7 +459,6 @@ function MainApp() {
   const compassButtonAnim = useRef(new Animated.Value(1)).current;
   const appState = useRef(AppState.currentState);
 
-  // All useMemo calls should be at top level
   const locationData = useMemo(() => {
     return (prayerTimes && prayerTimes[selectedLocation]) || [];
   }, [prayerTimes, selectedLocation]);
@@ -643,7 +630,6 @@ function MainApp() {
   const formatDate = useCallback((dateStr, lang) => {
     if (!dateStr) return "";
     
-    // Parse the date from DD/MM/YYYY format
     const [day, month, year] = dateStr.split('/').map(Number);
     const date = new Date(year, month - 1, day);
     
@@ -681,7 +667,6 @@ function MainApp() {
     setIsCompassVisible(true);
   }, [compassButtonAnim]);
 
-  // Moved from conditional rendering
   const handleLocationChange = useCallback((newLocation) => {
     if (
       Object.values(scheduledNotifications).some((val) => val) ||
@@ -699,7 +684,6 @@ function MainApp() {
           {
             text: TRANSLATIONS[language].ok,
             onPress: async () => {
-              // Animate location change
               AnimationUtils.pulse(locationChangeAnim);
               
               const scheduledIds = Object.values(scheduledNotifications).filter(Boolean);
@@ -717,7 +701,6 @@ function MainApp() {
         { cancelable: true }
       );
     } else {
-      // Animate location change
       AnimationUtils.pulse(locationChangeAnim);
       
       setSettings((prev) => ({ ...prev, selectedLocation: newLocation }));
@@ -725,7 +708,6 @@ function MainApp() {
     }
   }, [TRANSLATIONS, language, locationChangeAnim, scheduledNotifications, upcomingNotificationIds, cancelAllNotifications, setSettings]);
 
-  // Continue with the rest of the hooks
   const upcomingPrayerKey = usePrayerTimer(
     currentPrayer,
     currentIndex,
@@ -735,7 +717,6 @@ function MainApp() {
     getUpcomingPrayerKeyCallback
   );
 
-  // Remaining useMemo hooks
   const displayLocation = useMemo(() => {
     return LOCATION_NAMES[selectedLocation]
       ? LOCATION_NAMES[selectedLocation][language]
@@ -755,7 +736,6 @@ function MainApp() {
     getTodayIndex,
   ]);
 
-  // Determine the next prayer time for the countdown
   const nextPrayerTime = useMemo(() => {
     return upcomingPrayerKey ? parsePrayerTime(currentPrayer?.[upcomingPrayerKey]) : null;
   }, [upcomingPrayerKey, currentPrayer, parsePrayerTime]);
@@ -763,20 +743,17 @@ function MainApp() {
   const formattedHijriDate = useMemo(() => {
     if (!currentPrayer || !currentPrayer.date) return "";
     
-    // Apply hijri date offset
     const hijriDateObj = moment(currentPrayer.date, "D/M/YYYY");
     if (settings.hijriDateOffset) {
       hijriDateObj.add(settings.hijriDateOffset, 'days');
     }
     
     if (language === 'ar') {
-      // For Arabic, manually build the string with Arabic numerals
       const day = convertToArabicNumerals(hijriDateObj.format("iD"), 'ar');
-      const month = hijriDateObj.format("iMMMM"); // Month name is already in Arabic
+      const month = hijriDateObj.format("iMMMM"); 
       const year = convertToArabicNumerals(hijriDateObj.format("iYYYY"), 'ar');
       return `${day} ${month} ${year}`;
     } else {
-      // For English, use the default format
       return hijriDateObj.format("iD iMMMM iYYYY");
     }
   }, [currentPrayer, language, convertToArabicNumerals, settings.hijriDateOffset]);
@@ -784,7 +761,6 @@ function MainApp() {
   const preparedPrayerData = useMemo(() => {
     if (!currentPrayer) return null;
     
-    // Pre-process prayer times to avoid recalculation during rendering
     return {
       times: ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"]
         .map(key => ({
@@ -798,7 +774,6 @@ function MainApp() {
     };
   }, [currentPrayer, language, isToday, upcomingPrayerKey, enabledPrayers]);
 
-  // PanResponder declaration - moved from conditional logic to ensure consistency
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -843,7 +818,6 @@ function MainApp() {
             handleNext();
           } 
           else {
-            // Ensure all spring animations have explicit toValue
             Animated.parallel([
               Animated.spring(animation, {
                 toValue: 0,
@@ -866,22 +840,19 @@ function MainApp() {
     [animation, cardScaleAnim, handlePrevious, handleNext, currentIndex, locationData.length]
   );
 
-  // Calculate dimensions - moved out of conditional return
   const { height: windowHeight } = useWindowDimensions();
   const headerHeight = moderateScale(50);
   const navHeight = moderateScale(70);
   const cardContainerHeight = windowHeight - headerHeight - navHeight;
   
-  // Determine the last prayer key and time based on the prayer order
   const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
   const upcomingIndex = prayerOrder.indexOf(upcomingPrayerKey);
   
-  // Make sure these values are always defined
   const lastPrayerKey = useMemo(() => {
     if (upcomingIndex > 0) {
       return prayerOrder[upcomingIndex - 1];
     }
-    return 'imsak'; // Default
+    return 'imsak';
   }, [upcomingIndex]);
   
   const lastPrayerTime = useMemo(() => {
@@ -889,10 +860,9 @@ function MainApp() {
       const key = prayerOrder[upcomingIndex - 1];
       return parsePrayerTime(currentPrayer[key]);
     }
-    return new Date(); // Default to current time
+    return new Date(); 
   }, [upcomingIndex, currentPrayer, parsePrayerTime]);
 
-  // All useEffect hooks must be defined here, not conditionally
   useEffect(() => {
     I18nManager.forceRTL(language === "ar");
   }, [language]);
@@ -958,7 +928,7 @@ function MainApp() {
 
   useEffect(() => {
     requestOSNotificationPermission();
-  }, [requestOSNotificationPermission]); // Add dependency
+  }, [requestOSNotificationPermission]); 
 
   useEffect(() => {
     if (isSettingsLoaded && selectedLocation) {
@@ -981,23 +951,19 @@ function MainApp() {
     scheduleNotificationsForUpcomingPeriod
   ]);
 
-  // Add a new refresh function to update the current prayer time and index
   const refreshCurrentPrayerData = useCallback(() => {
     if (locationData.length > 0) {
       const todayIdx = getTodayIndex(locationData);
       console.log(`[REFRESH] Today's index in prayer data: ${todayIdx}`);
       
       if (todayIdx !== -1) {
-        // If today's date is found, use it
         console.log(`[REFRESH] Setting current index to today: ${todayIdx}`);
         setCurrentIndex(todayIdx);
         setCurrentPrayer(locationData[todayIdx]);
       } else {
-        // If not found, check if today is beyond the last available date
         console.log('[REFRESH] Today not found in prayer data, determining best date to show');
         const today = new Date();
         
-        // Parse all dates and find the earliest and latest
         const datesToCompare = locationData.map(dayData => {
           const [day, month, year] = dayData.date.split('/').map(Number);
           return new Date(year, month - 1, day);
@@ -1006,25 +972,19 @@ function MainApp() {
         const earliestDate = new Date(Math.min(...datesToCompare));
         const latestDate = new Date(Math.max(...datesToCompare));
         
-        // Compare today with the date range
         if (today > latestDate) {
-          // If today is after all available dates, use the last date
           const lastIndex = locationData.length - 1;
           console.log(`[REFRESH] Today (${today.toLocaleDateString()}) is after latest data (${latestDate.toLocaleDateString()}), using last available date at index ${lastIndex}`);
           setCurrentIndex(lastIndex);
           setCurrentPrayer(locationData[lastIndex]);
-          
-          // Set a flag to indicate we're showing the last day of available data
-          // and current date is beyond this data
+        
           setIsShowingLastAvailableDay(true);
         } else if (today < earliestDate) {
-          // If today is before all available dates, use the first date
           console.log(`[REFRESH] Today (${today.toLocaleDateString()}) is before earliest data (${earliestDate.toLocaleDateString()}), using first date at index 0`);
           setCurrentIndex(0);
           setCurrentPrayer(locationData[0]);
           setIsShowingLastAvailableDay(false);
         } else {
-          // If today is within range but not found, find the closest date (this shouldn't normally happen)
           console.log('[REFRESH] Today is within date range but exact date not found, finding closest date');
           let closestIndex = 0;
           let smallestDiff = Infinity;
@@ -1057,10 +1017,8 @@ function MainApp() {
       ) {
         console.log('App has come to the foreground - refreshing data and notifications');
         
-        // Refresh the current prayer data to ensure it matches the current time
         refreshCurrentPrayerData();
         
-        // Only schedule notifications if all required data is available
         if (settings.selectedLocation && settings.enabledPrayers && isDataAvailable) {
           console.log('Scheduling notifications with loaded prayer times data');
           try {
@@ -1078,8 +1036,6 @@ function MainApp() {
       appState.current = nextAppState;
     };
 
-    // Only attempt to schedule if all data is available and when coming from background state
-    // but let the dedicated effect handle the initial scheduling
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     
     return () => {
@@ -1087,12 +1043,11 @@ function MainApp() {
     };
   }, [scheduleRollingNotifications, settings, refreshCurrentPrayerData, isDataAvailable]);
 
-  // Add a new effect to schedule notifications only once when data becomes available
   useEffect(() => { 
     if (isDataAvailable && !notificationsScheduled) { 
       scheduleRollingNotifications(selectedLocation, enabledPrayers)
         .then(() => { 
-          setNotificationsScheduled(true); // Only schedule once 
+          setNotificationsScheduled(true);  
         })
         .catch(error => console.error('Failed to schedule notifications:', error)); 
     } 
@@ -1107,7 +1062,6 @@ function MainApp() {
   }, [selectedLocation, locationData, refreshCurrentPrayerData]);
   
   useEffect(() => {
-    // Simulate loading state
     let loadTimer;
     
     if (locationData.length > 0 && isSettingsLoaded) {
@@ -1138,7 +1092,6 @@ function MainApp() {
       appState.current = nextAppState;
     };
     
-    // Only set up the daily refresh but don't schedule notifications here
     if (settings.selectedLocation && settings.enabledPrayers) {
       setupDailyRefresh(
         settings.selectedLocation,
@@ -1153,7 +1106,6 @@ function MainApp() {
     };
   }, [setupDailyRefresh, settings]); 
   
-  // Expose the refresh function globally for the update manager
   useEffect(() => {
     global.fetchPrayerData = refreshPrayerTimes;
     
@@ -1162,10 +1114,8 @@ function MainApp() {
     };
   }, [refreshPrayerTimes]);
   
-  // Inside MainApp function, add this error handling
   if (prayerTimesError) {
     console.error("Prayer Times Error:", prayerTimesError);
-    // You could show an error UI or retry loading
     return (
       <SafeAreaView style={[{ flex: 1 }, isDarkMode && styles.darkContainer]}>
         <StatusBar translucent backgroundColor="transparent" />
@@ -1190,7 +1140,6 @@ function MainApp() {
     );
   }
   
-  // After all hooks are defined, we can have conditional rendering
   if (!isSettingsLoaded || !currentPrayer || isLoading || prayerTimesLoading || 
     (notificationsLoading && !isOperationInProgress)){
     return (
@@ -1201,7 +1150,6 @@ function MainApp() {
     );
   }
 
-  // The rest of the component rendering remains the same
   return (
     <SafeAreaView
       style={[
@@ -1211,16 +1159,13 @@ function MainApp() {
       ]}
     >
       <StatusBar translucent backgroundColor="transparent" />
-      {/* Add UpdateManager at the top level with language prop */}
       <UpdateManager language={language} />
       
-      {/* Header */}
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
         {TRANSLATIONS[language].prayerTimes}
       </Text>
       
-      {/* Rest of component remains the same */}
-      {/* Card container with optimized animation */}
+
       <Animated.View 
         style={[
           { 
@@ -1229,7 +1174,6 @@ function MainApp() {
               { translateX: animation },
               { scale: cardScaleAnim }
             ],
-            // Add will-change property equivalent for better performance
             backfaceVisibility: 'hidden',
           }
         ]}
@@ -1282,8 +1226,8 @@ function MainApp() {
             style={{ flex: 1 }}
             contentContainerStyle={styles.prayerContainer}
             showsVerticalScrollIndicator={false}
-            removeClippedSubviews={true} // Optimization for scroll performance
-            scrollEventThrottle={16} // Optimize scroll event firing
+            removeClippedSubviews={true} 
+            scrollEventThrottle={16} 
           >
             {preparedPrayerData && preparedPrayerData.times.map((item) => (
               <PrayerRow
@@ -1297,7 +1241,7 @@ function MainApp() {
                 onToggleNotification={handleNotificationToggle}
                 isDarkMode={isDarkMode}
                 upcomingLabel={TRANSLATIONS[language].upcoming}
-                language={language} // Add the language prop here
+                language={language} 
               />
             ))}
             {isToday && (
@@ -1469,7 +1413,7 @@ function MainApp() {
           currentSelectedDate={currentPrayer ? currentPrayer.date : null}
           todayIndex={getTodayIndex(locationData)}
           selectedLocation={selectedLocation}
-          prayerTimes={prayerTimes} // Add this line to pass prayerTimes directly
+          prayerTimes={prayerTimes} 
         />
       </Modal>
       {/* Quote Modal */}
