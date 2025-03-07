@@ -39,30 +39,24 @@ jobs:
           git diff --staged --quiet || git commit -m "Update prayer times data for $(date +'%B %Y') [skip ci]"
           git push
       
-      - name: Send email notification on success
+      - name: Send Discord notification on success
         if: success()
-        uses: dawidd6/action-send-mail@v3
+        uses: rjstone/discord-webhook-notify@v1
         with:
-          server_address: smtp.office365.com
-          server_port: 587
-          secure: starttls
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: Prayer Times Update Succeeded
-          body: The prayer times update workflow completed successfully on ${{ github.repository }} for $(date +'%B %Y').
-          to: hnjm12369@outlook.com
-          from: ${{ secrets.EMAIL_USERNAME }}
+          severity: info
+          username: Prayer Times Bot
+          description: "✅ Prayer times update completed successfully!"
+          details: "The prayer times update workflow completed successfully on ${{ github.repository }} for $(date +'%B %Y')."
+          footer: "Automated notification from GitHub Actions"
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
       
-      - name: Send email notification on failure
+      - name: Send Discord notification on failure
         if: failure()
-        uses: dawidd6/action-send-mail@v3
+        uses: rjstone/discord-webhook-notify@v1
         with:
-          server_address: smtp.office365.com  
-          server_port: 587                    
-          secure: starttls
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: Prayer Times Update Failed
-          body: The prayer times update workflow failed on ${{ github.repository }}. Manual intervention required.
-          to: hnjm12369@outlook.com  
-          from: ${{ secrets.EMAIL_USERNAME }}
+          severity: error
+          username: Prayer Times Bot
+          description: "❌ Prayer times update failed!"
+          details: "The prayer times update workflow failed on ${{ github.repository }}. Manual intervention required."
+          footer: "Automated notification from GitHub Actions"
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
