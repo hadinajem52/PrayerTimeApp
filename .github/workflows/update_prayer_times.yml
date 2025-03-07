@@ -3,6 +3,7 @@ name: Update Prayer Times Data
 on:
   schedule:
     - cron: '5 0 1 * *'  # Run at 12:05 AM on the first day of each month
+    - cron: '0 12 1 * *'  # Try again at noon on the first day 
   workflow_dispatch:  # Allow manual triggering
 
 permissions:
@@ -37,3 +38,17 @@ jobs:
           git add -A assets/
           git diff --staged --quiet || git commit -m "Update prayer times data for $(date +'%B %Y') [skip ci]"
           git push
+      
+      - name: Send email notification on failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.office365.com  
+          server_port: 587                    
+          secure: true
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: Prayer Times Update Failed
+          body: The prayer times update workflow failed on ${{ github.repository }}. Manual intervention required.
+          to: hnjm12309@outlook.com  
+          from: ${{ secrets.EMAIL_USERNAME }}

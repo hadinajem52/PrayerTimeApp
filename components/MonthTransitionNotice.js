@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { moderateScale } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
@@ -14,6 +14,7 @@ const TRANSLATIONS = {
     expectedUpdate: "Update expected soon",
     stayTuned: "Stay tuned!",
     note: "Note: Prayer times for the last day are used until new data becomes available.",
+    close: "Close"
   },
   ar: {
     title: "جاري إعداد بيانات الشهر الجديد",
@@ -23,166 +24,66 @@ const TRANSLATIONS = {
     expectedUpdate: "التحديث متوقع قريبًا",
     stayTuned: "ترقبوا!",
     note: "ملاحظة: يتم استخدام أوقات الصلاة لليوم الأخير حتى تتوفر بيانات جديدة.",
+    close: "إغلاق"
   }
 };
 
-const MonthTransitionNotice = ({ language, isDarkMode }) => {
-  // Animation references
-  const moonRotation = useRef(new Animated.Value(0)).current;
-  const moonPosition = useRef(new Animated.Value(0)).current;
-  const sunPosition = useRef(new Animated.Value(0)).current;
-  const cloudOpacity = useRef(new Animated.Value(0)).current;
-  const progressValue = useRef(new Animated.Value(0)).current;
+// Arabic month names
+const ARABIC_MONTHS = [
+  "كانون ٢", "شباط", "آذار", "نيسان", "أيار", "حزيران",
+  "تموز", "آب", "أيلول", "تشرين ١", "تشرين ٢", "كانون ١"
+];
 
+
+const MonthTransitionNotice = ({ language, isDarkMode}) => {
+  // Get current month in English
   const currentMonth = moment().format('MMMM');
+  // Get next month in English
   const nextMonth = moment().add(1, 'months').format('MMMM');
-  const currentMonthHijri = moment().format('iMMMM');
-  const nextMonthHijri = moment().add(1, 'months').format('iMMMM');
+  
+  // Get current and next month in Arabic
+  const currentMonthIndex = moment().month();
+  const nextMonthIndex = (currentMonthIndex + 1) % 12;
+  const currentMonthArabic = ARABIC_MONTHS[currentMonthIndex];
+  const nextMonthArabic = ARABIC_MONTHS[nextMonthIndex];
   
   // Translations access
   const t = TRANSLATIONS[language] || TRANSLATIONS.en;
-  
-  useEffect(() => {
-    // Start animations
-    Animated.loop(
-      Animated.timing(moonRotation, {
-        toValue: 1,
-        duration: 8000,
-        easing: Easing.linear,
-        useNativeDriver: true
-      })
-    ).start();
-
-    // Moon moving across
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(moonPosition, {
-          toValue: 1,
-          duration: 15000,
-          easing: Easing.inOut(Easing.sine),
-          useNativeDriver: true
-        }),
-        Animated.timing(moonPosition, {
-          toValue: 0,
-          duration: 15000,
-          easing: Easing.inOut(Easing.sine),
-          useNativeDriver: true
-        })
-      ])
-    ).start();
-
-    // Sun moving up and down
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(sunPosition, {
-          toValue: 1,
-          duration: 10000,
-          easing: Easing.inOut(Easing.cubic),
-          useNativeDriver: true
-        }),
-        Animated.timing(sunPosition, {
-          toValue: 0,
-          duration: 10000,
-          easing: Easing.inOut(Easing.cubic),
-          useNativeDriver: true
-        })
-      ])
-    ).start();
-
-    // Cloud opacity pulsating
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(cloudOpacity, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true
-        }),
-        Animated.timing(cloudOpacity, {
-          toValue: 0.5,
-          duration: 3000,
-          useNativeDriver: true
-        })
-      ])
-    ).start();
-
-    // Progress indicator
-    Animated.loop(
-      Animated.timing(progressValue, {
-        toValue: 1,
-        duration: 2000,
-        easing: Easing.linear,
-        useNativeDriver: false
-      })
-    ).start();
-
-  }, [moonRotation, moonPosition, sunPosition, cloudOpacity, progressValue]);
-
-  const moonRotationInterpolate = moonRotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg']
-  });
-
-  const moonPositionInterpolate = moonPosition.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-50, 50]
-  });
-
-  const sunPositionInterpolate = sunPosition.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 20]
-  });
-
-  const progressInterpolate = progressValue.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: ['#66CCFF', '#007AFF', '#66CCFF']
-  });
 
   return (
     <View style={[styles.container, isDarkMode && styles.darkContainer]}>
+      {/* Removed the close button from here */}
+      
       <Text style={[styles.title, isDarkMode && styles.darkTitle]}>
         {t.title}
       </Text>
 
-      {/* Animation Scene */}
+      {/* Static Scene (previously Animation Scene) */}
       <View style={styles.animationContainer}>
-        <Animated.View style={[
-          styles.sunContainer, 
-          {transform: [{translateY: sunPositionInterpolate}]}
-        ]}>
+        <View style={styles.sunContainer}>
           <FontAwesome5 
             name="sun" 
             size={40} 
             color={isDarkMode ? "#FFA500" : "#FFA500"} 
             solid
           />
-        </Animated.View>
+        </View>
         
-        <Animated.View style={[
-          styles.moonContainer, 
-          {
-            transform: [
-              {rotate: moonRotationInterpolate},
-              {translateX: moonPositionInterpolate}
-            ]
-          }
-        ]}>
+        <View style={styles.moonContainer}>
           <Icon 
             name="moon-waning-crescent" 
             size={35} 
             color={isDarkMode ? "#E0E0E0" : "#888888"} 
           />
-        </Animated.View>
+        </View>
         
-        <Animated.View style={[
-          styles.cloudContainer, 
-          {opacity: cloudOpacity}
-        ]}>
+        <View style={styles.cloudContainer}>
           <Icon 
             name="cloud" 
             size={30} 
             color={isDarkMode ? "#CCCCCC" : "#BBBBBB"} 
           />
-        </Animated.View>
+        </View>
       </View>
 
       <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
@@ -196,7 +97,7 @@ const MonthTransitionNotice = ({ language, isDarkMode }) => {
             {t.currentMonth}
           </Text>
           <Text style={[styles.monthValue, isDarkMode && styles.darkMonthValue]}>
-            {language === 'ar' ? currentMonthHijri : currentMonth}
+            {language === 'ar' ? currentMonthArabic : currentMonth}
           </Text>
         </View>
         
@@ -205,28 +106,16 @@ const MonthTransitionNotice = ({ language, isDarkMode }) => {
             {t.nextMonth}
           </Text>
           <Text style={[styles.monthValue, isDarkMode && styles.darkMonthValue]}>
-            {language === 'ar' ? nextMonthHijri : nextMonth}
+            {language === 'ar' ? nextMonthArabic : nextMonth}
           </Text>
         </View>
       </View>
 
-      {/* Progress indicator */}
+      {/* Static progress indicator */}
       <View style={styles.progressContainer}>
-        <Animated.View style={[
-          styles.progressDot,
-          {backgroundColor: progressInterpolate}
-        ]} />
-        <Animated.View style={[
-          styles.progressDot,
-          {backgroundColor: progressInterpolate, opacity: cloudOpacity}
-        ]} />
-        <Animated.View style={[
-          styles.progressDot,
-          {backgroundColor: progressInterpolate, opacity: moonPosition.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0.5, 1]
-          })}
-        ]} />
+        <View style={styles.progressDot} />
+        <View style={styles.progressDot} />
+        <View style={styles.progressDot} />
       </View>
 
       <Text style={[styles.updateText, isDarkMode && styles.darkUpdateText]}>
@@ -252,6 +141,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     borderRadius: moderateScale(15),
     margin: moderateScale(10),
+    position: 'relative',  // Added for absolute positioning of close button
   },
   darkContainer: {
     backgroundColor: '#1a1a1a',
@@ -266,6 +156,7 @@ const styles = StyleSheet.create({
   darkTitle: {
     color: '#FFA500',
   },
+  // Removed closeButton style
   animationContainer: {
     height: moderateScale(100),
     width: '100%',
