@@ -8,7 +8,7 @@ import time
 
 # Get the current year
 current_year = datetime.datetime.now().year
-current_month = datetime.datetime.now().month  # New variable for current month
+current_month = datetime.datetime.now().month 
 
 locations = {
     "beirut": f"https://almanar.com.lb/legacy/calendars/{current_year}/beirut-{current_month}.pdf",
@@ -20,15 +20,46 @@ locations = {
     "nabatieh-bintjbeil": f"https://almanar.com.lb/legacy/calendars/{current_year}/nabatieh-bintjbeil-{current_month}.pdf"
 }
 
-# Directories for PDFs and JSON assets
+PDF_FORMATS = {
+    "default": {
+        "pattern": (
+            r"(\d{1,2}:\d{2})\s+"   # midnight
+            r"(\d{1,2}:\d{2})\s+"   # isha
+            r"(\d{1,2}:\d{2})\s+"   # maghrib
+            r"(\d{1,2}:\d{2})\s+"   # asr
+            r"(\d{1,2}:\d{2})\s+"   # dhuhr
+            r"(\d{1,2}:\d{2})\s+"   # shuruq
+            r"(\d{1,2}:\d{2})\s+"   # fajr
+            r"(\d{1,2}:\d{2})\s+"   # imsak
+            r"(\d{1,2}/\d{1,2}/\d{4})\s+"  # date
+            r"([\u0600-\u06FF\s]+)"   # day name
+            r"([\u0600-\u06FF0-9\s]+)"  # Hijri date
+        ),
+        "field_order": ["midnight", "isha", "maghrib", "asr", "dhuhr", "shuruq", "fajr", "imsak", "date", "day_name", "hijri_date"]
+    },
+    "alternative": {
+        "pattern": (
+            r"(\d{1,2}/\d{1,2}/\d{4})\s+"  # date first
+            r"([\u0600-\u06FF\s]+)\s+"   # day name
+            r"(\d{1,2}:\d{2})\s+"   # imsak
+            r"(\d{1,2}:\d{2})\s+"   # fajr
+            r"(\d{1,2}:\d{2})\s+"   # shuruq
+            r"(\d{1,2}:\d{2})\s+"   # dhuhr
+            r"(\d{1,2}:\d{2})\s+"   # asr
+            r"(\d{1,2}:\d{2})\s+"   # maghrib
+            r"(\d{1,2}:\d{2})\s+"   # isha
+            r"(\d{1,2}:\d{2})"      # midnight
+        ),
+        "field_order": ["date", "day_name", "imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"]
+    }
+}
+
 PDFS_DIR = "pdfs"
 ASSETS_DIR = "assets"
 
-# Ensure directories exist
 os.makedirs(PDFS_DIR, exist_ok=True)
 os.makedirs(ASSETS_DIR, exist_ok=True)
 
-# Add near the beginning of the script
 def clean_old_pdfs():
     """Remove PDFs from previous months"""
     if os.path.exists(PDFS_DIR):
@@ -37,7 +68,6 @@ def clean_old_pdfs():
                 os.remove(os.path.join(PDFS_DIR, file))
                 print(f"Removed old PDF: {file}")
 
-# Step 1: Download the PDF from the URL
 def download_pdf(url, save_path, retries=5, initial_timeout=300, max_timeout=900):
     """
     Download PDF with extended timeout and exponential backoff
@@ -70,93 +100,55 @@ def download_pdf(url, save_path, retries=5, initial_timeout=300, max_timeout=900
         except requests.exceptions.RequestException as e:
             print(f"Request failed: {e}")
             
-        # Increase retry counter
         attempt += 1
         
         if attempt < retries:
-            # Exponential backoff - increase timeout for next attempt, but cap at max_timeout
             current_timeout = min(current_timeout * 1.5, max_timeout)
-            delay = min(60 * attempt, 300)  # Start with 60s delay, max 5 minutes
+            delay = min(60 * attempt, 300)  
             print(f"Retrying in {delay} seconds with increased timeout of {current_timeout} seconds...")
             time.sleep(delay)
             
     print("Exceeded maximum retries. Exiting.")
     return False
 
-# Step 2: Parse each line to extract prayer times using regex
-def parse_line(line):
-    # Updated pattern to handle single-digit hour for Asr time
-    new_pattern = (
-        r"(\d{1,2}:\d{2})\s+"   # midnight
-        r"(\d{2}:\d{2})\s+"   # isha (العشاء)
-        r"(\d{2}:\d{2})\s+"   # maghrib (المغرب)
-        r"(\d{1,2}:\d{2})\s+" # asr (العصر) - Modified to accept 1 or 2 digits
-        r"(\d{2}:\d{2})\s+"   # dhuhr (الظهر)
-        r"(\d{1,2}:\d{2})\s+" # shuruq (الشروق)
-        r"(\d{1,2}:\d{2})\s+" # fajr (الصبح)
-        r"(\d{1,2}:\d{2})\s+" # imsak (الامساك)
-        r"(\d{1,2}/\d{1,2}/\d{4})\s+" # date (التاريخ)
-        r"([\u0600-\u06FF\s]+)\s+"  # day name in Arabic (اليوم)
-        r"([\u0600-\u06FF0-9\s]+)"  # Hijri date
-    )
+def parse_line(line, debug=False):
+    """Parse a line using different format configurations"""
     
-    match = re.search(new_pattern, line)
-    if match:
-        # Extract times from regex match
-        midnight = match.group(1)
-        isha = match.group(2)
-        maghrib = match.group(3)
-        asr = match.group(4)
-        dhuhr = match.group(5)
-        shuruq = match.group(6)
-        fajr = match.group(7)
-        imsak = match.group(8)
+    for format_name, format_config in PDF_FORMATS.items():
+        pattern = format_config["pattern"]
+        field_order = format_config["field_order"]
         
-        # Convert afternoon/evening prayers to 24-hour format if needed
-        # Asr prayer time conversion (likely culprit in Saida data)
-        asr = convert_to_24h_format(asr)
-        
-        # Although these seem to be already in 24h format in our data,
-        # we'll handle them just to be safe
-        # Note: Dhuhr is excluded from conversion as it should remain in its original format
-        maghrib = convert_to_24h_format(maghrib)
-        isha = convert_to_24h_format(isha)
-        midnight = convert_to_24h_format(midnight)
-        
-        # Morning prayers (already in correct format, no need to convert)
-        # imsak, fajr, shuruq and dhuhr remain as is
-        
-        return {
-            "midnight": midnight,
-            "isha": isha,
-            "maghrib": maghrib,
-            "asr": asr,
-            "dhuhr": dhuhr,
-            "shuruq": shuruq,
-            "fajr": fajr,
-            "imsak": imsak,
-            "date": match.group(9),
-            "day_name": match.group(10).strip(),
-            "hijri_date": match.group(11).strip()
-        }
+        match = re.search(pattern, line)
+        if match:
+            if debug:
+                print(f"Matched format: {format_name}")
+            
+            result = {}
+            for i, field in enumerate(field_order):
+                if i < len(match.groups()):
+                    result[field] = match.group(i+1).strip()
+            
+            for time_field in ["asr", "maghrib", "isha", "midnight"]:
+                if time_field in result:
+                    result[time_field] = convert_to_24h_format(result[time_field])
+            
+            if "hijri_date" not in result:
+                result["hijri_date"] = "Unknown"
+                
+            return result
     
     return None
 
-# Helper function to convert time to 24-hour format
 def convert_to_24h_format(time_str):
     """Convert a time string to 24-hour format if needed"""
     hours, minutes = map(int, time_str.split(':'))
     
-    # If hour is less than 12 and it's an afternoon/evening prayer time, 
-    # add 12 hours to convert to 24-hour format
-    if hours < 12 and hours != 0:  # Don't convert midnight (00:00)
-        # For times like 3:07 PM, convert to 15:07
+
+    if hours < 12 and hours != 0: 
         hours += 12
     
-    # Format back to string "HH:MM"
     return f"{hours:02d}:{minutes:02d}"
 
-# Step 3: Extract prayer times data from the PDF with added diagnostics
 def extract_prayer_times(pdf_path, location=None, debug=False):
     prayer_times = []
     with pdfplumber.open(pdf_path) as pdf:
@@ -171,15 +163,202 @@ def extract_prayer_times(pdf_path, location=None, debug=False):
                     print("=====")
                 
                 for line in lines:
-                    data = parse_line(line)
-                    if data:
+                    data = parse_line(line, debug)
+                    
+                    if data is None:
+                        data = alternative_parse_line(line, debug)
+                    
+                    if data and validate_prayer_times(data):
                         prayer_times.append(data)
+                    elif data:
+                        fixed_data = fix_prayer_times(data, debug)
+                        if fixed_data:
+                            prayer_times.append(fixed_data)
+                            if debug:
+                                print(f"Fixed invalid data from line: {line[:50]}...")
     
     if len(prayer_times) == 0 and debug:
         print(f"WARNING: No prayer times extracted from {location}!")
         print("This might be due to a different PDF format that doesn't match our regex pattern.")
     
     return prayer_times
+
+def alternative_parse_line(line, debug=False):
+    """Alternative parsing method when regex fails"""
+    times = re.findall(r'\d{1,2}:\d{2}', line)
+    date_pattern = re.search(r'(\d{1,2}/\d{1,2}/\d{4})', line)
+    
+    if len(times) >= 7 and date_pattern:
+        if debug:
+            print(f"Using alternative parsing for line: {line[:50]}...")
+        
+        data = {
+            "midnight": "00:00",
+            "isha": "00:00",
+            "maghrib": "00:00",
+            "asr": "00:00",
+            "dhuhr": "00:00",
+            "shuruq": "00:00",
+            "fajr": "00:00",
+            "imsak": "00:00",
+            "date": date_pattern.group(1),
+            "day_name": "Unknown", 
+            "hijri_date": "Unknown"
+        }
+        
+        prayer_keys = ["midnight", "isha", "maghrib", "asr", "dhuhr", "shuruq", "fajr", "imsak"]
+        for i, key in enumerate(prayer_keys):
+            if i < len(times):
+                data[key] = convert_to_24h_format(times[i])
+        
+        day_match = re.search(r'([\u0600-\u06FF\s]+)', line)
+        if day_match:
+            data["day_name"] = day_match.group(1).strip()
+        
+        return data
+    
+    return None
+
+def validate_prayer_times(data):
+    """Validate that prayer times follow the expected sequence and format"""
+    if not data:
+        return False
+    
+    # Check that all required fields exist
+    required_fields = ["fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha"]
+    for field in required_fields:
+        if field not in data or not data[field]:
+            return False
+    
+    # Simple validation that times are in expected sequence
+    # Convert times to minutes since midnight for comparison
+    try:
+        times = {}
+        for prayer in required_fields:
+            h, m = map(int, data[prayer].split(':'))
+            times[prayer] = h * 60 + m
+        
+        # Check sequence
+        return (times["fajr"] < times["shuruq"] < times["dhuhr"] < 
+                times["asr"] < times["maghrib"] < times["isha"])
+    except:
+        return False
+
+def fix_prayer_times(data, debug=False):
+    """Attempt to fix invalid prayer times data"""
+
+    prayers = ["fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha"]
+    
+    for i in range(len(prayers) - 1):
+        current = prayers[i]
+        next_prayer = prayers[i + 1]
+        
+        if current in data and next_prayer in data:
+            current_time = data[current]
+            next_time = data[next_prayer]
+            
+            # Convert to minutes since midnight
+            ch, cm = map(int, current_time.split(':'))
+            nh, nm = map(int, next_time.split(':'))
+            current_mins = ch * 60 + cm
+            next_mins = nh * 60 + nm
+            
+            if next_mins <= current_mins:
+                next_mins = current_mins + 1
+                new_h = next_mins // 60
+                new_m = next_mins % 60
+                data[next_prayer] = f"{new_h:02d}:{new_m:02d}"
+                
+                if debug:
+                    print(f"Fixed time sequence: {current}={current_time}, {next_prayer}={data[next_prayer]}")
+    
+    return data if validate_prayer_times(data) else None
+
+def analyze_pdf_structure(pdf_path, debug=False):
+    """Analyze PDF structure to automatically detect field positions"""
+    field_positions = {}
+    prayer_name_patterns = {
+        "fajr": r"(فاجر|الصبح|صلاة الفجر)",
+        "shuruq": r"(شروق|طلوع الشمس)",
+        "dhuhr": r"(ظهر|الظهر)",
+        "asr": r"(عصر|العصر)", 
+        "maghrib": r"(مغرب|المغرب)",
+        "isha": r"(عشاء|العشاء)",
+        "imsak": r"(امساك|إمساك)",
+    }
+    
+    with pdfplumber.open(pdf_path) as pdf:
+        # Analyze first page
+        if len(pdf.pages) > 0:
+            page = pdf.pages[0]
+            text = page.extract_text()
+            
+            # Look for header row that might contain prayer names
+            lines = text.split('\n')
+            for line in lines[:10]:  # Check first 10 lines for headers
+                for prayer, pattern in prayer_name_patterns.items():
+                    match = re.search(pattern, line, re.IGNORECASE | re.UNICODE)
+                    if match:
+                        field_positions[prayer] = match.start()
+                        if debug:
+                            print(f"Found {prayer} at position {match.start()} in line: {line}")
+    
+    if debug and field_positions:
+        print("Detected field positions:")
+        for prayer, pos in sorted(field_positions.items(), key=lambda x: x[1]):
+            print(f"  {prayer}: {pos}")
+    
+    return field_positions
+
+def generate_dynamic_format(field_positions, debug=False):
+    """Generate a custom PDF format based on detected field positions"""
+    if not field_positions or len(field_positions) < 4:
+        if debug:
+            print("Not enough field positions detected for dynamic format generation")
+        return None
+    
+    # Sort prayers by their position in the document
+    sorted_prayers = sorted(field_positions.items(), key=lambda x: x[1])
+    if debug:
+        print("Sorted prayer positions for format generation:")
+        for prayer, pos in sorted_prayers:
+            print(f"  {prayer}: {pos}")
+    
+    # Generate field order based on positions
+    field_order = [prayer for prayer, _ in sorted_prayers]
+    
+    # Add other required fields that might not be in the headers
+    required_fields = ["date", "day_name", "hijri_date", "midnight", "imsak"]
+    for field in required_fields:
+        if field not in field_order:
+            field_order.append(field)
+    
+    # Generate a more flexible pattern based on detected order
+    pattern_parts = []
+    for field in field_order:
+        if field in ["date"]:
+            pattern_parts.append(r"(\d{1,2}/\d{1,2}/\d{4})\s*")
+        elif field in ["day_name"]:
+            pattern_parts.append(r"([\u0600-\u06FF\s]+)\s*")
+        elif field in ["hijri_date"]:
+            pattern_parts.append(r"([\u0600-\u06FF0-9\s]+)\s*")
+        else:  # Time fields
+            pattern_parts.append(r"(\d{1,2}:\d{2})\s*")
+    
+    pattern = "".join(pattern_parts)
+    
+    # Create a new format configuration
+    dynamic_format = {
+        "pattern": pattern,
+        "field_order": field_order
+    }
+    
+    if debug:
+        print("Generated dynamic format:")
+        print(f"  Field order: {field_order}")
+        print(f"  Pattern: {pattern}")
+    
+    return dynamic_format
 
 if __name__ == "__main__":
     all_data = {}
@@ -207,6 +386,16 @@ if __name__ == "__main__":
         
         # Special debugging for Saida location
         current_debug = debug_mode or location == "saida"
+        
+        # Add PDF structure analysis and dynamic format generation
+        field_positions = analyze_pdf_structure(local_pdf_path, debug=current_debug)
+        if field_positions:
+            dynamic_format = generate_dynamic_format(field_positions, debug=current_debug)
+            if dynamic_format:
+                # Add the dynamic format to the PDF_FORMATS dictionary
+                PDF_FORMATS["dynamic"] = dynamic_format
+                if current_debug:
+                    print(f"Added dynamic format for {location}")
         
         # Extract data from the PDF
         prayer_times = extract_prayer_times(local_pdf_path, location, debug=current_debug)
