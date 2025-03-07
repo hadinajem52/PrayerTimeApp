@@ -1,9 +1,10 @@
-// filepath: /c:/projects/ShiaPrayerLeb/firebase.js
-import { firebase } from '@react-native-firebase/app';
+import { initializeApp, getApps } from '@react-native-firebase/app';
 import '@react-native-firebase/remote-config';
 
-if (!firebase.apps.length) {
-  firebase.initializeApp();
+// Initialize Firebase if no apps are initialized
+if (getApps().length === 0) {
+  initializeApp();
 }
 
-export default firebase;
+// Export the initialized app
+export default { getApps };

@@ -68,13 +68,19 @@ const TRANSLATIONS = {
     ok: "OK",
     cancel: "Cancel",
     allEnded: "All prayer times for today have ended",
-    progressBarLabel: "Next Prayer in:", 
+    progressBarLabelPrayer: "Next Prayer in:", 
+    progressBarLabelTime: "Next Time in:",
     midnight: "Midnight",
     today: "Today",
     months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
     days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
     settings: "Settings",
     calendar: "Calendar",
+    hijriMonths: [
+      "Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", 
+      "Jumada al-Awwal", "Jumada al-Thani", "Rajab", "Sha'ban",
+      "Ramadan", "Shawwal", "Dhu al-Qi'dah", "Dhu al-Hijjah"
+    ]
   },
   ar: {
     prayerTimes: "جدول الصلوات",
@@ -96,13 +102,19 @@ const TRANSLATIONS = {
     ok: "موافق",
     cancel: "إلغاء",
     allEnded: "انتهت كل مواعيد الصلاة لهذا اليوم",
-    progressBarLabel: "الصلاة القادمة في:", 
+    progressBarLabelPrayer: "الصلاة القادمة في:", 
+    progressBarLabelTime: "الوقت القادم في:",
     midnight: "منتصف الليل",
     today: "اليوم",
-    months: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
+    months: ["كانون ٢", "شباط", "آذار", "نيسان", "أيار", "حزيران","تموز", "آب", "أيلول", "تشرين ١", "تشرين ٢", "كانون ١"],
     days: ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"],
     settings: "الإعدادات",
     calendar: "التقويم",
+    hijriMonths: [
+      "محرم", "صفر", "ربيع ١", "ربيع ٢", 
+      "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان",
+      "رمضان", "شوال", "ذو القعدة", "ذو الحجة"
+    ]
   },
 };
 
@@ -156,6 +168,15 @@ const getIconComponent = (prayerKey) => {
     return MaterialIcons;
   }
   return Ionicons;
+};
+
+const getCountdownLabel = (prayerKey, translations) => {
+  // Non-prayer events use the "Next Time in" label
+  if (['shuruq', 'imsak', 'midnight'].includes(prayerKey)) {
+    return translations.progressBarLabelTime;
+  }
+  // Actual prayer times use "Next Prayer in" label
+  return translations.progressBarLabelPrayer;
 };
 
 const Countdown = ({
@@ -227,11 +248,14 @@ const Countdown = ({
     );
   }
 
+  // Use the appropriate label based on the upcoming prayer type
+  const countdownLabel = getCountdownLabel(nextPrayerKey, translations);
+
   return (
     <View style={{ alignItems: 'center' }}>
       {/* Descriptive Label */}
       <Text style={[styles.labelText, isDarkMode && styles.darkLabelText]}>
-        {translations.progressBarLabel}
+        {countdownLabel}
       </Text>
 
       {/* Countdown Timer */}
@@ -748,15 +772,22 @@ function MainApp() {
       hijriDateObj.add(settings.hijriDateOffset, 'days');
     }
     
-    if (language === 'ar') {
-      const day = convertToArabicNumerals(hijriDateObj.format("iD"), 'ar');
-      const month = hijriDateObj.format("iMMMM"); 
-      const year = convertToArabicNumerals(hijriDateObj.format("iYYYY"), 'ar');
-      return `${day} ${month} ${year}`;
-    } else {
-      return hijriDateObj.format("iD iMMMM iYYYY");
-    }
-  }, [currentPrayer, language, convertToArabicNumerals, settings.hijriDateOffset]);
+    // Get the day, month index (0-11), and year
+      const day = hijriDateObj.iDate();
+      const monthIndex = hijriDateObj.iMonth();
+      const year = hijriDateObj.iYear();
+
+    // Get month name from translations
+      const monthName = TRANSLATIONS[language].hijriMonths[monthIndex];
+  
+if (language === 'ar') {
+    const dayStr = convertToArabicNumerals(String(day), 'ar');
+    const yearStr = convertToArabicNumerals(String(year), 'ar');
+    return `${dayStr} ${monthName} ${yearStr}`;
+  } else {
+    return `${day} ${monthName} ${year}`;
+  }
+}, [currentPrayer, language, convertToArabicNumerals, settings.hijriDateOffset]);
   
   const preparedPrayerData = useMemo(() => {
     if (!currentPrayer) return null;
@@ -953,6 +984,7 @@ function MainApp() {
 
   const refreshCurrentPrayerData = useCallback(() => {
     if (locationData.length > 0) {
+      // Regular function continues below...
       const todayIdx = getTodayIndex(locationData);
       console.log(`[REFRESH] Today's index in prayer data: ${todayIdx}`);
       
@@ -1164,7 +1196,6 @@ function MainApp() {
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
         {TRANSLATIONS[language].prayerTimes}
       </Text>
-      
 
       <Animated.View 
         style={[
@@ -1259,13 +1290,43 @@ function MainApp() {
         </View>
       </Animated.View>
       {isShowingLastAvailableDay && (
-        <View style={{marginTop: 10}}>
+        <View style={{
+          position: 'absolute',
+          left: 10,
+          right: 10,
+          bottom: navHeight + 10, // Position it above the navigation bar
+          backgroundColor: isDarkMode ? '#333' : '#f0f0f0',
+          borderWidth: 2,
+          borderColor: isDarkMode ? '#FFA500' : '#007AFF',
+          borderRadius: 15,
+          padding: 5,
+          elevation: 10,
+          zIndex: 999
+        }}>
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              right: 5,
+              top: 5,
+              zIndex: 1000,
+              backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(200,200,200,0.5)',
+              borderRadius: 15,
+              width: 30,
+              height: 30,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onPress={() => setIsShowingLastAvailableDay(false)}
+          >
+            <Icon name="close" size={20} color={isDarkMode ? "#FFA500" : "#007AFF"} />
+          </TouchableOpacity>
           <MonthTransitionNotice 
             language={language}
             isDarkMode={isDarkMode}
           />
         </View>
       )}
+      
       <Animated.View
         style={[
           styles.navigation,
