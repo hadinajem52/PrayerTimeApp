@@ -1,6 +1,5 @@
 import { Animated, Easing } from 'react-native';
 
-// Predefined animation configurations
 export const Animations = {
   // Spring configuration for natural, bouncy transitions
   spring: {
@@ -15,7 +14,7 @@ export const Animations = {
       useNativeDriver: true
     },
     responsive: {
-      toValue: 0, // This was missing, causing the error
+      toValue: 0, 
       friction: 7,
       tension: 70,
       useNativeDriver: true
@@ -28,9 +27,7 @@ export const Animations = {
     }
   },
   
-  // Timings for more precise control
   timing: {
-    // Add an ultra-fast transition for day switching
     instant: {
       duration: 80,
       easing: Easing.linear,
@@ -60,12 +57,9 @@ export const Animations = {
   }
 };
 
-// Animation utility functions
 export const AnimationUtils = {
-  // Creates a pulse animation that scales up and back down
   pulse: (animatedValue, enabled = true) => {
     if (!enabled) {
-      // Skip animation if disabled
       animatedValue.setValue(1);
       return;
     }
@@ -80,10 +74,8 @@ export const AnimationUtils = {
     ]).start();
   },
   
-  // Creates a gentle bounce animation
   bounce: (animatedValue, enabled = true) => {
     if (!enabled) {
-      // Skip animation if disabled
       animatedValue.setValue(1);
       return;
     }
@@ -95,7 +87,6 @@ export const AnimationUtils = {
   // Fades an element in
   fadeIn: (animatedValue, duration = 300, toValue = 1, callback, enabled = true) => {
     if (!enabled) {
-      // Jump to end value if animations disabled
       animatedValue.setValue(toValue);
       if (callback) callback({ finished: true });
       return;
@@ -112,7 +103,6 @@ export const AnimationUtils = {
   // Fades an element out
   fadeOut: (animatedValue, duration = 300, toValue = 0, callback, enabled = true) => {
     if (!enabled) {
-      // Jump to end value if animations disabled
       animatedValue.setValue(toValue);
       if (callback) callback({ finished: true });
       return;
@@ -129,7 +119,6 @@ export const AnimationUtils = {
   // Add a specific function for day switching
   switchDay: (animatedValue, toValue = 1, callback, enabled = true) => {
     if (!enabled) {
-      // Jump to end value if animations disabled
       animatedValue.setValue(toValue);
       if (callback) callback({ finished: true });
       return;

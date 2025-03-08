@@ -6,11 +6,9 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 const { width } = Dimensions.get('window');
 
 const SkeletonLoader = ({ isDarkMode }) => {
-  // Animation values for the shimmer effect
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Create a repeating animation
     Animated.loop(
       Animated.timing(animatedValue, {
         toValue: 1,
@@ -20,21 +18,18 @@ const SkeletonLoader = ({ isDarkMode }) => {
     ).start();
   }, [animatedValue]);
 
-  // Create a gradient effect for the shimmer
   const shimmerTranslate = animatedValue.interpolate({
     inputRange: [0, 1],
     outputRange: [-width, width]
   });
 
-  // Base colors for light/dark modes that match app theme
   const baseColor = isDarkMode ? '#2A2A2A' : '#E1E9EE';
   const highlightColor = isDarkMode ? '#3D3D3D' : '#F5F5F5';
   const cardBgColor = isDarkMode ? '#333' : '#FFF';
   const navBgColor = isDarkMode ? '#222' : '#EAEFF2';
-  const accentColor = isDarkMode ? '#66CCFF33' : '#007AFF33'; // Semi-transparent accent color
-  const activeColor = isDarkMode ? '#FFA50033' : '#007AFF33'; // For active nav item
+  const accentColor = isDarkMode ? '#66CCFF33' : '#007AFF33'; 
+  const activeColor = isDarkMode ? '#FFA50033' : '#007AFF33';  
 
-  // Animated gradient
   const ShimmerEffect = () => (
     <Animated.View
       style={[
@@ -48,7 +43,6 @@ const SkeletonLoader = ({ isDarkMode }) => {
     />
   );
 
-  // Skeleton components
   const HeaderSkeleton = () => (
     <View style={styles.header}>
       <View style={[styles.headerText, { backgroundColor: baseColor, overflow: 'hidden' }]}>
@@ -64,7 +58,6 @@ const SkeletonLoader = ({ isDarkMode }) => {
         <ShimmerEffect />
       </View>
       
-      {/* Hijri date + location */}
       <View style={styles.dateRow}>
         <View style={[styles.hijriDate, { backgroundColor: baseColor, overflow: 'hidden' }]}>
           <ShimmerEffect />
@@ -74,7 +67,6 @@ const SkeletonLoader = ({ isDarkMode }) => {
         </View>
       </View>
       
-      {/* Prayer rows - create 7 of them */}
       {[...Array(7)].map((_, i) => (
         <View key={i} style={styles.prayerRow}>
           <View style={[styles.prayerIcon, { backgroundColor: baseColor, overflow: 'hidden' }]}>
@@ -92,7 +84,6 @@ const SkeletonLoader = ({ isDarkMode }) => {
         </View>
       ))}
 
-      {/* Countdown */}
       <View style={styles.countdownContainer}>
         <View style={[styles.countdownLabel, { backgroundColor: baseColor, overflow: 'hidden' }]}>
           <ShimmerEffect />
@@ -130,7 +121,6 @@ const SkeletonLoader = ({ isDarkMode }) => {
     </View>
   );
 
-  // Today indicator + Quote button
   const IndicatorButtons = () => (
     <View style={styles.topButtons}>
       <View style={[styles.todayIndicator, { backgroundColor: accentColor, overflow: 'hidden' }]}>

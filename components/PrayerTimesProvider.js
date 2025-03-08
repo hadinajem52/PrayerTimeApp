@@ -2,7 +2,6 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Create context
 export const PrayerTimesContext = createContext();
 
 export const PrayerTimesProvider = ({ children }) => {
@@ -15,7 +14,6 @@ export const PrayerTimesProvider = ({ children }) => {
     setIsLoading(true);
     
     try {
-      // Check if this is first launch
       const isFirstLaunch = await AsyncStorage.getItem('FIRST_LAUNCH') === null;
       
       if (isFirstLaunch) {
@@ -49,11 +47,9 @@ export const PrayerTimesProvider = ({ children }) => {
       }
       
     } catch (err) {
-      // Error handling remains the same...
       console.error('Failed to load prayer times:', err);
       setError(err.message);
       
-      // Try to load bundled data as fallback
       try {
         const bundledData = require('../assets/prayer_times.json');
         setPrayerTimes(bundledData);
@@ -69,11 +65,9 @@ export const PrayerTimesProvider = ({ children }) => {
   useEffect(() => {
     loadPrayerTimes();
     
-    // Make the reload function globally available
     global.fetchPrayerData = loadPrayerTimes;
     
     return () => {
-      // Clean up
       global.fetchPrayerData = undefined;
     };
   }, []);
@@ -92,5 +86,4 @@ export const PrayerTimesProvider = ({ children }) => {
   );
 };
 
-// Custom hook to use the prayer times context
 export const usePrayerTimes = () => useContext(PrayerTimesContext);

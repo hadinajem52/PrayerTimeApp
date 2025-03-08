@@ -171,11 +171,9 @@ const getIconComponent = (prayerKey) => {
 };
 
 const getCountdownLabel = (prayerKey, translations) => {
-  // Non-prayer events use the "Next Time in" label
   if (['shuruq', 'imsak', 'midnight'].includes(prayerKey)) {
     return translations.progressBarLabelTime;
   }
-  // Actual prayer times use "Next Prayer in" label
   return translations.progressBarLabelPrayer;
 };
 
@@ -248,7 +246,6 @@ const Countdown = ({
     );
   }
 
-  // Use the appropriate label based on the upcoming prayer type
   const countdownLabel = getCountdownLabel(nextPrayerKey, translations);
 
   return (
@@ -772,12 +769,10 @@ function MainApp() {
       hijriDateObj.add(settings.hijriDateOffset, 'days');
     }
     
-    // Get the day, month index (0-11), and year
       const day = hijriDateObj.iDate();
       const monthIndex = hijriDateObj.iMonth();
       const year = hijriDateObj.iYear();
 
-    // Get month name from translations
       const monthName = TRANSLATIONS[language].hijriMonths[monthIndex];
   
 if (language === 'ar') {
@@ -984,7 +979,6 @@ if (language === 'ar') {
 
   const refreshCurrentPrayerData = useCallback(() => {
     if (locationData.length > 0) {
-      // Regular function continues below...
       const todayIdx = getTodayIndex(locationData);
       console.log(`[REFRESH] Today's index in prayer data: ${todayIdx}`);
       
@@ -1294,7 +1288,7 @@ if (language === 'ar') {
           position: 'absolute',
           left: 10,
           right: 10,
-          bottom: navHeight + 10, // Position it above the navigation bar
+          bottom: navHeight + 10,
           backgroundColor: isDarkMode ? '#333' : '#f0f0f0',
           borderWidth: 2,
           borderColor: isDarkMode ? '#FFA500' : '#007AFF',
