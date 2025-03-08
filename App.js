@@ -49,7 +49,7 @@ import { PrayerTimesProvider, usePrayerTimes } from './components/PrayerTimesPro
 // ----- Translations & Constants -----
 const TRANSLATIONS = {
   en: {
-    prayerTimes: "Prayer Schedule",
+    prayerTimes: "Prayer Times Schedule",
     loading: "Loading...",
     day: "Day",
     fajr: "Morning",
@@ -83,7 +83,7 @@ const TRANSLATIONS = {
     ]
   },
   ar: {
-    prayerTimes: "جدول الصلوات",
+    prayerTimes: "جدول مواقيت الصلاة",
     loading: "جار التحميل...",
     day: "اليوم",
     fajr: "الصبح",
@@ -269,10 +269,10 @@ const Countdown = ({
             color={isDarkMode ? "#FFA500" : "#007AFF"}
           />
         </View>
-        <View style={{ transform: [{ scaleX: language === 'en' ? -1 : 1 }] }}>
+        <View style={{ transform: [{ scaleX: language === 'ar' ? 1 : -1 }] }}>
           <ProgressBar
             progress={progress}
-            width={250}
+            width={230}
             color={isDarkMode ? "#66CCFF" : "#66CCFF"}
             unfilledColor="#555"
             borderWidth={0}
@@ -494,9 +494,6 @@ function MainApp() {
     return dailyQuotes[todayIndex][language];
   }, [language]);
 
-  const prayerDates = useMemo(() => {
-    return locationData.map(item => item.date);
-  }, [locationData]);
 
   const getTodayIndex = useCallback((data) => {
     const today = new Date();
