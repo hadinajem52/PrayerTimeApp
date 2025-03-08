@@ -490,9 +490,20 @@ function MainApp() {
   );
 
   const dailyQuote = useMemo(() => {
-    const todayIndex = new Date().getDate() % dailyQuotes.length;
-    return dailyQuotes[todayIndex][language];
-  }, [language]);
+    // Create a seed based on current date (year, month, day)
+    const today = new Date();
+    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+    
+    // Simple seeded random function
+    const seededRandom = (seed) => {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+    
+    // Get a random index based on the date seed
+    const randomIndex = Math.floor(seededRandom(seed) * dailyQuotes.length);
+    return dailyQuotes[randomIndex][language];
+  }, [language, dailyQuotes]);
 
 
   const getTodayIndex = useCallback((data) => {
