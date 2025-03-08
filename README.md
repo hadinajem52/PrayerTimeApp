@@ -74,7 +74,7 @@ A comprehensive React Native application providing accurate Islamic prayer times
 
 ## 📋 Requirements
 
-- iOS 12+ / Android 6.0+
+- Android 6.0+
 - Node.js 14+
 - React Native CLI or Expo (SDK 45+)
 
@@ -91,9 +91,6 @@ cd ShiaPrayerLeb
 yarn install
 # or
 npm install
-
-# iOS specific
-cd ios && pod install && cd ..
 
 # Start the app
 npx react-native run-android
