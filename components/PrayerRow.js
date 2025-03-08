@@ -8,7 +8,6 @@ import { AnimationUtils } from '../utils/animations';
 import { formatTimeString } from '../utils/timeFormatters';
 import useSettings from '../hooks/useSettings';
 
-// Helper to get the correct icon component based on prayer key
 const getIconComponent = (prayerKey) => {
   if (prayerKey === 'fajr' || prayerKey === 'maghrib') {
     return Feather;
@@ -18,7 +17,6 @@ const getIconComponent = (prayerKey) => {
   return Ionicons;
 };
 
-// Prayer row icons
 const PRAYER_ICONS = {
   imsak: 'cloudy-night',
   fajr: 'sunrise',           
@@ -28,16 +26,6 @@ const PRAYER_ICONS = {
   maghrib: 'sunset',          
   isha: 'moon-outline',
   midnight: 'moon',
-};
-
-// Helper to convert to Arabic numerals
-const toArabicNumerals = (str) => {
-  const arabicNumerals = {
-    '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤',
-    '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩'
-  };
-  
-  return str.toString().replace(/[0-9]/g, match => arabicNumerals[match]);
 };
 
 const PrayerRow = ({ 
@@ -50,33 +38,27 @@ const PrayerRow = ({
   onToggleNotification, 
   isDarkMode,
   upcomingLabel,
-  language // Add language prop
+  language 
 }) => {
-  // Animation values
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const notificationAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const [wasEnabled, setWasEnabled] = useState(isEnabled);
   const isFirstRender = useRef(true);
   
-  // Get time format and useArabicNumerals from settings
   const [settings] = useSettings();
   const { timeFormat, useArabicNumerals } = settings;
 
-  // Format the time according to user preference, passing language and useArabicNumerals
   const formattedTime = formatTimeString(time, timeFormat, language, useArabicNumerals);
   
-  // No need for separate display time processing since it's handled in the formatTimeString function
   const displayTime = formattedTime;
   
-  // Animation when row becomes the upcoming prayer
   useEffect(() => {
     if (isUpcoming) {
       AnimationUtils.pulse(scaleAnim);
     }
   }, [isUpcoming, scaleAnim]);
   
-  // Animation when enabling/disabling notifications
   useEffect(() => {
     if (wasEnabled !== isEnabled) {
       AnimationUtils.bounce(notificationAnim);
@@ -84,7 +66,6 @@ const PrayerRow = ({
     }
   }, [isEnabled, notificationAnim, wasEnabled]);
   
-  // Handle initial mount animation
   useEffect(() => {
     if (isFirstRender.current) {
       fadeAnim.setValue(0);
@@ -147,7 +128,6 @@ const PrayerRow = ({
   );
 };
 
-// Ensure component re-renders when settings change
 export default React.memo(PrayerRow, (prevProps, nextProps) => {
   return prevProps.time === nextProps.time &&
          prevProps.isUpcoming === nextProps.isUpcoming &&

@@ -5,12 +5,11 @@ import { moderateScale } from 'react-native-size-matters';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 export const ForcedUpdateDialog = ({ visible, title, message, onUpdate }) => {
-  // Prevent back button from closing the modal
   useFocusEffect(
     React.useCallback(() => {
       const onBackPress = () => {
         if (visible) {
-          return true; // Prevent default behavior (exit app)
+          return true;
         }
         return false;
       };

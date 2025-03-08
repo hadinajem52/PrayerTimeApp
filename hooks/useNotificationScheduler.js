@@ -6,7 +6,7 @@ import { usePrayerTimes } from '../components/PrayerTimesProvider';
 const TRANSLATIONS = {
   en: {
     prayerTime: "Prayer Time",
-    timeApproaching: "It's {time} time", // Generic version
+    timeApproaching: "It's {time} time",
     prayerApproaching: "{prayer} prayer time",
     dailyRefresh: "Prayer Schedule Updated",
     dailyRefreshBody: "Your prayer notifications have been refreshed for today",
@@ -23,7 +23,7 @@ const TRANSLATIONS = {
   },
   ar: {
     prayerTime: "وقت الصلاة",
-    timeApproaching: "حان وقت {time}", // Generic version
+    timeApproaching: "حان وقت {time}", 
     prayerApproaching: "حان وقت صلاة {prayer}",
     dailyRefresh: "تم تحديث جدول الصلاة",
     dailyRefreshBody: "تم تحديث إشعارات الصلاة الخاصة بك لهذا اليوم",
@@ -45,10 +45,8 @@ export const useNotificationScheduler = (language) => {
   const [isOperationInProgress, setIsOperationInProgress] = useState(false); 
   const [isDataAvailable, setIsDataAvailable] = useState(false);
   
-  // Access prayer times from context
   const { prayerTimes, isLoading: prayerTimesLoading } = usePrayerTimes();
   
-  // Helper function to translate notification text
   const translate = useCallback((key, params = {}) => {
     const translations = TRANSLATIONS[language] || TRANSLATIONS.en;
     let text = translations[key] || key;
@@ -109,12 +107,16 @@ export const useNotificationScheduler = (language) => {
         timestamp: prayerTime.getTime(),
       };
       
+      // Determine if this is a prayer or other significant time
+      const isPrayer = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].includes(prayerKey);
       
-      // Create notification content
+      // Create notification content with appropriate message format
       const notification = {
         id: standardizedId,
         title: translate('prayerTime'),
-        body: translate('prayerApproaching', { prayer: prayerName }),
+        body: isPrayer 
+          ? translate('prayerApproaching', { prayer: prayerName })
+          : translate('timeApproaching', { time: prayerName }),
         android: {
           channelId: 'prayer-channel',
           smallIcon: 'ic_launcher', 
@@ -122,10 +124,10 @@ export const useNotificationScheduler = (language) => {
             id: 'default',
           },
           importance: AndroidImportance.HIGH,
+          // Add timestamp for when notification was posted
+          timestamp: prayerTime.getTime(), // Shows the actual prayer time as when notification was sent
+          showTimestamp: true,
         },
-        ios: {
-          sound: 'default',
-        }
       };
       
       // Schedule the notification
@@ -290,11 +292,9 @@ export const useNotificationScheduler = (language) => {
           
           // Only schedule if the prayer time is in the future
           if (prayerTime > new Date()) {
-            // Move debug logs here so they only print when actually scheduling
             console.log("Scheduling notification for:", prayer);
             console.log("Prayer time parsed:", prayerTime, "Original string:", dayPrayers[prayer]);
             
-            // Schedule the notification
             const scheduledId = await scheduleLocalNotification(notificationId, prayer, prayerTime);
             if (scheduledId) scheduledIds.push(scheduledId);
           }

@@ -276,7 +276,6 @@ export default StyleSheet.create({
   darkQuoteModalText: {
     color: '#66CCFF',
   },
-  // ---- Countdown Styles ----
   countdownText: {
     textAlign: 'center',
     fontSize: moderateScale(18),
@@ -306,11 +305,10 @@ export default StyleSheet.create({
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '90%', // Make the progress bar responsive
+    width: '90%', 
     alignSelf: 'center',
     marginBottom: moderateScale(20),
   },
-  // Add to your styles.js file
 endIconContainer: {
   shadowColor: "#007AFF",
   shadowOffset: { width: 0, height: 0 },
@@ -325,7 +323,6 @@ darkEndIconContainer: {
   shadowColor: "#FFA500",
   backgroundColor: 'rgba(255, 165, 0, 0.1)',
 },  
-  // Today indicator styles
   todayCardGlow: {
     shadowColor: '#007AFF',
     shadowOffset: { width: 0, height: 0 },
@@ -336,9 +333,8 @@ darkEndIconContainer: {
   darkTodayCardGlow: {
     shadowColor: '#FFA500',
   },
-  // Animation related styles
   animatedPrayerRow: {
-    backfaceVisibility: 'hidden', // Performance optimization
+    backfaceVisibility: 'hidden',
   },
   notificationToggleContainer: {
     padding: 5,
@@ -349,15 +345,12 @@ darkEndIconContainer: {
   animatedQuote: {
     transform: [{ scale: 1 }],
   },
-  // Animation for the navigation bar
   navIconContainer: {
     padding: 8,
   },
-  // Special animation styles for modals
   animatedModalContent: {
     backfaceVisibility: 'hidden',
   },
-  // Subtle highlight effect for active elements
   activeHighlight: {
     backgroundColor: 'rgba(0, 122, 255, 0.1)',
   },
@@ -368,7 +361,6 @@ darkEndIconContainer: {
     transitionProperty: 'all',
     transitionDuration: '300ms',
   },
-  // Enhanced modal styles
   enhancedModalContent: {
     width: '85%',
     maxHeight: '80%',

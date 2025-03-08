@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { moderateScale } from 'react-native-size-matters';
 import useSettings from '../hooks/useSettings';
-import { checkForPrayerTimeUpdates } from './UpdateManager'; // Import the function
+import { checkForPrayerTimeUpdates } from './UpdateManager'; 
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 
 const TRANSLATIONS = {
@@ -106,8 +106,7 @@ const Settings = ({
     setIsUpdating(true);
     try {
       await checkForPrayerTimeUpdates();
-      // The function itself will show an alert if data was updated
-      // Add a small delay before setting isUpdating to false
+
       setTimeout(() => {
         setIsUpdating(false);
       }, 1500);
@@ -494,16 +493,15 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(14),
     fontWeight: '500',
     paddingHorizontal: 10,
-    width: 120, // Fixed width instead of minWidth
+    width: 120, 
     textAlign: 'center',
     color: '#333',
-    alignSelf: 'center', // Ensure vertical alignment
+    alignSelf: 'center',
   },
   darkOffsetValue: {
     color: '#fff',
   },
   
-  // Add the missing description styles
   description: {
     fontSize: moderateScale(13),
     color: '#666',

@@ -6,7 +6,6 @@ import VersionCheck from 'react-native-version-check';
 
 class UpdateService {
   constructor() {
-    // We'll initialize the remote config instance in the initialize method
     this.remoteConfig = null;
     this.initialized = false;
   }
@@ -15,17 +14,14 @@ class UpdateService {
     if (this.initialized) return;
     
     try {
-      // Get or initialize Firebase app
       try {
         this.app = getApp();
       } catch (e) {
         this.app = initializeApp();
       }
       
-      // Get remote config instance
       this.remoteConfig = getRemoteConfig(this.app);
       
-      // Set default values
       await setDefaults(this.remoteConfig, {
         minimum_version_code: '0',
         latest_version_code: '0',
@@ -34,7 +30,6 @@ class UpdateService {
         is_update_critical: false
       });
       
-      // Fetch and activate
       await fetchAndActivate(this.remoteConfig);
       this.initialized = true;
     } catch (error) {
@@ -59,7 +54,7 @@ class UpdateService {
         updateMessage: getValue(this.remoteConfig, 'update_message').asString(),
         needsUpdate: currentVersion < latestVersion,
         isForcedUpdate: currentVersion < minimumVersion || isCritical,
-        storeUrl: await VersionCheck.getStoreUrl() // Simplified for Android-only
+        storeUrl: await VersionCheck.getStoreUrl()
       };
     } catch (error) {
       console.error('Error checking for updates:', error);

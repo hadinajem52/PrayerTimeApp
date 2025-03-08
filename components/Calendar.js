@@ -49,14 +49,12 @@ const CalendarView = ({
   currentSelectedDate, 
   todayIndex,
   selectedLocation,
-  prayerTimes // Add this prop
+  prayerTimes 
 }) => {
-  // Remove this line or comment it out:
-  // const { prayerTimes } = usePrayerTimes();
+  
   
   const translations = TRANSLATIONS[language];
   
-  // Extract prayer dates for the selected location from context
   const prayerDates = useMemo(() => {
     if (!prayerTimes || !selectedLocation || !prayerTimes[selectedLocation]) {
       return [];
@@ -75,17 +73,15 @@ const CalendarView = ({
   const [currentMonth, setCurrentMonth] = useState(currentDate.month());
   const [currentYear, setCurrentYear] = useState(currentDate.year());
 
-  // Generate days of the month
   const daysInMonth = useMemo(() => {
     const firstDayOfMonth = moment([currentYear, currentMonth]).startOf('month');
     const lastDayOfMonth = moment([currentYear, currentMonth]).endOf('month');
     
     const daysCount = lastDayOfMonth.date();
-    const firstDayWeekday = firstDayOfMonth.day(); // 0 is Sunday
+    const firstDayWeekday = firstDayOfMonth.day();
     
     const days = [];
     
-    // Add empty slots for days before the 1st day of the month
     for (let i = 0; i < firstDayWeekday; i++) {
       days.push({ 
         day: null, 
@@ -94,23 +90,20 @@ const CalendarView = ({
       });
     }
     
-    // Add actual days of the month
     for (let i = 1; i <= daysCount; i++) {
       const currentDay = moment([currentYear, currentMonth, i]);
       
-      // Format date in both "D/M/YYYY" and "DD/MM/YYYY" formats for robust matching
-      // Some prayer data might have single-digit days/months without leading zeros
+    
       const formattedDate = currentDay.format('D/M/YYYY');
       const formattedDatePadded = currentDay.format('DD/MM/YYYY');
       
-      // Try to find the date in either format
       const dateIndex = prayerDates.findIndex(date => 
         date === formattedDate || date === formattedDatePadded
       );
       
       days.push({
         day: i,
-        date: dateIndex !== -1 ? prayerDates[dateIndex] : formattedDate, // Use the actual format from prayer data if found
+        date: dateIndex !== -1 ? prayerDates[dateIndex] : formattedDate,
         isToday: today.date() === i && today.month() === currentMonth && today.year() === currentYear,
         isSelected: currentSelectedDate && (
           currentSelectedDate === formattedDate || 
@@ -124,7 +117,6 @@ const CalendarView = ({
     return days;
   }, [currentMonth, currentYear, today, prayerDates, currentSelectedDate]);
 
-  // Get month name based on selected language
   const monthName = MONTHS[language][currentMonth];
 
   const handleSelectDate = (item) => {
@@ -134,10 +126,8 @@ const CalendarView = ({
     }
   };
 
-  // For debugging
   useEffect(() => {
     if (prayerDates.length > 0) {
-      // Log a sample prayer date to see its format
       console.log('Sample prayer date format:', prayerDates[0]);
     }
   }, [prayerDates]);
@@ -149,7 +139,6 @@ const CalendarView = ({
     ]}>
       <StatusBar translucent backgroundColor="transparent" />
       
-      {/* Header - Translate the title but keep navigation elements directional */}
       <View style={[styles.header, isDarkMode && styles.darkHeader]}>
         <TouchableOpacity
           onPress={onClose}
@@ -170,25 +159,20 @@ const CalendarView = ({
       <ScrollView style={styles.scrollView}>
         <View style={[
           styles.calendarContainer,
-          // Ensure calendar container is always LTR
           { direction: 'ltr' }
         ]}>
-          {/* Month and Year Header - Use language specific month name */}
           <View style={[styles.monthYearHeader, isDarkMode && styles.darkMonthYearHeader]}>
             <Text style={[
               styles.monthYearText, 
               isDarkMode && styles.darkMonthYearText,
-              // Ensure month/year text has right direction
               { writingDirection: language === 'ar' ? 'rtl' : 'ltr', textAlign: 'center' }
             ]}>
               {monthName} {currentYear}
             </Text>
           </View>
           
-          {/* Calendar Grid - Keep in English and enforce LTR layout */}
           <View style={[
             styles.calendarGrid,
-            // Force LTR for the calendar grid
             { direction: 'ltr' }
           ]}>
             {daysInMonth.map((item, index) => (
@@ -212,7 +196,6 @@ const CalendarView = ({
                     item.isToday && styles.todayText,
                     item.isSelected && styles.selectedDayText,
                     item.disabled && styles.disabledDayText,
-                    // Force LTR for day numbers
                     { writingDirection: 'ltr' }
                   ]}>
                     {item.day}
@@ -222,10 +205,8 @@ const CalendarView = ({
             ))}
           </View>
           
-          {/* Legend - Translate these items, but keep layout consistent */}
           <View style={[
             styles.legendContainer,
-            // Ensure legend container maintains consistent layout
             language === 'ar' ? { flexDirection: 'row-reverse' } : { flexDirection: 'row' }
           ]}>
             <View style={styles.legendItem}>
@@ -248,7 +229,7 @@ const CalendarView = ({
 };
 
 const { width } = Dimensions.get('window');
-const cellSize = width / 7 - 8; // 7 columns with some margin
+const cellSize = width / 7 - 8; 
 
 const styles = StyleSheet.create({
   container: {

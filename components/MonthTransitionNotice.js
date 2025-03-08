@@ -13,7 +13,7 @@ const TRANSLATIONS = {
     nextMonth: "Coming Month:",
     expectedUpdate: "Update expected soon",
     stayTuned: "Stay tuned!",
-    note: "Note: Prayer times for the last day are used until new data becomes available.",
+    note: "Note: If prayer times are taking long to update, please press the \"Update Prayer Times\" button in the Settings menu.",
     close: "Close"
   },
   ar: {
@@ -23,12 +23,11 @@ const TRANSLATIONS = {
     nextMonth: "الشهر القادم:",
     expectedUpdate: "التحديث متوقع قريبًا",
     stayTuned: "ترقبوا!",
-    note: "ملاحظة: يتم استخدام أوقات الصلاة لليوم الأخير حتى تتوفر بيانات جديدة.",
+    note: "ملاحظة: إذا استغرق تحديث أوقات الصلاة وقتًا طويلًا، يرجى الضغط على زر \"تحديث أوقات الصلاة\" في قائمة الإعدادات.",
     close: "إغلاق"
   }
 };
 
-// Arabic month names
 const ARABIC_MONTHS = [
   "كانون ٢", "شباط", "آذار", "نيسان", "أيار", "حزيران",
   "تموز", "آب", "أيلول", "تشرين ١", "تشرين ٢", "كانون ١"
@@ -36,29 +35,23 @@ const ARABIC_MONTHS = [
 
 
 const MonthTransitionNotice = ({ language, isDarkMode}) => {
-  // Get current month in English
   const currentMonth = moment().format('MMMM');
-  // Get next month in English
   const nextMonth = moment().add(1, 'months').format('MMMM');
   
-  // Get current and next month in Arabic
   const currentMonthIndex = moment().month();
   const nextMonthIndex = (currentMonthIndex + 1) % 12;
   const currentMonthArabic = ARABIC_MONTHS[currentMonthIndex];
   const nextMonthArabic = ARABIC_MONTHS[nextMonthIndex];
   
-  // Translations access
   const t = TRANSLATIONS[language] || TRANSLATIONS.en;
 
   return (
     <View style={[styles.container, isDarkMode && styles.darkContainer]}>
-      {/* Removed the close button from here */}
       
       <Text style={[styles.title, isDarkMode && styles.darkTitle]}>
         {t.title}
       </Text>
 
-      {/* Static Scene (previously Animation Scene) */}
       <View style={styles.animationContainer}>
         <View style={styles.sunContainer}>
           <FontAwesome5 
@@ -90,7 +83,6 @@ const MonthTransitionNotice = ({ language, isDarkMode}) => {
         {t.description}
       </Text>
 
-      {/* Month Information */}
       <View style={styles.monthsContainer}>
         <View style={styles.monthRow}>
           <Text style={[styles.monthLabel, isDarkMode && styles.darkMonthLabel]}>
@@ -111,7 +103,6 @@ const MonthTransitionNotice = ({ language, isDarkMode}) => {
         </View>
       </View>
 
-      {/* Static progress indicator */}
       <View style={styles.progressContainer}>
         <View style={styles.progressDot} />
         <View style={styles.progressDot} />
@@ -141,7 +132,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     borderRadius: moderateScale(15),
     margin: moderateScale(10),
-    position: 'relative',  // Added for absolute positioning of close button
+    position: 'relative',  
   },
   darkContainer: {
     backgroundColor: '#1a1a1a',
@@ -156,7 +147,6 @@ const styles = StyleSheet.create({
   darkTitle: {
     color: '#FFA500',
   },
-  // Removed closeButton style
   animationContainer: {
     height: moderateScale(100),
     width: '100%',
