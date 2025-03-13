@@ -506,19 +506,25 @@ function MainApp() {
   }, [language, dailyQuotes]);
 
 
-  const getTodayIndex = useCallback((data) => {
-    const today = new Date();
-    const formattedDate = moment(today).format('D/M/YYYY');
-    console.log(`Looking for today's date: ${formattedDate} in prayer data`);
-    
-    const index = data.findIndex((item) => {
-      const dataDateNormalized = item.date.trim();
-      return dataDateNormalized === formattedDate;
-    });
-    
-    console.log(`Found today's index: ${index}`);
-    return index;
-  }, []);
+// Add this debug code temporarily to see what's happening
+const getTodayIndex = useCallback((data) => {
+  const today = new Date();
+  const formattedDate = moment(today).format('D/M/YYYY');
+  
+  // Normalize by converting both to Date objects for comparison
+  const todayObj = moment(formattedDate, ['D/M/YYYY', 'D/MM/YYYY']).toDate();
+  
+  const index = data.findIndex((item) => {
+    if (!item.date) return false;
+    // Parse the data date with flexible format
+    const dataDate = moment(item.date.trim(), ['D/M/YYYY', 'D/MM/YYYY']).toDate();
+    return dataDate.getDate() === todayObj.getDate() && 
+           dataDate.getMonth() === todayObj.getMonth() && 
+           dataDate.getFullYear() === todayObj.getFullYear();
+  });
+  
+  return index;
+}, []);
 
   const parsePrayerTime = useCallback((timeStr) => {
     const [hours, minutes] = timeStr.split(':').map(Number);

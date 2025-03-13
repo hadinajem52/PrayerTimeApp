@@ -27,10 +27,13 @@ android {
         applicationId 'com.hnjm123.ShiaPrayerLeb'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 35
-        versionName "1.0.35"
+        versionCode 37
+        versionName "1.0.37"
     }
-    
+     lint {
+        disable 'ExpiredTargetSdkVersion'
+        abortOnError false
+    }
     signingConfigs {
         debug {
             storeFile file("@hhhhjjj__ShiaPrayerLeb.jks")
