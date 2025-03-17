@@ -33,7 +33,8 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
       calibrating: "Calibrating Compass",
       calibrationInstructions: "Move your phone in a figure-8 pattern to calibrate the magnetometer.",
       calibrateCompass: "Calibrate Compass",
-      deviceNotFlat: "Place your phone on a flat surface for better accuracy"
+      deviceNotFlat: "Place your phone on a flat surface for better accuracy",
+      orientationNote: "For better accuracy, keep your device flat and parallel to the ground"
     },
     ar: {
       qiblaCompass: "بوصلة القبلة",
@@ -47,6 +48,7 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
       calibrationInstructions: "حرك هاتفك على شكل رقم 8 لمعايرة المغناطيسية.",
       calibrateCompass: "معايرة البوصلة",
       deviceNotFlat: "ضع هاتفك على سطح مستوٍ لدقة أفضل",
+      orientationNote: "للحصول على دقة أفضل، ابق هاتفك مستويًا وموازيًا للأرض"
     },
   };
   
@@ -64,7 +66,7 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
 
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [calibrationQuality, setCalibrationQuality] = useState('low');
-  const [deviceIsFlat, setDeviceIsFlat] = useState(false);
+  // Removing deviceIsFlat state
 
   const animatedRotation = useRef(new Animated.Value(0)).current;
   const lastRotationRef = useRef(0);
@@ -198,34 +200,6 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
       lastRotationRef.current = targetRotation;
     });
   }, [smoothedHeading, qiblaDirection, animatedRotation]);
-  useEffect(() => {
-    const accelerometerConfig = {
-      updateInterval: 100  // in milliseconds (10 updates per second)
-    };
-    
-    // Use the accelerometer from Sensors package
-    let subscription;
-    try {
-      if (Sensors && Sensors.accelerometer) {
-        subscription = Sensors.accelerometer.subscribe(({ x, y, z }) => {
-          // Check if the device is relatively flat (z-axis pointing up)
-          const isFlat = Math.abs(z) > 9 && Math.abs(x) < 1 && Math.abs(y) < 1;
-          setDeviceIsFlat(isFlat);
-        });
-      }
-    } catch (error) {
-      console.warn('Accelerometer error:', error);
-      // Set default to true if accelerometer fails
-      setDeviceIsFlat(true);
-    }
-    
-    return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
-    };
-  }, []);
- 
 
   const startCalibration = () => {
     setIsCalibrating(true);
@@ -300,16 +274,13 @@ const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} 
       ) : (
         <View style={styles.mainContent}>
 
-
-          {/* Show warning if device is not flat */}
-          {!deviceIsFlat && (
-            <View style={styles.warningBanner}>
-              <Icon name="warning" size={18} color="#FF9500" />
-              <Text style={styles.warningText}>
-                {TRANSLATIONS[language].deviceNotFlat}
-              </Text>
-            </View>
-          )}
+          {/* Static orientation note */}
+          <View style={styles.noteContainer}>
+            <Icon name="information-circle" size={18} color={isDarkMode ? "#FFA500" : "#007AFF"} />
+            <Text style={[styles.noteText, isDarkMode && styles.darkNoteText]}>
+              {TRANSLATIONS[language].orientationNote}
+            </Text>
+          </View>
 
           {/* Animated info section */}
           <Animated.View style={styles.infoContainer}>
@@ -675,20 +646,25 @@ const styles = StyleSheet.create({
   darkCalibrateButtonText: {
     color: '#FFF',
   },
-  warningBanner: {
+  noteContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF3E0',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginTop: 10,
-    marginBottom: 5,
+    backgroundColor: isDarkMode => isDarkMode ? 'rgba(255, 165, 0, 0.1)' : 'rgba(102, 204, 255, 0.1)',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    marginVertical: 10,
+    marginHorizontal: 15,
+    width: '90%',
   },
-  warningText: {
-    color: '#FF6600',
-    marginLeft: 8,
+  noteText: {
+    color: '#333',
+    marginLeft: 10,
     fontSize: 14,
+    flexShrink: 1,
+  },
+  darkNoteText: {
+    color: '#DDD',
   },
 });
 
