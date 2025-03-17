@@ -178,14 +178,30 @@ export const useNotificationScheduler = (language) => {
       return null;
     }
     
-    // Format date to match the format in prayer times data (D/M/YYYY)
-    const formattedDate = moment(date).format('D/M/YYYY');
+    // Create a moment object for the target date
+    const targetDate = moment(date);
+    const targetDay = targetDate.date(); // Day of month (1-31)
+    const targetMonth = targetDate.month() + 1; // Month is 0-indexed in moment
+    const targetYear = targetDate.year();
     
-    // Find prayer times for the specified date
-    const dayData = prayerTimes[location].find(day => day.date.trim() === formattedDate);
+    // Find prayer times with more robust date matching
+    const dayData = prayerTimes[location].find(day => {
+      if (!day.date) return false;
+      
+      // Parse the date parts from the data
+      const dateParts = day.date.trim().split('/');
+      if (dateParts.length !== 3) return false;
+      
+      const dayPart = parseInt(dateParts[0], 10);
+      const monthPart = parseInt(dateParts[1], 10);
+      const yearPart = parseInt(dateParts[2], 10);
+      
+      // Compare the numeric values directly
+      return dayPart === targetDay && monthPart === targetMonth && yearPart === targetYear;
+    });
     
     if (!dayData) {
-      console.log(`[Notification] No prayer data for ${formattedDate} in ${location}`);
+      console.log(`[Notification] No prayer data for ${targetDay}/${targetMonth}/${targetYear} in ${location}`);
       return null;
     }
     
