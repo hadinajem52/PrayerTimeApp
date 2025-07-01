@@ -45,6 +45,19 @@ const TRANSLATIONS = {
     tryAgain: 'Try Again',
     refresh: 'Tap to refresh or calibrate your device by moving it in a figure-8 pattern',
     calibrate: 'Calibrate',
+    // Sensor status translations
+    sensorStatus: 'Sensor Status',
+    showSensorStatus: 'Show Sensor Status',
+    gps: 'GPS',
+    compass: 'Compass',
+    magnetometer: 'Magnetometer',
+    accelerometer: 'Accelerometer',
+    gyroscope: 'Gyroscope',
+    active: 'Active',
+    inactive: 'Inactive',
+    available: 'Available',
+    unavailable: 'Unavailable',
+    unknown: 'Unknown',
   },
   ar: {
     title: 'بوصلة القبلة',
@@ -60,12 +73,25 @@ const TRANSLATIONS = {
     tryAgain: 'أعد المحاولة',
     refresh: 'اضغط للتحديث أو المعايرة بتحريك الجهاز في شكل الرقم 8',
     calibrate: 'معايرة',
+    // Sensor status translations
+    sensorStatus: 'حالة الحساسات',
+    showSensorStatus: 'إظهار حالة الحساسات',
+    gps: 'نظام تحديد المواقع',
+    compass: 'البوصلة',
+    magnetometer: 'مقياس المغناطيسية',
+    accelerometer: 'مقياس التسارع',
+    gyroscope: 'الجيروسكوب',
+    active: 'نشط',
+    inactive: 'غير نشط',
+    available: 'متاح',
+    unavailable: 'غير متاح',
+    unknown: 'غير معروف',
   },
 };
 
 const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
   const [heading, setHeading] = useState(0);
-  const [qiblaDirection, setQiblaDirection] = useState(0);
+  const [qiblaDirection, setQiblaDirection] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [isLocationEnabled, setIsLocationEnabled] = useState(false);
   const [isCompassEnabled, setIsCompassEnabled] = useState(false);
@@ -73,6 +99,16 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
   const [distance, setDistance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Sensor status states
+  const [showSensorStatus, setShowSensorStatus] = useState(false);
+  const [sensorStatus, setSensorStatus] = useState({
+    gps: 'unknown',
+    compass: 'unknown',
+    magnetometer: 'unknown',
+    accelerometer: 'unknown',
+    gyroscope: 'unknown',
+  });
 
   const compassRotation = useRef(new Animated.Value(0)).current;
   const needleRotation = useRef(new Animated.Value(0)).current;
@@ -144,6 +180,8 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
           latitude, longitude,
           KAABA_COORDINATES.latitude, KAABA_COORDINATES.longitude
         );
+        console.log('User location:', latitude, longitude);
+        console.log('Qibla direction:', bearing);
         setQiblaDirection(bearing);
         
         // Calculate distance to Kaaba
@@ -155,11 +193,18 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
         
         setIsLoading(false);
         setError(null);
+        
+        // Update sensor status
+        updateSensorStatus();
       },
       (error) => {
         console.log('Location error:', error);
         setError(t.locationError);
         setIsLoading(false);
+        setIsLocationEnabled(false);
+        
+        // Update sensor status
+        updateSensorStatus();
       },
       {
         enableHighAccuracy: true,
@@ -171,27 +216,54 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
 
   // Start compass heading updates
   const startCompass = () => {
-    const degree_update_rate = 3; // Update every 3 degrees change
+    const degree_update_rate = 1; // Update every 1 degree change for more responsiveness
     
-    CompassHeading.start(degree_update_rate, (compassHeading) => {
-      setHeading(compassHeading);
-      setIsCompassEnabled(true);
-      
-      // Smooth rotation animation
-      Animated.timing(compassRotation, {
-        toValue: -compassHeading,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-      
-      // Calculate needle rotation relative to Qibla
-      const needleAngle = qiblaDirection - compassHeading;
-      Animated.timing(needleRotation, {
-        toValue: needleAngle,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    });
+    try {
+      CompassHeading.start(degree_update_rate, (compassData) => {
+        console.log('Received heading update:', compassData); // Debug log
+        
+        // Extract heading value - it might be an object or a number
+        let headingValue;
+        if (typeof compassData === 'object' && compassData.heading !== undefined) {
+          headingValue = compassData.heading;
+        } else if (typeof compassData === 'number') {
+          headingValue = compassData;
+        } else {
+          console.warn('Invalid compass data:', compassData);
+          return;
+        }
+        
+        console.log('Compass heading:', headingValue); // Debug log
+        setHeading(headingValue);
+        setIsCompassEnabled(true);
+        
+        // Update sensor status when compass starts working
+        updateSensorStatus();
+        
+        // Smooth rotation animation
+        Animated.timing(compassRotation, {
+          toValue: -headingValue,
+          duration: 100, // Faster animation for better responsiveness
+          useNativeDriver: true,
+        }).start();
+        
+        // Calculate needle rotation relative to Qibla
+        if (qiblaDirection !== null && !isNaN(qiblaDirection)) {
+          const needleAngle = qiblaDirection - headingValue;
+          console.log('Qibla direction:', qiblaDirection, 'Needle angle:', needleAngle); // Debug log
+          Animated.timing(needleRotation, {
+            toValue: needleAngle,
+            duration: 100,
+            useNativeDriver: true,
+          }).start();
+        }
+      });
+    } catch (error) {
+      console.error('Error starting compass:', error);
+      setError('Compass not available on this device');
+      setIsCompassEnabled(false);
+      updateSensorStatus();
+    }
   };
 
   // Stop compass updates
@@ -225,9 +297,9 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
     
     if (hasPermission) {
       getCurrentLocation();
-      startCompass();
       startPulseAnimation();
-    } else {        setError(t.locationPermissionError);
+    } else {
+      setError(t.locationPermissionError);
       setIsLoading(false);
     }
   };
@@ -238,6 +310,118 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
     getCurrentLocation();
   };
 
+  // Update sensor status
+  const updateSensorStatus = () => {
+    const newSensorStatus = {
+      gps: isLocationEnabled ? 'active' : 'inactive',
+      compass: isCompassEnabled ? 'active' : 'inactive',
+      magnetometer: isCompassEnabled ? 'available' : 'unavailable',
+      accelerometer: 'unknown', // Would need additional sensor libraries to detect
+      gyroscope: 'unknown', // Would need additional sensor libraries to detect
+    };
+    
+    setSensorStatus(newSensorStatus);
+  };
+
+  // Check sensor availability (basic implementation)
+  const checkSensorAvailability = () => {
+    // Update GPS status based on location permission and availability
+    const gpsStatus = isLocationEnabled ? 'available' : 'unavailable';
+    
+    // Update compass status based on compass availability
+    const compassStatus = isCompassEnabled ? 'available' : 'unavailable';
+    
+    setSensorStatus(prev => ({
+      ...prev,
+      gps: gpsStatus,
+      compass: compassStatus,
+      magnetometer: compassStatus, // Compass usually uses magnetometer
+    }));
+  };
+
+  // Get sensor status color
+  const getSensorStatusColor = (status) => {
+    switch (status) {
+      case 'active':
+      case 'available':
+        return '#4CAF50'; // Green
+      case 'inactive':
+      case 'unavailable':
+        return '#F44336'; // Red
+      case 'unknown':
+      default:
+        return '#FF9800'; // Orange
+    }
+  };
+
+  // Get sensor status text with translation
+  const getSensorStatusText = (status) => {
+    switch (status) {
+      case 'active':
+        return t.active;
+      case 'inactive':
+        return t.inactive;
+      case 'available':
+        return t.available;
+      case 'unavailable':
+        return t.unavailable;
+      case 'unknown':
+      default:
+        return t.unknown;
+    }
+  };
+
+  // Sensor Status Component
+  const SensorStatusDisplay = () => {
+    if (!showSensorStatus) return null;
+    
+    const sensors = [
+      { key: 'gps', name: t.gps, icon: 'location' },
+      { key: 'compass', name: t.compass, icon: 'compass' },
+      { key: 'magnetometer', name: t.magnetometer, icon: 'magnet' },
+      { key: 'accelerometer', name: t.accelerometer, icon: 'speedometer' },
+      { key: 'gyroscope', name: t.gyroscope, icon: 'refresh' },
+    ];
+
+    return (
+      <View style={[styles.sensorStatusContainer, isDarkMode && styles.darkSensorStatusContainer]}>
+        <Text style={[styles.sensorStatusTitle, isDarkMode && styles.darkText]}>
+          {t.sensorStatus}
+        </Text>
+        {sensors.map((sensor) => (
+          <View key={sensor.key} style={styles.sensorRow}>
+            <View style={styles.sensorInfo}>
+              <Icon 
+                name={sensor.icon} 
+                size={moderateScale(16)} 
+                color={getSensorStatusColor(sensorStatus[sensor.key])} 
+              />
+              <Text style={[styles.sensorName, isDarkMode && styles.darkText]}>
+                {sensor.name}
+              </Text>
+            </View>
+            <View style={styles.sensorStatusBadge}>
+              <View 
+                style={[
+                  styles.sensorStatusDot, 
+                  { backgroundColor: getSensorStatusColor(sensorStatus[sensor.key]) }
+                ]} 
+              />
+              <Text 
+                style={[
+                  styles.sensorStatusText, 
+                  { color: getSensorStatusColor(sensorStatus[sensor.key]) }
+                ]}
+              >
+                {getSensorStatusText(sensorStatus[sensor.key])}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   useEffect(() => {
     initializeCompass();
     
@@ -245,6 +429,25 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
       stopCompass();
     };
   }, []);
+
+  // Start compass when qibla direction is available
+  useEffect(() => {
+    if (qiblaDirection !== null && !isCompassEnabled && isLocationEnabled) {
+      console.log('Starting compass with qibla direction:', qiblaDirection);
+      startCompass();
+    }
+  }, [qiblaDirection, isLocationEnabled]);
+
+  // Monitor sensor status changes
+  useEffect(() => {
+    updateSensorStatus();
+  }, [isLocationEnabled, isCompassEnabled]);
+
+  // Update sensor status on location or compass change
+  useEffect(() => {
+    updateSensorStatus();
+    checkSensorAvailability();
+  }, [isLocationEnabled, isCompassEnabled]);
 
   // Get accuracy color based on GPS accuracy
   const getAccuracyColor = () => {
@@ -275,10 +478,22 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
           <Text style={[styles.headerTitle, isDarkMode && styles.darkText]}>
             {t.title}
           </Text>
-          <View style={styles.headerSpacer} />
+          <TouchableOpacity 
+            style={styles.settingsButton} 
+            onPress={() => setShowSensorStatus(!showSensorStatus)}
+          >
+            <Icon 
+              name="settings-outline" 
+              size={moderateScale(24)} 
+              color={showSensorStatus ? (isDarkMode ? '#66CCFF' : '#007AFF') : (isDarkMode ? '#FFF' : '#333')} 
+            />
+          </TouchableOpacity>
         </View>
 
         <View style={[styles.card, isDarkMode && styles.darkCard]}>
+          {/* Sensor Status Display */}
+          <SensorStatusDisplay />
+          
           <View style={styles.loadingContainer}>
             <Animated.View style={[styles.loadingCircle, { transform: [{ scale: pulseAnim }] }]}>
               <FontAwesome5 name="kaaba" size={moderateScale(40)} color={isDarkMode ? '#66CCFF' : '#007AFF'} />
@@ -307,10 +522,22 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
           <Text style={[styles.headerTitle, isDarkMode && styles.darkText]}>
             {t.title}
           </Text>
-          <View style={styles.headerSpacer} />
+          <TouchableOpacity 
+            style={styles.settingsButton} 
+            onPress={() => setShowSensorStatus(!showSensorStatus)}
+          >
+            <Icon 
+              name="settings-outline" 
+              size={moderateScale(24)} 
+              color={showSensorStatus ? (isDarkMode ? '#66CCFF' : '#007AFF') : (isDarkMode ? '#FFF' : '#333')} 
+            />
+          </TouchableOpacity>
         </View>
 
         <View style={[styles.card, isDarkMode && styles.darkCard]}>
+          {/* Sensor Status Display */}
+          <SensorStatusDisplay />
+          
           <View style={styles.errorContainer}>
             <Icon name="location-outline" size={moderateScale(50)} color="#F44336" />
             <Text style={[styles.errorText, isDarkMode && styles.darkText]}>
@@ -339,10 +566,22 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
         <Text style={[styles.headerTitle, isDarkMode && styles.darkText]}>
           {t.title}
         </Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity 
+          style={styles.settingsButton} 
+          onPress={() => setShowSensorStatus(!showSensorStatus)}
+        >
+          <Icon 
+            name="settings-outline" 
+            size={moderateScale(24)} 
+            color={showSensorStatus ? (isDarkMode ? '#66CCFF' : '#007AFF') : (isDarkMode ? '#FFF' : '#333')} 
+          />
+        </TouchableOpacity>
       </View>
 
       <View style={[styles.card, isDarkMode && styles.darkCard]}>
+        
+        {/* Sensor Status Display */}
+        <SensorStatusDisplay />
         
         {/* Accuracy and Distance Info */}
         <View style={styles.infoContainer}>
@@ -399,8 +638,7 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
                       isDarkMode && isMainDirection && styles.darkMainDegreeMarker,
                       {
                         transform: [
-                          { rotate: `${angle}deg` },
-                          { translateY: -COMPASS_SIZE / 2 + 10 }
+                          { rotate: `${angle}deg` }
                         ]
                       }
                     ]}
@@ -429,6 +667,14 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
             </View>
           </Animated.View>
 
+          {/* Static Test Needle - for debugging */}
+          <View style={[styles.needleContainer, { transform: [{ rotate: '45deg' }] }]}>
+            <View style={[styles.needle, { opacity: 0.3 }]}>
+              <View style={[styles.needlePoint, { borderBottomColor: '#00FF00' }]} />
+              <View style={[styles.needleBody, { backgroundColor: '#00FF00' }]} />
+            </View>
+          </View>
+
           {/* Center Kaaba Icon */}
           <View style={[styles.centerIcon, isDarkMode && styles.darkCenterIcon]}>
             <FontAwesome5 name="kaaba" size={moderateScale(24)} color={isDarkMode ? '#66CCFF' : '#007AFF'} />
@@ -437,12 +683,14 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
           {/* Direction Indicator */}
           <View style={styles.directionIndicator}>
             <Text style={[styles.directionText, isDarkMode && styles.darkText]}>
-              {Math.round(qiblaDirection)}°
+              {qiblaDirection !== null ? Math.round(qiblaDirection) : 0}°
             </Text>
             <Text style={[styles.directionLabel, isDarkMode && styles.darkText]}>
               {t.toMecca}
             </Text>
           </View>
+
+          
         </View>
 
         {/* Calibration Reminder */}
@@ -452,6 +700,9 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
             {t.refresh}
           </Text>
         </TouchableOpacity>
+
+        {/* Sensor Status Display - Always show in dark mode for better visibility */}
+        <SensorStatusDisplay />
       </View>
     </SafeAreaView>
   );
@@ -482,8 +733,61 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: moderateScale(5),
   },
-  headerSpacer: {
-    width: moderateScale(34), // Same width as close button to center title
+  settingsButton: {
+    padding: moderateScale(5),
+  },
+  // Sensor Status Styles
+  sensorStatusContainer: {
+    width: '100%',
+    backgroundColor: '#F8F9FA',
+    borderRadius: moderateScale(10),
+    padding: moderateScale(15),
+    marginBottom: moderateScale(15),
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+  },
+  darkSensorStatusContainer: {
+    backgroundColor: '#2A2A2A',
+    borderColor: '#444',
+  },
+  sensorStatusTitle: {
+    fontSize: moderateScale(16),
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: moderateScale(12),
+    textAlign: 'center',
+  },
+  sensorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(5),
+  },
+  sensorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  sensorName: {
+    fontSize: moderateScale(14),
+    color: '#333',
+    marginLeft: moderateScale(8),
+    flex: 1,
+  },
+  sensorStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sensorStatusDot: {
+    width: moderateScale(8),
+    height: moderateScale(8),
+    borderRadius: moderateScale(4),
+    marginRight: moderateScale(6),
+  },
+  sensorStatusText: {
+    fontSize: moderateScale(12),
+    fontWeight: '500',
   },
   card: {
     backgroundColor: '#FFF',
@@ -544,16 +848,23 @@ const styles = StyleSheet.create({
     width: COMPASS_SIZE,
     height: COMPASS_SIZE,
     borderRadius: COMPASS_SIZE / 2,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
+    borderWidth: 4,
+    borderColor: '#007AFF',
     backgroundColor: '#FAFAFA',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   darkCompassRose: {
-    borderColor: '#555',
+    borderColor: '#66CCFF',
     backgroundColor: '#2A2A2A',
+    shadowColor: '#FFF',
+    shadowOpacity: 0.1,
   },
   cardinalN: {
     position: 'absolute',
@@ -591,11 +902,16 @@ const styles = StyleSheet.create({
     width: 1,
     height: moderateScale(10),
     backgroundColor: '#CCC',
+    top: 0,
+    left: '50%',
+    marginLeft: -0.5,
+    transformOrigin: 'bottom center',
   },
   mainDegreeMarker: {
     width: 2,
     height: moderateScale(15),
     backgroundColor: '#007AFF',
+    marginLeft: -1,
   },
   darkMainDegreeMarker: {
     backgroundColor: '#66CCFF',
@@ -604,20 +920,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: COMPASS_SIZE * 0.8,
     height: COMPASS_SIZE * 0.8,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
+    zIndex: 10,
   },
   needle: {
     width: 4,
     height: COMPASS_SIZE * 0.6,
     alignItems: 'center',
+    justifyContent: 'flex-start',
   },
   needlePoint: {
     width: 0,
     height: 0,
-    borderLeftWidth: moderateScale(8),
-    borderRightWidth: moderateScale(8),
-    borderBottomWidth: moderateScale(30),
+    borderLeftWidth: moderateScale(10),
+    borderRightWidth: moderateScale(10),
+    borderBottomWidth: moderateScale(40),
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderBottomColor: '#FF4444',
@@ -627,18 +945,20 @@ const styles = StyleSheet.create({
     borderBottomColor: '#FF6666',
   },
   needleBody: {
-    width: moderateScale(4),
-    height: COMPASS_SIZE * 0.3,
+    width: moderateScale(6),
+    height: COMPASS_SIZE * 0.25,
     backgroundColor: '#FF4444',
+    borderRadius: moderateScale(3),
   },
   darkNeedleBody: {
     backgroundColor: '#FF6666',
   },
   needleTail: {
-    width: moderateScale(6),
-    height: moderateScale(20),
+    width: moderateScale(8),
+    height: moderateScale(30),
     backgroundColor: '#DDD',
     marginTop: moderateScale(2),
+    borderRadius: moderateScale(4),
   },
   centerIcon: {
     position: 'absolute',
@@ -652,14 +972,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 15,
+    zIndex: 20,
   },
   darkCenterIcon: {
     backgroundColor: '#333',
   },
   directionIndicator: {
     position: 'absolute',
-    top: -moderateScale(40),
+    top: -moderateScale(60),
     alignItems: 'center',
   },
   directionText: {
@@ -671,6 +992,16 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(12),
     color: '#666',
     marginTop: moderateScale(2),
+  },
+  headingIndicator: {
+    position: 'absolute',
+    bottom: -moderateScale(40),
+    alignItems: 'center',
+  },
+  headingText: {
+    fontSize: moderateScale(12),
+    color: '#999',
+    fontFamily: 'monospace',
   },
   calibrationContainer: {
     flexDirection: 'row',
@@ -720,6 +1051,58 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: moderateScale(16),
     fontWeight: '600',
+  },
+  sensorStatusContainer: {
+    width: '100%',
+    backgroundColor: '#F8F9FA',
+    borderRadius: moderateScale(10),
+    padding: moderateScale(15),
+    marginBottom: moderateScale(15),
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+  },
+  darkSensorStatusContainer: {
+    backgroundColor: '#2A2A2A',
+    borderColor: '#444',
+  },
+  sensorStatusTitle: {
+    fontSize: moderateScale(16),
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: moderateScale(12),
+    textAlign: 'center',
+  },
+  sensorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(5),
+  },
+  sensorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  sensorName: {
+    fontSize: moderateScale(14),
+    color: '#333',
+    marginLeft: moderateScale(8),
+    flex: 1,
+  },
+  sensorStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sensorStatusDot: {
+    width: moderateScale(8),
+    height: moderateScale(8),
+    borderRadius: moderateScale(4),
+    marginRight: moderateScale(6),
+  },
+  sensorStatusText: {
+    fontSize: moderateScale(12),
+    fontWeight: '500',
   },
 });
 

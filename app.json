@@ -16,16 +16,23 @@
       "icon": "./assets/favicon.png"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to determine Qibla direction.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to determine Qibla direction."
+      }
     },
     "android": {
       "versionCode": 29, 
-
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.hnjm123.ShiaPrayerLeb"
+      "package": "com.hnjm123.ShiaPrayerLeb",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
