@@ -1201,6 +1201,8 @@ if (language === 'ar') {
       <StatusBar translucent backgroundColor="transparent" />
       <UpdateManager language={language} />
       
+
+      
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
         {TRANSLATIONS[language].prayerTimes}
       </Text>
