@@ -3,668 +3,723 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
-  PermissionsAndroid,
-  Platform,
-  TouchableOpacity,
   Animated,
-  Easing,
-  ActivityIndicator,
+  Dimensions,
+  Image,
+  Alert,
+  Platform,
+  PermissionsAndroid,
+  TouchableOpacity,
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import CompassHeading from 'react-native-compass-heading';
+import { moderateScale, verticalScale } from 'react-native-size-matters';
+import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import Geolocation from 'react-native-geolocation-service';
+import CompassHeading from 'react-native-compass-heading';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as Sensors from 'react-native-sensors';
+import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
-const QiblaCompass = ({ isDarkMode = false, language = "en", onClose = () => {} }) => {
-  // Translations for English and Arabic
-  const TRANSLATIONS = {
-    en: {
-      qiblaCompass: "Qibla Compass",
-      deviceHeading: "Device Heading",
-      qiblaDirection: "Qibla Direction",
-      rotateNeedle: "Rotate Needle by",
-      magnetometerNotice: "Note: The magnetometer on some devices may provide inaccurate directions.",
-      close: "Close",
-      loading: "Loading Qibla direction...",
-      calibrating: "Calibrating Compass",
-      calibrationInstructions: "Move your phone in a figure-8 pattern to calibrate the magnetometer.",
-      calibrateCompass: "Calibrate Compass",
-      deviceNotFlat: "Place your phone on a flat surface for better accuracy",
-      orientationNote: "For better accuracy, keep your device flat and parallel to the ground"
-    },
-    ar: {
-      qiblaCompass: "بوصلة القبلة",
-      deviceHeading: "اتجاه الجهاز",
-      qiblaDirection: "اتجاه القبلة",
-      rotateNeedle: "تدوير الإبرة بمقدار",
-      magnetometerNotice: "ملاحظة: قد يوفر مقياس المغناطيسية في بعض الأجهزة اتجاهات غير دقيقة.",
-      close: "إغلاق",
-      loading: "جاري تحميل اتجاه القبلة...",
-      calibrating: "جاري معايرة البوصلة",
-      calibrationInstructions: "حرك هاتفك على شكل رقم 8 لمعايرة المغناطيسية.",
-      calibrateCompass: "معايرة البوصلة",
-      deviceNotFlat: "ضع هاتفك على سطح مستوٍ لدقة أفضل",
-      orientationNote: "للحصول على دقة أفضل، ابق هاتفك مستويًا وموازيًا للأرض"
-    },
-  };
-  
-  // We don't use deviceHeading directly, but keep the setter for the CompassHeading callback
-  const [, setDeviceHeading] = useState(0);
-  const [smoothedHeading, setSmoothedHeading] = useState(0);
-  const [headingReadings, setHeadingReadings] = useState([]);
-  const MAX_READINGS = 10; // Store last 10 readings for filtering
+const { width, height } = Dimensions.get('window');
+const COMPASS_SIZE = Math.min(width * 0.8, 300);
 
-  // Increase smoothing factor for more stability
-  const SMOOTHING_FACTOR = 0.15; // Increased from 0.1
+// Kaaba coordinates (Mecca, Saudi Arabia)
+const KAABA_COORDINATES = {
+  latitude: 21.4225,
+  longitude: 39.8262,
+};
+
+// Translations
+const TRANSLATIONS = {
+  en: {
+    title: 'Qibla Compass',
+    accuracy: 'Accuracy',
+    distance: 'Distance',
+    toMecca: 'to Mecca',
+    excellent: 'Excellent',
+    good: 'Good',
+    poor: 'Poor',
+    gettingLocation: 'Getting your location...',
+    locationError: 'Unable to get your location. Please check your GPS settings.',
+    locationPermissionError: 'Location permission is required to determine Qibla direction.',
+    tryAgain: 'Try Again',
+    refresh: 'Tap to refresh or calibrate your device by moving it in a figure-8 pattern',
+    calibrate: 'Calibrate',
+  },
+  ar: {
+    title: 'بوصلة القبلة',
+    accuracy: 'الدقة',
+    distance: 'المسافة',
+    toMecca: 'إلى مكة',
+    excellent: 'ممتاز',
+    good: 'جيد',
+    poor: 'ضعيف',
+    gettingLocation: 'جار تحديد موقعك...',
+    locationError: 'لا يمكن الحصول على موقعك. يرجى التحقق من إعدادات GPS.',
+    locationPermissionError: 'إذن الموقع مطلوب لتحديد اتجاه القبلة.',
+    tryAgain: 'أعد المحاولة',
+    refresh: 'اضغط للتحديث أو المعايرة بتحريك الجهاز في شكل الرقم 8',
+    calibrate: 'معايرة',
+  },
+};
+
+const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
+  const [heading, setHeading] = useState(0);
   const [qiblaDirection, setQiblaDirection] = useState(0);
-  const [location, setLocation] = useState(null);
-  const [currentAnimatedRotation, setCurrentAnimatedRotation] = useState(0);
+  const [userLocation, setUserLocation] = useState(null);
+  const [isLocationEnabled, setIsLocationEnabled] = useState(false);
+  const [isCompassEnabled, setIsCompassEnabled] = useState(false);
+  const [accuracy, setAccuracy] = useState(0);
+  const [distance, setDistance] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [isCalibrating, setIsCalibrating] = useState(false);
-  const [calibrationQuality, setCalibrationQuality] = useState('low');
-  // Removing deviceIsFlat state
+  const compassRotation = useRef(new Animated.Value(0)).current;
+  const needleRotation = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const animatedRotation = useRef(new Animated.Value(0)).current;
-  const lastRotationRef = useRef(0);
+  const t = TRANSLATIONS[language] || TRANSLATIONS.en;
 
-  useEffect(() => {
-    const id = animatedRotation.addListener(({ value }) => {
-      setCurrentAnimatedRotation(value);
-    });
-    return () => {
-      animatedRotation.removeListener(id);
-    };
-  }, [animatedRotation]);
+  // Calculate bearing between two coordinates
+  const calculateBearing = (lat1, lon1, lat2, lon2) => {
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const lat1Rad = lat1 * Math.PI / 180;
+    const lat2Rad = lat2 * Math.PI / 180;
 
-  useEffect(() => {
-    const degree_update_rate = 3; // Lower update rate for more stability
-    CompassHeading.start(degree_update_rate, ({ heading }) => {
-      // Add new reading to array
-      setHeadingReadings(prev => {
-        const newReadings = [...prev, heading];
-        if (newReadings.length > MAX_READINGS) {
-          return newReadings.slice(-MAX_READINGS);
-        }
-        return newReadings;
-      });
-      
-      // Apply median filter and then smooth
-      setSmoothedHeading(prev => {
-        // Get median value (helps eliminate outliers)
-        const sortedReadings = [...headingReadings, heading].sort((a, b) => a - b);
-        const median = sortedReadings[Math.floor(sortedReadings.length / 2)];
-        
-        // Apply smoothing algorithm
-        const smoothed = prev + SMOOTHING_FACTOR * ((median - prev + 540) % 360 - 180);
-        return (smoothed + 360) % 360;
-      });
-      
-      setDeviceHeading(heading);
-    });
-    return () => {
-      CompassHeading.stop();
-    };
-  }, [location, headingReadings]);
+    const y = Math.sin(dLon) * Math.cos(lat2Rad);
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - 
+              Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
 
-    
-  useEffect(() => {
-    let watchId;
-    const requestLocationPermission = async () => {
+    let bearing = Math.atan2(y, x) * 180 / Math.PI;
+    return (bearing + 360) % 360;
+  };
+
+  // Calculate distance between two coordinates (Haversine formula)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Request location permissions
+  const requestLocationPermission = async () => {
+    if (Platform.OS === 'android') {
       try {
-        if (Platform.OS === 'android') {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-            {
-              title: 'Location Permission',
-              message:
-                'This app needs access to your location to calculate Qibla direction',
-            }
-          );
-          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-            console.log('Location permission denied');
-            return;
-          }
-        }
-        watchId = Geolocation.watchPosition(
-          (position) => {
-            setLocation(position.coords);
-          },
-          (error) => console.error(error),
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
           {
-            enableHighAccuracy: true,
-            distanceFilter: 1,
-            interval: 5000,
-            fastestInterval: 2000,
+            title: 'Location Permission',
+            message: 'This app needs access to your location to determine Qibla direction.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
           }
         );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
         console.warn(err);
+        return false;
       }
-    };
+    }
+    return true;
+  };
 
-    requestLocationPermission();
+  // Get user's current location
+  const getCurrentLocation = () => {
+    Geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        setUserLocation({ latitude, longitude });
+        setAccuracy(accuracy);
+        setIsLocationEnabled(true);
+        
+        // Calculate Qibla direction
+        const bearing = calculateBearing(
+          latitude, longitude,
+          KAABA_COORDINATES.latitude, KAABA_COORDINATES.longitude
+        );
+        setQiblaDirection(bearing);
+        
+        // Calculate distance to Kaaba
+        const dist = calculateDistance(
+          latitude, longitude,
+          KAABA_COORDINATES.latitude, KAABA_COORDINATES.longitude
+        );
+        setDistance(dist);
+        
+        setIsLoading(false);
+        setError(null);
+      },
+      (error) => {
+        console.log('Location error:', error);
+        setError(t.locationError);
+        setIsLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 10000,
+      }
+    );
+  };
 
+  // Start compass heading updates
+  const startCompass = () => {
+    const degree_update_rate = 3; // Update every 3 degrees change
+    
+    CompassHeading.start(degree_update_rate, (compassHeading) => {
+      setHeading(compassHeading);
+      setIsCompassEnabled(true);
+      
+      // Smooth rotation animation
+      Animated.timing(compassRotation, {
+        toValue: -compassHeading,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+      
+      // Calculate needle rotation relative to Qibla
+      const needleAngle = qiblaDirection - compassHeading;
+      Animated.timing(needleRotation, {
+        toValue: needleAngle,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  // Stop compass updates
+  const stopCompass = () => {
+    CompassHeading.stop();
+    setIsCompassEnabled(false);
+  };
+
+  // Pulse animation for accuracy indicator
+  const startPulseAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+
+  // Initialize compass and location
+  const initializeCompass = async () => {
+    setIsLoading(true);
+    const hasPermission = await requestLocationPermission();
+    
+    if (hasPermission) {
+      getCurrentLocation();
+      startCompass();
+      startPulseAnimation();
+    } else {        setError(t.locationPermissionError);
+      setIsLoading(false);
+    }
+  };
+
+  // Refresh location and compass
+  const refreshCompass = () => {
+    setIsLoading(true);
+    getCurrentLocation();
+  };
+
+  useEffect(() => {
+    initializeCompass();
+    
     return () => {
-      if (watchId !== undefined) {
-        Geolocation.clearWatch(watchId);
-      }
+      stopCompass();
     };
   }, []);
 
-  useEffect(() => {
-    if (location) {
-      const { latitude, longitude } = location;
-      const bearing = calculateBearing(latitude, longitude);
-      setQiblaDirection(bearing);
-    }
-  }, [location]);
-
-  const calculateBearing = (
-    lat1,
-    lon1,
-    lat2 = 21.4225, // Kaaba latitude
-    lon2 = 39.8262  // Kaaba longitude
-  ) => {
-    const toRad = (deg) => (deg * Math.PI) / 180;
-    const toDeg = (rad) => (rad * 180) / Math.PI;
-
-    const φ1 = toRad(lat1);
-    const φ2 = toRad(lat2);
-    const Δλ = toRad(lon2 - lon1);
-
-    const y = Math.sin(Δλ) * Math.cos(φ2);
-    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
-    const bearing = (toDeg(Math.atan2(y, x)) + 360) % 360;
-    return bearing;
+  // Get accuracy color based on GPS accuracy
+  const getAccuracyColor = () => {
+    if (accuracy <= 5) return '#4CAF50'; // Excellent
+    if (accuracy <= 10) return '#FF9800'; // Good
+    return '#F44336'; // Poor
   };
 
-  useEffect(() => {
-    const newRotation = ((qiblaDirection - smoothedHeading) + 360) % 360;
-    let diff = newRotation - lastRotationRef.current;
-    if (diff > 180) {
-      diff -= 360;
-    } else if (diff < -180) {
-      diff += 360;
-    }
-    const targetRotation = lastRotationRef.current + diff;
-    Animated.timing(animatedRotation, {
-      toValue: targetRotation,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
-      lastRotationRef.current = targetRotation;
-    });
-  }, [smoothedHeading, qiblaDirection, animatedRotation]);
-
-  const startCalibration = () => {
-    setIsCalibrating(true);
-    // After 10 seconds of movement, end calibration
-    setTimeout(() => {
-      setIsCalibrating(false);
-      setCalibrationQuality('high');
-    }, 10000);
+  // Get accuracy text
+  const getAccuracyText = () => {
+    if (accuracy <= 5) return t.excellent;
+    if (accuracy <= 10) return t.good;
+    return t.poor;
   };
 
-  const compassSize = 220; 
-  const center = compassSize / 2; 
-  const kaabaSize = 35;
-  const kaabaMargin = 11;
-  const rIcon = center + (kaabaSize / 2) + kaabaMargin;
-  const kaabaAngleRad = (currentAnimatedRotation - 90) * (Math.PI / 180);
-  const kaabaX = center + rIcon * Math.cos(kaabaAngleRad) - (kaabaSize / 2);
-  const kaabaY = center + rIcon * Math.sin(kaabaAngleRad) - (kaabaSize / 2);
-
-  if (!location) {
+  if (isLoading) {
     return (
-      <SafeAreaView
-        style={[styles.safeArea, isDarkMode && styles.darkContainer]}
-      >
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator
-            size="large"
-            color={isDarkMode ? '#66CCFF' : '#007AFF'}
-          />
-          <Text style={[styles.loadingText, isDarkMode && styles.darkLoadingText]}>
-            {TRANSLATIONS[language].loading}
+      <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
+        <StatusBar 
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
+          backgroundColor={isDarkMode ? '#222' : '#EAEFF2'} 
+        />
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Icon name="close" size={moderateScale(24)} color={isDarkMode ? '#FFF' : '#333'} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, isDarkMode && styles.darkText]}>
+            {t.title}
           </Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        <View style={[styles.card, isDarkMode && styles.darkCard]}>
+          <View style={styles.loadingContainer}>
+            <Animated.View style={[styles.loadingCircle, { transform: [{ scale: pulseAnim }] }]}>
+              <FontAwesome5 name="kaaba" size={moderateScale(40)} color={isDarkMode ? '#66CCFF' : '#007AFF'} />
+            </Animated.View>
+            <Text style={[styles.loadingText, isDarkMode && styles.darkText]}>
+              {t.gettingLocation}
+            </Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
+        <StatusBar 
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
+          backgroundColor={isDarkMode ? '#222' : '#EAEFF2'} 
+        />
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Icon name="close" size={moderateScale(24)} color={isDarkMode ? '#FFF' : '#333'} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, isDarkMode && styles.darkText]}>
+            {t.title}
+          </Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        <View style={[styles.card, isDarkMode && styles.darkCard]}>
+          <View style={styles.errorContainer}>
+            <Icon name="location-outline" size={moderateScale(50)} color="#F44336" />
+            <Text style={[styles.errorText, isDarkMode && styles.darkText]}>
+              {error}
+            </Text>
+            <TouchableOpacity style={styles.retryButton} onPress={initializeCompass}>
+              <Text style={styles.retryButtonText}>{t.tryAgain}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView
-      style={[
-        styles.safeArea,
-        isDarkMode && styles.darkContainer,
-      ]}
-    >
+    <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
       <StatusBar 
-        barStyle={isDarkMode ? "light-content" : "dark-content"}
-        backgroundColor="transparent"
-        translucent={true}
+        barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
+        backgroundColor={isDarkMode ? '#222' : '#EAEFF2'} 
       />
-      
       {/* Header */}
-      <View style={[styles.header, isDarkMode && styles.darkHeader]}>
-        <Text style={[styles.headerText, isDarkMode && styles.darkHeaderText]}>
-          {TRANSLATIONS[language].qiblaCompass}
-        </Text>
+      <View style={styles.header}>
         <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Icon name="close-circle" size={28} color={isDarkMode ? "#FFA500" : "#007AFF"} />
+          <Icon name="close" size={moderateScale(24)} color={isDarkMode ? '#FFF' : '#333'} />
         </TouchableOpacity>
+        <Text style={[styles.headerTitle, isDarkMode && styles.darkText]}>
+          {t.title}
+        </Text>
+        <View style={styles.headerSpacer} />
       </View>
 
-      {/* Main content - without card wrapper */}
-      {!location ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator
-            size="large"
-            color={isDarkMode ? '#66CCFF' : '#007AFF'}
-          />
-          <Text style={[styles.loadingText, isDarkMode && styles.darkLoadingText]}>
-            {TRANSLATIONS[language].loading}
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.mainContent}>
-
-          {/* Static orientation note */}
-          <View style={styles.noteContainer}>
-            <Icon name="information-circle" size={18} color={isDarkMode ? "#FFA500" : "#007AFF"} />
-            <Text style={[styles.noteText, isDarkMode && styles.darkNoteText]}>
-              {TRANSLATIONS[language].orientationNote}
-            </Text>
-          </View>
-
-          {/* Animated info section */}
-          <Animated.View style={styles.infoContainer}>
-            <View style={[styles.infoBox, isDarkMode && styles.darkInfoBox]}>
-              <Icon name="compass" size={20} color={isDarkMode ? "#FFA500" : "#007AFF"} />
-              <Text style={[styles.infoLabel, isDarkMode && styles.darkInfoLabel]}>
-                {TRANSLATIONS[language].deviceHeading}:
-              </Text>
-              <Text style={[styles.infoValue, isDarkMode && styles.darkInfoValue]}>
-                {smoothedHeading.toFixed(1)}°
+      <View style={[styles.card, isDarkMode && styles.darkCard]}>
+        
+        {/* Accuracy and Distance Info */}
+        <View style={styles.infoContainer}>
+          <View style={styles.infoRow}>
+            <View style={styles.infoItem}>
+              <Icon name="location" size={moderateScale(16)} color={getAccuracyColor()} />
+              <Text style={[styles.infoLabel, isDarkMode && styles.darkText]}>{t.accuracy}</Text>
+              <Text style={[styles.infoValue, { color: getAccuracyColor() }]}>
+                {getAccuracyText()}
               </Text>
             </View>
+            <View style={styles.infoItem}>
+              <FontAwesome5 name="kaaba" size={moderateScale(14)} color={isDarkMode ? '#66CCFF' : '#007AFF'} />
+              <Text style={[styles.infoLabel, isDarkMode && styles.darkText]}>{t.distance}</Text>
+              <Text style={[styles.infoValue, isDarkMode && styles.darkText]}>
+                {distance.toFixed(0)} km
+              </Text>
+            </View>
+          </View>
+        </View>
 
-            <View style={[styles.infoBox, isDarkMode && styles.darkInfoBox]}>
-              <Icon name="location" size={20} color={isDarkMode ? "#FFA500" : "#007AFF"} />
-              <Text style={[styles.infoLabel, isDarkMode && styles.darkInfoLabel]}>
-                {TRANSLATIONS[language].qiblaDirection}:
-              </Text>
-              <Text style={[styles.infoValue, isDarkMode && styles.darkInfoValue]}>
-                {qiblaDirection.toFixed(1)}°
-              </Text>
+        {/* Compass Container */}
+        <View style={styles.compassContainer}>
+          {/* Compass Base */}
+          <Animated.View 
+            style={[
+              styles.compassBase,
+              {
+                transform: [{ rotate: compassRotation.interpolate({
+                  inputRange: [0, 360],
+                  outputRange: ['0deg', '360deg']
+                })}]
+              }
+            ]}
+          >
+            {/* Compass Rose */}
+            <View style={[styles.compassRose, isDarkMode && styles.darkCompassRose]}>
+              {/* Cardinal Directions */}
+              <Text style={[styles.cardinalN, isDarkMode && styles.darkCardinal]}>N</Text>
+              <Text style={[styles.cardinalE, isDarkMode && styles.darkCardinal]}>E</Text>
+              <Text style={[styles.cardinalS, isDarkMode && styles.darkCardinal]}>S</Text>
+              <Text style={[styles.cardinalW, isDarkMode && styles.darkCardinal]}>W</Text>
+              
+              {/* Degree Markers */}
+              {Array.from({ length: 36 }, (_, i) => {
+                const angle = i * 10;
+                const isMainDirection = angle % 90 === 0;
+                return (
+                  <View
+                    key={i}
+                    style={[
+                      styles.degreeMarker,
+                      isMainDirection && styles.mainDegreeMarker,
+                      isDarkMode && isMainDirection && styles.darkMainDegreeMarker,
+                      {
+                        transform: [
+                          { rotate: `${angle}deg` },
+                          { translateY: -COMPASS_SIZE / 2 + 10 }
+                        ]
+                      }
+                    ]}
+                  />
+                );
+              })}
             </View>
           </Animated.View>
 
-          {/* Compass View */}
-          <View style={styles.compassWrapper}>
-            <LinearGradient
-              colors={isDarkMode ? ['#2A2A2A', '#333', '#2A2A2A'] : ['#F0F8FF', '#F5F5F5', '#F0F8FF']}
-              style={[
-                styles.compassContainer,
-                {
-                  width: compassSize,
-                  height: compassSize,
-                  borderRadius: compassSize / 2,
-                },
-              ]}
-            >
-              {/* Compass markers */}
-              <View style={[styles.compassMarker, styles.northMarker]} />
-              <View style={[styles.compassMarker, styles.eastMarker]} />
-              <View style={[styles.compassMarker, styles.southMarker]} />
-              <View style={[styles.compassMarker, styles.westMarker]} />
-              
-              {/* Cardinal directions */}
-              <Text style={[styles.cardinalDirection, styles.northDirection, isDarkMode && styles.darkCardinalDirection]}>N</Text>
-              <Text style={[styles.cardinalDirection, styles.eastDirection, isDarkMode && styles.darkCardinalDirection]}>E</Text>
-              <Text style={[styles.cardinalDirection, styles.southDirection, isDarkMode && styles.darkCardinalDirection]}>S</Text>
-              <Text style={[styles.cardinalDirection, styles.westDirection, isDarkMode && styles.darkCardinalDirection]}>W</Text>
+          {/* Qibla Needle */}
+          <Animated.View
+            style={[
+              styles.needleContainer,
+              {
+                transform: [{ rotate: needleRotation.interpolate({
+                  inputRange: [0, 360],
+                  outputRange: ['0deg', '360deg']
+                })}]
+              }
+            ]}
+          >
+            <View style={styles.needle}>
+              <View style={[styles.needlePoint, isDarkMode && styles.darkNeedlePoint]} />
+              <View style={[styles.needleBody, isDarkMode && styles.darkNeedleBody]} />
+              <View style={styles.needleTail} />
+            </View>
+          </Animated.View>
 
-              {/* Compass Needle */}
-              <Animated.Image
-                source={require('./assets/compass-needle.png')}
-                style={[
-                  styles.needle,
-                  {
-                    transform: [
-                      {
-                        rotate: animatedRotation.interpolate({
-                          inputRange: [-360, 360],
-                          outputRange: ['-360deg', '360deg'],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-
-              {/* Kaaba Icon */}
-              <Image
-                source={require('./assets/kaaba.png')}
-                style={[styles.kaabaIcon, { left: kaabaX, top: kaabaY }]}
-              />
-              
-              {/* Center dot */}
-              <View style={[styles.centerDot, isDarkMode && styles.darkCenterDot]} />
-            </LinearGradient>
+          {/* Center Kaaba Icon */}
+          <View style={[styles.centerIcon, isDarkMode && styles.darkCenterIcon]}>
+            <FontAwesome5 name="kaaba" size={moderateScale(24)} color={isDarkMode ? '#66CCFF' : '#007AFF'} />
           </View>
 
-          {isCalibrating ? (
-            <View style={styles.calibrationOverlay}>
-              <Text style={styles.calibrationText}>
-                {TRANSLATIONS[language].calibrating}
-              </Text>
-              <Text style={styles.calibrationInstructions}>
-                {TRANSLATIONS[language].calibrationInstructions}
-              </Text>
-              <ActivityIndicator color={isDarkMode ? '#FFA500' : '#007AFF'} />
-            </View>
-          ) : calibrationQuality === 'low' ? (
-            <TouchableOpacity 
-              style={[styles.calibrateButton, isDarkMode && styles.darkCalibrateButton]} 
-              onPress={startCalibration}
-            >
-              <Text style={[styles.calibrateButtonText, isDarkMode && styles.darkCalibrateButtonText]}>
-                {TRANSLATIONS[language].calibrateCompass}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-
-          <Text style={[styles.noticeText, isDarkMode && styles.darkNoticeText, styles.bottomNotice]}>
-            {TRANSLATIONS[language].magnetometerNotice}
-          </Text>
+          {/* Direction Indicator */}
+          <View style={styles.directionIndicator}>
+            <Text style={[styles.directionText, isDarkMode && styles.darkText]}>
+              {Math.round(qiblaDirection)}°
+            </Text>
+            <Text style={[styles.directionLabel, isDarkMode && styles.darkText]}>
+              {t.toMecca}
+            </Text>
+          </View>
         </View>
-      )}
+
+        {/* Calibration Reminder */}
+        <TouchableOpacity style={styles.calibrationContainer} onPress={refreshCompass}>
+          <Icon name="refresh" size={moderateScale(16)} color={isDarkMode ? '#66CCFF' : '#007AFF'} />
+          <Text style={[styles.calibrationText, isDarkMode && styles.darkText]}>
+            {t.refresh}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: '#EAEFF2',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'android' ? 35 : 10,
   },
   darkContainer: {
-    backgroundColor: '#121212',
+    backgroundColor: '#222',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    position: 'relative',
+    justifyContent: 'space-between',
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateScale(15),
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
-  darkHeader: {
-    borderBottomColor: '#333',
-  },
-  headerText: {
-    fontSize: 20,
+  headerTitle: {
+    fontSize: moderateScale(20),
     fontWeight: '700',
     color: '#333',
-    textAlign: 'center',
-  },
-  darkHeaderText: {
-    color: '#FFFFFF',
   },
   closeButton: {
-    position: 'absolute',
-    right: 20,
-    padding: 5,
+    padding: moderateScale(5),
   },
-  noticeText: {
-    fontSize: 14,
-    color: '#555',
-    textAlign: 'center',
-    marginVertical: 15,
-    paddingHorizontal: 15,
-    lineHeight: 20,
+  headerSpacer: {
+    width: moderateScale(34), // Same width as close button to center title
   },
-  darkNoticeText: {
-    color: '#AAA',
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: moderateScale(15),
+    padding: moderateScale(20),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: verticalScale(4) },
+    shadowOpacity: 0.25,
+    shadowRadius: moderateScale(10),
+    elevation: 8,
+    margin: moderateScale(20),
+    alignItems: 'center',
+    flex: 1,
   },
-  bottomNotice: {
-    marginTop: 25,
-    fontSize: 13,
-    fontStyle: 'italic',
-    opacity: 0.8,
+  darkCard: {
+    backgroundColor: '#333',
+  },
+  darkText: {
+    color: '#FFF',
   },
   infoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
     width: '100%',
-    marginVertical: 15,
+    marginBottom: moderateScale(20),
   },
-  infoBox: {
-    backgroundColor: 'rgba(102, 204, 255, 0.1)',
-    borderRadius: 15,
-    padding: 12,
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  infoItem: {
     alignItems: 'center',
-    justifyContent: 'center',
-    width: '47%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  darkInfoBox: {
-    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    flex: 1,
   },
   infoLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    marginTop: 5,
-    textAlign: 'center',
-  },
-  darkInfoLabel: {
-    color: '#DDD',
+    fontSize: moderateScale(12),
+    color: '#666',
+    marginTop: moderateScale(4),
   },
   infoValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#007AFF',
-    marginTop: 3,
-  },
-  darkInfoValue: {
-    color: '#FFA500',
-  },
-  compassWrapper: {
-    padding: 10,
-    marginVertical: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+    marginTop: moderateScale(2),
   },
   compassContainer: {
-    alignItems: 'center',
+    width: COMPASS_SIZE,
+    height: COMPASS_SIZE,
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#66CCFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 7,
-    overflow: 'visible',
+    alignItems: 'center',
+    position: 'relative',
+    marginVertical: moderateScale(20),
   },
-  compassMarker: {
+  compassBase: {
+    width: COMPASS_SIZE,
+    height: COMPASS_SIZE,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compassRose: {
+    width: COMPASS_SIZE,
+    height: COMPASS_SIZE,
+    borderRadius: COMPASS_SIZE / 2,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#FAFAFA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  darkCompassRose: {
+    borderColor: '#555',
+    backgroundColor: '#2A2A2A',
+  },
+  cardinalN: {
     position: 'absolute',
-    width: 4,
-    height: 12,
-    backgroundColor: '#007AFF',
-    borderRadius: 2,
-  },
-  northMarker: {
-    top: 10,
-    transform: [{ translateX: 0 }],
-  },
-  eastMarker: {
-    right: 10,
-    transform: [{ rotate: '90deg' }],
-  },
-  southMarker: {
-    bottom: 10,
-    transform: [{ translateX: 0 }],
-  },
-  westMarker: {
-    left: 10,
-    transform: [{ rotate: '90deg' }],
-  },
-  cardinalDirection: {
-    position: 'absolute',
-    fontSize: 16,
-    fontWeight: '700',
+    top: moderateScale(10),
+    fontSize: moderateScale(18),
+    fontWeight: 'bold',
     color: '#007AFF',
   },
-  darkCardinalDirection: {
-    color: '#FFA500',
+  cardinalE: {
+    position: 'absolute',
+    right: moderateScale(10),
+    fontSize: moderateScale(16),
+    fontWeight: '600',
+    color: '#666',
   },
-  northDirection: {
-    top: 25,
+  cardinalS: {
+    position: 'absolute',
+    bottom: moderateScale(10),
+    fontSize: moderateScale(16),
+    fontWeight: '600',
+    color: '#666',
   },
-  eastDirection: {
-    right: 25,
+  cardinalW: {
+    position: 'absolute',
+    left: moderateScale(10),
+    fontSize: moderateScale(16),
+    fontWeight: '600',
+    color: '#666',
   },
-  southDirection: {
-    bottom: 25,
+  darkCardinal: {
+    color: '#CCC',
   },
-  westDirection: {
-    left: 25,
+  degreeMarker: {
+    position: 'absolute',
+    width: 1,
+    height: moderateScale(10),
+    backgroundColor: '#CCC',
+  },
+  mainDegreeMarker: {
+    width: 2,
+    height: moderateScale(15),
+    backgroundColor: '#007AFF',
+  },
+  darkMainDegreeMarker: {
+    backgroundColor: '#66CCFF',
+  },
+  needleContainer: {
+    position: 'absolute',
+    width: COMPASS_SIZE * 0.8,
+    height: COMPASS_SIZE * 0.8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   needle: {
-    width: 150,
-    height: 150,
+    width: 4,
+    height: COMPASS_SIZE * 0.6,
+    alignItems: 'center',
+  },
+  needlePoint: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: moderateScale(8),
+    borderRightWidth: moderateScale(8),
+    borderBottomWidth: moderateScale(30),
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#FF4444',
+    marginBottom: moderateScale(2),
+  },
+  darkNeedlePoint: {
+    borderBottomColor: '#FF6666',
+  },
+  needleBody: {
+    width: moderateScale(4),
+    height: COMPASS_SIZE * 0.3,
+    backgroundColor: '#FF4444',
+  },
+  darkNeedleBody: {
+    backgroundColor: '#FF6666',
+  },
+  needleTail: {
+    width: moderateScale(6),
+    height: moderateScale(20),
+    backgroundColor: '#DDD',
+    marginTop: moderateScale(2),
+  },
+  centerIcon: {
     position: 'absolute',
-    resizeMode: 'contain',
-  },
-  kaabaIcon: {
-    position: 'absolute',
-    width: 36,
-    height: 36,
-    resizeMode: 'contain',
-  },
-  centerDot: {
-    width: 12,
-    height: 12,
-    backgroundColor: '#FF4136',
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#FFF',
-    position: 'absolute',
-    zIndex: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  darkCenterDot: {
-    borderColor: '#333',
-  },
-  loadingContainer: {
-    flex: 1,
+    width: moderateScale(50),
+    height: moderateScale(50),
+    borderRadius: moderateScale(25),
+    backgroundColor: '#FFF',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: '#007AFF',
-  },
-  darkLoadingText: {
-    color: '#66CCFF',
-  },
-  mainContent: {
-    flex: 1,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 25,
-    paddingHorizontal: 20,
-  },
-  calibrationOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  calibrationText: {
-    color: '#FFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  calibrationInstructions: {
-    color: '#FFF',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  calibrateButton: {
-    backgroundColor: '#007AFF',
-    padding: 14,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 25,  // Add more space between compass and button
-    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  darkCalibrateButton: {
-    backgroundColor: '#FFA500',
+  darkCenterIcon: {
+    backgroundColor: '#333',
   },
-  calibrateButtonText: {
-    color: '#FFF',
-    fontWeight: '600',
-    fontSize: 16,
+  directionIndicator: {
+    position: 'absolute',
+    top: -moderateScale(40),
+    alignItems: 'center',
   },
-  darkCalibrateButtonText: {
-    color: '#FFF',
+  directionText: {
+    fontSize: moderateScale(20),
+    fontWeight: 'bold',
+    color: '#007AFF',
   },
-  noteContainer: {
+  directionLabel: {
+    fontSize: moderateScale(12),
+    color: '#666',
+    marginTop: moderateScale(2),
+  },
+  calibrationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: isDarkMode => isDarkMode ? 'rgba(255, 165, 0, 0.1)' : 'rgba(102, 204, 255, 0.1)',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 10,
-    marginVertical: 10,
-    marginHorizontal: 15,
-    width: '90%',
+    marginTop: moderateScale(20),
+    paddingHorizontal: moderateScale(15),
   },
-  noteText: {
-    color: '#333',
-    marginLeft: 10,
-    fontSize: 14,
-    flexShrink: 1,
+  calibrationText: {
+    fontSize: moderateScale(12),
+    color: '#666',
+    marginLeft: moderateScale(8),
+    textAlign: 'center',
+    flex: 1,
   },
-  darkNoteText: {
-    color: '#DDD',
+  loadingContainer: {
+    alignItems: 'center',
+    padding: moderateScale(40),
+    flex: 1,
+    justifyContent: 'center',
+  },
+  loadingCircle: {
+    marginBottom: moderateScale(20),
+  },
+  loadingText: {
+    fontSize: moderateScale(16),
+    color: '#666',
+  },
+  errorContainer: {
+    alignItems: 'center',
+    padding: moderateScale(40),
+    flex: 1,
+    justifyContent: 'center',
+  },
+  errorText: {
+    fontSize: moderateScale(16),
+    color: '#666',
+    textAlign: 'center',
+    marginVertical: moderateScale(20),
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateScale(10),
+    borderRadius: moderateScale(8),
+  },
+  retryButtonText: {
+    color: '#FFF',
+    fontSize: moderateScale(16),
+    fontWeight: '600',
   },
 });
 

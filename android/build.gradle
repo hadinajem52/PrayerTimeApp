@@ -6,7 +6,6 @@ buildscript {
         minSdkVersion = Integer.parseInt(findProperty('android.minSdkVersion') ?: '24')
         compileSdkVersion = Integer.parseInt(findProperty('android.compileSdkVersion') ?: '35')
         targetSdkVersion = Integer.parseInt(findProperty('android.targetSdkVersion') ?: '34')
-        // Upgrade Kotlin to 2.1.0 to match the dependency metadata version
         kotlinVersion = findProperty('android.kotlinVersion') ?: '2.1.0'
         kotlin_version = '2.0.0'
 
