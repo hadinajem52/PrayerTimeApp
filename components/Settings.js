@@ -16,6 +16,7 @@ import { moderateScale } from 'react-native-size-matters';
 import useSettings from '../hooks/useSettings';
 import { checkForPrayerTimeUpdates } from './UpdateManager'; 
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
+import RatingModal from './RatingModal';
 
 const TRANSLATIONS = {
   en: {
@@ -41,6 +42,8 @@ const TRANSLATIONS = {
     useArabicNumerals: "Use Arabic Numerals",
     disclaimer: "All prayer times according to the opinion of His Eminence Imam Khamenei",
     hijriAdjustmentDescription: "Shift the hijri date based on your marjaa",
+    rateApp: "Rate App",
+    rateDescription: "Rate us on Google Play Store"
   },
   ar: {
     settings: "الإعدادات",
@@ -65,6 +68,8 @@ const TRANSLATIONS = {
     useArabicNumerals: "استخدام الأرقام العربية",
     disclaimer: "جميع المواقيت طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
     hijriAdjustmentDescription: "ضبط التاريخ الهجري حسب مرجعك",
+    rateApp: "قيم التطبيق",
+    rateDescription: "قيمنا على متجر Google Play"
   },
 };
 
@@ -83,6 +88,7 @@ const Settings = ({
   const [settings, setSettings] = useSettings();
   const timeFormat = settings.timeFormat || '24h';
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
   const { isOperationInProgress } = useNotificationScheduler(language);
 
   const renderHijriOffsetText = () => {
@@ -114,6 +120,10 @@ const Settings = ({
       setIsUpdating(false);
       Alert.alert("Update Failed", error.message || "Could not update prayer times. Please try again later.");
     }
+  };
+
+  const handleRateApp = () => {
+    setIsRatingModalVisible(true);
   };
 
   return (
@@ -354,7 +364,48 @@ const Settings = ({
             {translations.updateDescription}
           </Text>
         </View>
+
+        {/* Rate App Section */}
+        <View style={[styles.section, isDarkMode && styles.darkSection]}>
+          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
+            {translations.rateApp}
+          </Text>
+          
+          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+            <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
+              {translations.rateDescription}
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.rateButton,
+                isDarkMode && styles.darkRateButton
+              ]}
+              onPress={handleRateApp}
+            >
+              <Icon 
+                name="star-outline" 
+                size={22} 
+                color={isDarkMode ? "#FFA500" : "#007AFF"} 
+              />
+              <Text style={[
+                styles.rateButtonText,
+                isDarkMode && styles.darkRateButtonText
+              ]}>
+                {translations.rateApp}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+        </View>
       </ScrollView>
+
+      {/* Rating Modal */}
+      <RatingModal 
+        visible={isRatingModalVisible}
+        language={language}
+        isDarkMode={isDarkMode}
+        onClose={() => setIsRatingModalVisible(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -565,6 +616,46 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  rateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(12),
+    borderRadius: moderateScale(8),
+  },
+  darkRateButton: {
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+  },
+  rateButtonText: {
+    marginLeft: 8,
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  darkRateButtonText: {
+    color: '#FFA500',
+  },
+  testButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(12),
+    borderRadius: moderateScale(8),
+  },
+  darkTestButton: {
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+  },
+  testButtonText: {
+    marginLeft: 8,
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
+  darkTestButtonText: {
+    color: '#66BB6A',
   },
 });
 

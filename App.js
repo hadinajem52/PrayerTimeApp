@@ -44,6 +44,9 @@ import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MonthTransitionNotice from './components/MonthTransitionNotice';
 import {toArabicNumerals } from './utils/timeFormatters';
 import { PrayerTimesProvider, usePrayerTimes } from './components/PrayerTimesProvider';
+import Rate, { AndroidMarket } from 'react-native-rate';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import RatingModal from './components/RatingModal';
 
 
 // ----- Translations & Constants -----
@@ -80,7 +83,12 @@ const TRANSLATIONS = {
       "Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", 
       "Jumada al-Awwal", "Jumada al-Thani", "Rajab", "Sha'ban",
       "Ramadan", "Shawwal", "Dhu al-Qi'dah", "Dhu al-Hijjah"
-    ]
+    ],
+    rateApp: "Rate Us",
+    rateTitle: "Rate ShiaPrayer Lebanon",
+    rateMessage: "If you enjoy using our app, would you mind taking a moment to rate it? It won't take more than a minute. Thanks for your support!",
+    rateLater: "Remind Me Later",
+    rateNo: "No, Thanks"
   },
   ar: {
     prayerTimes: "جدول مواقيت الصلاة",
@@ -114,7 +122,12 @@ const TRANSLATIONS = {
       "محرم", "صفر", "ربيع ١", "ربيع ٢", 
       "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان",
       "رمضان", "شوال", "ذو القعدة", "ذو الحجة"
-    ]
+    ],
+    rateApp: "قيم التطبيق",
+    rateTitle: "قيم الصلاة الشيعية لبنان",
+    rateMessage: "إذا كنت تستمتع باستخدام تطبيقنا، هل تمانع في تقييمه؟ لن يستغرق الأمر أكثر من دقيقة. شكراً لدعمك!",
+    rateLater: "ذكرني لاحقاً",
+    rateNo: "لا، شكراً"
   },
 };
 
@@ -458,6 +471,7 @@ function MainApp() {
   const [timeRemaining, setTimeRemaining] = useState(''); 
   const [isShowingLastAvailableDay, setIsShowingLastAvailableDay] = useState(false);
   const [notificationsScheduled, setNotificationsScheduled] = useState(false);
+  const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
 
   const {
     scheduleLocalNotification,
@@ -1154,6 +1168,47 @@ if (language === 'ar') {
     };
   }, [refreshPrayerTimes]);
   
+  // Rating functionality
+  const checkAndShowRating = useCallback(async () => {
+    try {
+      // Check if user has already rated or dismissed the rating
+      const hasRated = await AsyncStorage.getItem('hasRated');
+      const ratingDismissed = await AsyncStorage.getItem('ratingDismissed');
+      const lastRatingPrompt = await AsyncStorage.getItem('lastRatingPrompt');
+      
+      // Don't show if user has rated or permanently dismissed
+      if (hasRated === 'true' || ratingDismissed === 'true') {
+        return;
+      }
+      
+      // Show rating popup every 7 days if user selected "Remind Me Later"
+      const now = Date.now();
+      if (lastRatingPrompt) {
+        const daysSinceLastPrompt = (now - parseInt(lastRatingPrompt)) / (1000 * 60 * 60 * 24);
+        if (daysSinceLastPrompt < 7) {
+          return;
+        }
+      }
+      
+      // Show the rating modal
+      setIsRatingModalVisible(true);
+    } catch (error) {
+      console.error('Error checking rating status:', error);
+    }
+  }, []);
+
+  // Check and show rating popup
+  useEffect(() => {
+    // Show rating popup after 3 seconds when the app is fully loaded
+    if (isSettingsLoaded && !prayerTimesLoading && !isLoading) {
+      const timer = setTimeout(() => {
+        checkAndShowRating();
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isSettingsLoaded, prayerTimesLoading, isLoading, checkAndShowRating]);
+  
   if (prayerTimesError) {
     console.error("Prayer Times Error:", prayerTimesError);
     return (
@@ -1602,6 +1657,14 @@ if (language === 'ar') {
           updateUseArabicNumerals={(value) => setSettings(prev => ({...prev, useArabicNumerals: value}))}
         />
       </Modal>
+
+      {/* Rating Modal */}
+      <RatingModal 
+        visible={isRatingModalVisible}
+        language={language}
+        isDarkMode={isDarkMode}
+        onClose={() => setIsRatingModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
