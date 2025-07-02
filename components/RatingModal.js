@@ -28,14 +28,14 @@ const RatingModal = ({
       rateMessage: "If you enjoy using our app, would you mind taking a moment to rate it? It won't take more than a minute. Thanks for your support!",
       rateApp: "Rate Us",
       rateLater: "Remind Me Later",
-      rateNo: "No, Thanks",
+      rateNo: "No,                                                                    Thanks",
       tapStars: "Tap a star to rate",
       rateOnStore: "Rate on Google Play",
       thanks: "Thank you for your feedback!",
       close: "Close"
     },
     ar: {
-      rateTitle: "قيم الصلاة الشيعية لبنان",
+      rateTitle: "قيم تطبيق صلاة الشيعة لبنان",
       rateMessage: "إذا كنت تستمتع باستخدام تطبيقنا، هل تمانع في تقييمه؟ لن يستغرق الأمر أكثر من دقيقة. شكراً لدعمك!",
       rateApp: "قيم التطبيق",
       rateLater: "ذكرني لاحقاً",
@@ -56,8 +56,8 @@ const RatingModal = ({
   const handleRateOnStore = async () => {
     const options = {
       AppleAppID: "2193813192",
-      GooglePackageName: "com.shiaprayerleb.app",
-      AmazonPackageName: "com.shiaprayerleb.app",
+      GooglePackageName: "com.hnjm123.ShiaPrayerLeb",
+      AmazonPackageName: "com.hnjm123.ShiaPrayerLeb",
       OtherAndroidURL: "https://play.google.com/store/apps/details?id=com.hnjm123.ShiaPrayerLeb&hl=en",
       preferredAndroidMarket: AndroidMarket.Google,
       preferInApp: false,

@@ -43,7 +43,7 @@ const TRANSLATIONS = {
     disclaimer: "All prayer times according to the opinion of His Eminence Imam Khamenei",
     hijriAdjustmentDescription: "Shift the hijri date based on your marjaa",
     rateApp: "Rate App",
-    rateDescription: "Rate us on Google Play Store"
+    rateDescription: "Rate us on Play Store"
   },
   ar: {
     settings: "الإعدادات",
@@ -69,7 +69,7 @@ const TRANSLATIONS = {
     disclaimer: "جميع المواقيت طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
     hijriAdjustmentDescription: "ضبط التاريخ الهجري حسب مرجعك",
     rateApp: "قيم التطبيق",
-    rateDescription: "قيمنا على متجر Google Play"
+    rateDescription: "قيمنا على متجر Google"
   },
 };
 
