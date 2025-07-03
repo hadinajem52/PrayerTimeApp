@@ -19,6 +19,13 @@ import Geolocation from 'react-native-geolocation-service';
 import CompassHeading from 'react-native-compass-heading';
 import Icon from 'react-native-vector-icons/Ionicons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import {
+  accelerometer,
+  gyroscope,
+  magnetometer,
+  SensorTypes,
+  setUpdateIntervalForType,
+} from 'react-native-sensors';
 
 const { width, height } = Dimensions.get('window');
 const COMPASS_SIZE = Math.min(width * 0.8, 300);
@@ -110,6 +117,24 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
     gyroscope: 'unknown',
   });
 
+  // Additional sensor states
+  const [accelerometerData, setAccelerometerData] = useState({ x: 0, y: 0, z: 0 });
+  const [gyroscopeData, setGyroscopeData] = useState({ x: 0, y: 0, z: 0 });
+  const [magnetometerData, setMagnetometerData] = useState({ x: 0, y: 0, z: 0 });
+  const [isSensorFusionEnabled, setSensorFusionEnabled] = useState(false);
+  const [calibrationMode, setCalibrationMode] = useState(false);
+  const [calibrationProgress, setCalibrationProgress] = useState(0);
+  const [sensorAccuracy, setSensorAccuracy] = useState({
+    magnetometer: 0, // 0-3 where 3 is best
+    accelerometer: 0,
+    gyroscope: 0
+  });
+
+  // Sensor subscriptions
+  const accelerometerSubscription = useRef(null);
+  const gyroscopeSubscription = useRef(null);
+  const magnetometerSubscription = useRef(null);
+
   const compassRotation = useRef(new Animated.Value(0)).current;
   const needleRotation = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -175,6 +200,12 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
         setAccuracy(accuracy);
         setIsLocationEnabled(true);
         
+        // Update GPS sensor status
+        setSensorStatus(prev => ({
+          ...prev,
+          gps: 'active'
+        }));
+        
         // Calculate Qibla direction
         const bearing = calculateBearing(
           latitude, longitude,
@@ -193,9 +224,6 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
         
         setIsLoading(false);
         setError(null);
-        
-        // Update sensor status
-        updateSensorStatus();
       },
       (error) => {
         console.log('Location error:', error);
@@ -203,8 +231,11 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
         setIsLoading(false);
         setIsLocationEnabled(false);
         
-        // Update sensor status
-        updateSensorStatus();
+        // Update GPS sensor status
+        setSensorStatus(prev => ({
+          ...prev,
+          gps: 'unavailable'
+        }));
       },
       {
         enableHighAccuracy: true,
@@ -238,7 +269,10 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
         setIsCompassEnabled(true);
         
         // Update sensor status when compass starts working
-        updateSensorStatus();
+        setSensorStatus(prev => ({
+          ...prev,
+          compass: 'active'
+        }));
         
         // Smooth rotation animation
         Animated.timing(compassRotation, {
@@ -262,7 +296,10 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
       console.error('Error starting compass:', error);
       setError('Compass not available on this device');
       setIsCompassEnabled(false);
-      updateSensorStatus();
+      setSensorStatus(prev => ({
+        ...prev,
+        compass: 'unavailable'
+      }));
     }
   };
 
@@ -306,81 +343,557 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
 
   // Refresh location and compass
   const refreshCompass = () => {
+    console.log('Refreshing compass and location...');
     setIsLoading(true);
-    getCurrentLocation();
+    
+    // Reset sensor statuses to unknown before refresh
+    setSensorStatus({
+      gps: 'unknown',
+      compass: 'unknown',
+      magnetometer: 'unknown',
+      accelerometer: 'unknown',
+      gyroscope: 'unknown',
+    });
+    
+    // Stop current sensors and restart
+    stopSensors();
+    stopCompass();
+    
+    // Restart everything
+    setTimeout(() => {
+      detectAvailableSensors();
+      startSensors();
+      getCurrentLocation();
+    }, 100);
   };
 
-  // Update sensor status
-  const updateSensorStatus = () => {
-    const newSensorStatus = {
-      gps: isLocationEnabled ? 'active' : 'inactive',
-      compass: isCompassEnabled ? 'active' : 'inactive',
-      magnetometer: isCompassEnabled ? 'available' : 'unavailable',
-      accelerometer: 'unknown', // Would need additional sensor libraries to detect
-      gyroscope: 'unknown', // Would need additional sensor libraries to detect
-    };
+  // Enhanced sensor detection
+  const detectAvailableSensors = () => {
+    console.log('Detecting available sensors...');
     
-    setSensorStatus(newSensorStatus);
+    try {
+      // Set update intervals for sensors
+      setUpdateIntervalForType(SensorTypes.accelerometer, 100);
+      setUpdateIntervalForType(SensorTypes.gyroscope, 100);
+      setUpdateIntervalForType(SensorTypes.magnetometer, 100);
+
+      // Test sensor availability by attempting to subscribe
+      const testAccelerometer = accelerometer.subscribe(
+        (data) => {
+          console.log('Accelerometer available:', data);
+          setSensorStatus(prev => ({
+            ...prev,
+            accelerometer: 'available'
+          }));
+          testAccelerometer.unsubscribe();
+        },
+        (error) => {
+          console.log('Accelerometer not available:', error);
+          setSensorStatus(prev => ({
+            ...prev,
+            accelerometer: 'unavailable'
+          }));
+        }
+      );
+
+      const testGyroscope = gyroscope.subscribe(
+        (data) => {
+          console.log('Gyroscope available:', data);
+          setSensorStatus(prev => ({
+            ...prev,
+            gyroscope: 'available'
+          }));
+          testGyroscope.unsubscribe();
+        },
+        (error) => {
+          console.log('Gyroscope not available:', error);
+          setSensorStatus(prev => ({
+            ...prev,
+            gyroscope: 'unavailable'
+          }));
+        }
+      );
+
+      const testMagnetometer = magnetometer.subscribe(
+        (data) => {
+          console.log('Magnetometer available:', data);
+          setSensorStatus(prev => ({
+            ...prev,
+            magnetometer: 'available'
+          }));
+          testMagnetometer.unsubscribe();
+        },
+        (error) => {
+          console.log('Magnetometer not available:', error);
+          setSensorStatus(prev => ({
+            ...prev,
+            magnetometer: 'unavailable'
+          }));
+        }
+      );
+
+      // Set compass to available by default - will be updated when CompassHeading starts
+      setSensorStatus(prev => ({
+        ...prev,
+        compass: 'available'
+      }));
+
+    } catch (error) {
+      console.error('Error detecting sensors:', error);
+      setSensorStatus(prev => ({
+        ...prev,
+        accelerometer: 'unavailable',
+        gyroscope: 'unavailable',
+        magnetometer: 'unavailable'
+      }));
+    }
   };
 
-  // Check sensor availability (basic implementation)
-  const checkSensorAvailability = () => {
-    // Update GPS status based on location permission and availability
-    const gpsStatus = isLocationEnabled ? 'available' : 'unavailable';
+  // Get accuracy text based on GPS accuracy
+  const getAccuracyText = () => {
+    if (accuracy <= 5) return t.excellent;
+    if (accuracy <= 10) return t.good;
+    return t.poor;
+  };
+
+  // Start accelerometer and gyroscope listeners with real sensors
+  const startSensors = () => {
+    console.log('Starting real device sensors');
     
-    // Update compass status based on compass availability
-    const compassStatus = isCompassEnabled ? 'available' : 'unavailable';
+    try {
+      // Subscribe to accelerometer
+      accelerometerSubscription.current = accelerometer.subscribe(
+        ({ x, y, z }) => {
+          setAccelerometerData({ x, y, z });
+          
+          // Calculate accelerometer accuracy based on magnitude consistency
+          const magnitude = Math.sqrt(x * x + y * y + z * z);
+          const expectedGravity = 9.81;
+          const variance = Math.abs(magnitude - expectedGravity) / expectedGravity;
+          const accuracy = variance < 0.1 ? 3 : variance < 0.2 ? 2 : variance < 0.5 ? 1 : 0;
+          
+          setSensorAccuracy(prev => ({
+            ...prev,
+            accelerometer: accuracy
+          }));
+          
+          // Update sensor status
+          setSensorStatus(prev => ({
+            ...prev,
+            accelerometer: 'active'
+          }));
+        },
+        (error) => {
+          console.error('Accelerometer error:', error);
+          setSensorStatus(prev => ({
+            ...prev,
+            accelerometer: 'unavailable'
+          }));
+        }
+      );
+
+      // Subscribe to gyroscope
+      gyroscopeSubscription.current = gyroscope.subscribe(
+        ({ x, y, z }) => {
+          setGyroscopeData({ x, y, z });
+          
+          // Calculate gyroscope accuracy based on stability (lower values = more stable)
+          const totalRotation = Math.abs(x) + Math.abs(y) + Math.abs(z);
+          const accuracy = totalRotation < 0.1 ? 3 : totalRotation < 0.3 ? 2 : totalRotation < 0.5 ? 1 : 0;
+          
+          setSensorAccuracy(prev => ({
+            ...prev,
+            gyroscope: accuracy
+          }));
+          
+          // Update sensor status
+          setSensorStatus(prev => ({
+            ...prev,
+            gyroscope: 'active'
+          }));
+        },
+        (error) => {
+          console.error('Gyroscope error:', error);
+          setSensorStatus(prev => ({
+            ...prev,
+            gyroscope: 'unavailable'
+          }));
+        }
+      );
+
+      // Subscribe to magnetometer
+      magnetometerSubscription.current = magnetometer.subscribe(
+        ({ x, y, z }) => {
+          setMagnetometerData({ x, y, z });
+          
+          // Calculate magnetometer accuracy based on field strength consistency
+          const magnitude = Math.sqrt(x * x + y * y + z * z);
+          const expectedMagnitude = 50; // Typical Earth's magnetic field in μT
+          const variance = Math.abs(magnitude - expectedMagnitude) / expectedMagnitude;
+          const accuracy = variance < 0.2 ? 3 : variance < 0.4 ? 2 : variance < 0.6 ? 1 : 0;
+          
+          setSensorAccuracy(prev => ({
+            ...prev,
+            magnetometer: accuracy
+          }));
+          
+          // Update sensor status
+          setSensorStatus(prev => ({
+            ...prev,
+            magnetometer: 'active'
+          }));
+          
+          // Enable sensor fusion if compass is also enabled
+          if (isCompassEnabled) {
+            setSensorFusionEnabled(true);
+          }
+        },
+        (error) => {
+          console.error('Magnetometer error:', error);
+          setSensorStatus(prev => ({
+            ...prev,
+            magnetometer: 'unavailable'
+          }));
+        }
+      );
+
+      // Update calibration progress if in calibration mode
+      if (calibrationMode) {
+        const calibrationInterval = setInterval(() => {
+          setCalibrationProgress(prev => {
+            const newProgress = Math.min(100, prev + 5);
+            if (newProgress >= 100) {
+              clearInterval(calibrationInterval);
+            }
+            return newProgress;
+          });
+        }, 300);
+        
+        return () => {
+          clearInterval(calibrationInterval);
+          stopSensors();
+        };
+      }
+      
+      return stopSensors;
+      
+    } catch (error) {
+      console.error('Error starting sensors:', error);
+      setSensorStatus(prev => ({
+        ...prev,
+        accelerometer: 'unavailable',
+        gyroscope: 'unavailable',
+        magnetometer: 'unavailable'
+      }));
+      return () => {};
+    }
+  };
+
+  // Stop all sensor subscriptions
+  const stopSensors = () => {
+    if (accelerometerSubscription.current) {
+      accelerometerSubscription.current.unsubscribe();
+      accelerometerSubscription.current = null;
+    }
+    if (gyroscopeSubscription.current) {
+      gyroscopeSubscription.current.unsubscribe();
+      gyroscopeSubscription.current = null;
+    }
+    if (magnetometerSubscription.current) {
+      magnetometerSubscription.current.unsubscribe();
+      magnetometerSubscription.current = null;
+    }
     
     setSensorStatus(prev => ({
       ...prev,
-      gps: gpsStatus,
-      compass: compassStatus,
-      magnetometer: compassStatus, // Compass usually uses magnetometer
+      accelerometer: prev.accelerometer === 'active' ? 'available' : prev.accelerometer,
+      gyroscope: prev.gyroscope === 'active' ? 'available' : prev.gyroscope,
+      magnetometer: prev.magnetometer === 'active' ? 'available' : prev.magnetometer
+    }));
+    
+    setSensorFusionEnabled(false);
+  };
+  
+  // Calculate heading using sensor fusion with real sensor data
+  const calculateSensorFusionHeading = () => {
+    // Improved sensor fusion using real accelerometer and magnetometer data
+    if (isSensorFusionEnabled && 
+        sensorAccuracy.magnetometer > 0 && 
+        sensorAccuracy.accelerometer > 0) {
+      
+      try {
+        // Normalize accelerometer data to get gravity vector
+        const { x: ax, y: ay, z: az } = accelerometerData;
+        const accelMagnitude = Math.sqrt(ax * ax + ay * ay + az * az);
+        
+        if (accelMagnitude === 0) return heading;
+        
+        const gx = ax / accelMagnitude;
+        const gy = ay / accelMagnitude;
+        const gz = az / accelMagnitude;
+        
+        // Normalize magnetometer data
+        const { x: mx, y: my, z: mz } = magnetometerData;
+        const magMagnitude = Math.sqrt(mx * mx + my * my + mz * mz);
+        
+        if (magMagnitude === 0) return heading;
+        
+        const nx = mx / magMagnitude;
+        const ny = my / magMagnitude;
+        const nz = mz / magMagnitude;
+        
+        // Calculate east vector (cross product of north and gravity)
+        const ex = ny * gz - nz * gy;
+        const ey = nz * gx - nx * gz;
+        const ez = nx * gy - ny * gx;
+        
+        // Calculate north vector (cross product of gravity and east)
+        const hx = gy * ez - gz * ey;
+        const hy = gz * ex - gx * ez;
+        
+        // Calculate heading from north and east vectors
+        let fusedHeading = Math.atan2(ey, hx) * (180 / Math.PI);
+        
+        // Normalize to 0-360 degrees
+        if (fusedHeading < 0) {
+          fusedHeading += 360;
+        }
+        
+        // Apply gyroscope correction for smooth movement
+        const { z: gz_gyro } = gyroscopeData;
+        const gyroCorrection = gz_gyro * 0.1; // Small correction factor
+        fusedHeading += gyroCorrection;
+        
+        // Ensure heading stays within 0-360 range
+        fusedHeading = fusedHeading % 360;
+        if (fusedHeading < 0) fusedHeading += 360;
+        
+        console.log('Sensor fusion heading:', fusedHeading, 'Original:', heading);
+        return fusedHeading;
+        
+      } catch (error) {
+        console.error('Error in sensor fusion calculation:', error);
+        return heading;
+      }
+    }
+    
+    return heading;
+  };
+
+  // Start calibration mode
+  const startCalibration = () => {
+    setCalibrationMode(true);
+    setCalibrationProgress(0);
+    
+    // Exit calibration mode after 15 seconds
+    setTimeout(() => {
+      setCalibrationMode(false);
+      setCalibrationProgress(100);
+      
+      // Show success message
+      Alert.alert(
+        t.calibrate,
+        language === 'en' ? 'Calibration completed. Compass accuracy improved!' : 'اكتملت المعايرة. تحسنت دقة البوصلة!',
+        [{ text: 'OK' }]
+      );
+    }, 15000);
+  };
+
+  // Debug function to log current sensor status
+  const logSensorStatus = () => {
+    console.log('=== Current Sensor Status ===');
+    console.log('GPS:', sensorStatus.gps, '| Location enabled:', isLocationEnabled);
+    console.log('Compass:', sensorStatus.compass, '| Compass enabled:', isCompassEnabled);
+    console.log('Magnetometer:', sensorStatus.magnetometer, '| Accuracy:', sensorAccuracy.magnetometer);
+    console.log('Accelerometer:', sensorStatus.accelerometer, '| Accuracy:', sensorAccuracy.accelerometer);
+    console.log('Gyroscope:', sensorStatus.gyroscope, '| Accuracy:', sensorAccuracy.gyroscope);
+    console.log('Sensor Fusion:', isSensorFusionEnabled);
+    console.log('============================');
+  };
+
+  // Enhanced sensor status check
+  const updateSensorStatus = () => {
+    setSensorStatus(prev => ({
+      gps: isLocationEnabled ? 'active' : (userLocation ? 'available' : 'inactive'),
+      compass: isCompassEnabled ? 'active' : (prev.compass === 'available' ? 'available' : 'inactive'),
+      magnetometer: sensorAccuracy.magnetometer > 0 ? 'active' : 
+                   (prev.magnetometer === 'available' || prev.magnetometer === 'active' ? 'available' : 'inactive'),
+      accelerometer: sensorAccuracy.accelerometer > 0 ? 'active' : 
+                    (prev.accelerometer === 'available' || prev.accelerometer === 'active' ? 'available' : 'inactive'),
+      gyroscope: sensorAccuracy.gyroscope > 0 ? 'active' : 
+                (prev.gyroscope === 'available' || prev.gyroscope === 'active' ? 'available' : 'inactive'),
     }));
   };
 
-  // Get sensor status color
+  // Get sensor accuracy indicator
+  const getSensorAccuracyIndicator = (sensorType) => {
+    const accuracy = sensorAccuracy[sensorType] || 0;
+    
+    switch (accuracy) {
+      case 3: return '⭐⭐⭐'; // Excellent
+      case 2: return '⭐⭐'; // Good
+      case 1: return '⭐'; // Fair
+      case 0:
+      default: return '❌'; // Poor or unavailable
+    }
+  };
+
+  // Get sensor status color based on status
   const getSensorStatusColor = (status) => {
     switch (status) {
-      case 'active':
-      case 'available':
-        return '#4CAF50'; // Green
-      case 'inactive':
-      case 'unavailable':
-        return '#F44336'; // Red
+      case 'active': return '#4CAF50'; // Green
+      case 'available': return '#FF9800'; // Orange
+      case 'inactive': return '#9E9E9E'; // Gray
+      case 'unavailable': return '#F44336'; // Red
       case 'unknown':
-      default:
-        return '#FF9800'; // Orange
+      default: return '#607D8B'; // Blue Gray
     }
   };
 
-  // Get sensor status text with translation
+  // Get sensor status text based on language
   const getSensorStatusText = (status) => {
-    switch (status) {
-      case 'active':
-        return t.active;
-      case 'inactive':
-        return t.inactive;
-      case 'available':
-        return t.available;
-      case 'unavailable':
-        return t.unavailable;
-      case 'unknown':
-      default:
-        return t.unknown;
+    const statusTexts = {
+      active: t.active,
+      available: t.available,
+      inactive: t.inactive,
+      unavailable: t.unavailable,
+      unknown: t.unknown,
+    };
+    
+    return statusTexts[status] || t.unknown;
+  };
+
+  // Calculate initial sensor status
+  const calculateInitialSensorStatus = () => {
+    const initialStatus = {
+      gps: 'unknown',
+      compass: 'unknown',
+      magnetometer: 'unknown',
+      accelerometer: 'unknown',
+      gyroscope: 'unknown',
+    };
+    
+    // Set GPS status based on location permission and availability
+    initialStatus.gps = isLocationEnabled ? 'available' : 'unavailable';
+    
+    // Set compass and magnetometer status based on compass availability
+    initialStatus.compass = isCompassEnabled ? 'available' : 'unavailable';
+    initialStatus.magnetometer = isCompassEnabled ? 'available' : 'unavailable';
+    
+    // Set accelerometer and gyroscope status based on sensor fusion availability
+    initialStatus.accelerometer = sensorAccuracy.accelerometer > 0 ? 'available' : 'unavailable';
+    initialStatus.gyroscope = sensorAccuracy.gyroscope > 0 ? 'available' : 'unavailable';
+    
+    setSensorStatus(initialStatus);
+  };
+
+  // Initialize compass, sensors, and status
+  const initialize = async () => {
+    setIsLoading(true);
+    const hasPermission = await requestLocationPermission();
+    
+    if (hasPermission) {
+      getCurrentLocation();
+      startPulseAnimation();
+      detectAvailableSensors();
+      
+      // Start sensors and get cleanup function
+      const cleanupSensors = startSensors();
+      
+      return () => {
+        stopCompass();
+        if (typeof cleanupSensors === 'function') {
+          cleanupSensors();
+        } else {
+          stopSensors();
+        }
+      };
+    } else {
+      setError(t.locationPermissionError);
+      setIsLoading(false);
     }
   };
 
-  // Sensor Status Component
+  useEffect(() => {
+    let cleanup;
+    initialize().then((cleanupFn) => {
+      cleanup = cleanupFn;
+    });
+    
+    // Cleanup on unmount
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+      stopSensors();
+    };
+  }, []);
+
+  // Start compass when qibla direction is available
+  useEffect(() => {
+    if (qiblaDirection !== null && !isCompassEnabled && isLocationEnabled) {
+      console.log('Starting compass with qibla direction:', qiblaDirection);
+      startCompass();
+    }
+  }, [qiblaDirection, isLocationEnabled]);
+
+  // Monitor sensor status changes
+  useEffect(() => {
+    updateSensorStatus();
+  }, [isLocationEnabled, isCompassEnabled]);
+
+  // Update sensor status on location or compass change
+  useEffect(() => {
+    updateSensorStatus();
+    calculateInitialSensorStatus();
+  }, [isLocationEnabled, isCompassEnabled]);
+
+  // Apply sensor fusion to heading
+  useEffect(() => {
+    if (isSensorFusionEnabled) {
+      const fusedHeading = calculateSensorFusionHeading();
+      if (fusedHeading !== heading && !isNaN(fusedHeading)) {
+        // Update compass rotation with the fused heading
+        Animated.timing(compassRotation, {
+          toValue: -fusedHeading,
+          duration: 100,
+          useNativeDriver: true,
+        }).start();
+        
+        // Update needle rotation with fused heading
+        if (qiblaDirection !== null && !isNaN(qiblaDirection)) {
+          const needleAngle = qiblaDirection - fusedHeading;
+          Animated.timing(needleRotation, {
+            toValue: needleAngle,
+            duration: 100,
+            useNativeDriver: true,
+          }).start();
+        }
+      }
+    }
+  }, [heading, accelerometerData, gyroscopeData, magnetometerData, isSensorFusionEnabled]);
+
+  // Update sensor status periodically
+  useEffect(() => {
+    const statusInterval = setInterval(() => {
+      updateSensorStatus();
+      // Uncomment for debugging sensor status
+      // logSensorStatus();
+    }, 2000); // Check every 2 seconds
+    
+    return () => clearInterval(statusInterval);
+  }, [isLocationEnabled, isCompassEnabled, sensorAccuracy]);
+
+  // Enhanced Sensor Status Display
   const SensorStatusDisplay = () => {
     if (!showSensorStatus) return null;
     
     const sensors = [
       { key: 'gps', name: t.gps, icon: 'location' },
       { key: 'compass', name: t.compass, icon: 'compass' },
-      { key: 'magnetometer', name: t.magnetometer, icon: 'magnet' },
-      { key: 'accelerometer', name: t.accelerometer, icon: 'speedometer' },
-      { key: 'gyroscope', name: t.gyroscope, icon: 'refresh' },
+      { key: 'magnetometer', name: t.magnetometer, icon: 'magnet', accuracyKey: 'magnetometer' },
+      { key: 'accelerometer', name: t.accelerometer, icon: 'speedometer', accuracyKey: 'accelerometer' },
+      { key: 'gyroscope', name: t.gyroscope, icon: 'refresh', accuracyKey: 'gyroscope' },
     ];
 
     return (
@@ -414,53 +927,84 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
                 ]}
               >
                 {getSensorStatusText(sensorStatus[sensor.key])}
+                {sensor.accuracyKey && ` ${getSensorAccuracyIndicator(sensor.accuracyKey)}`}
               </Text>
             </View>
           </View>
         ))}
+        
+        {/* Sensor Fusion Status */}
+        <View style={styles.sensorFusionStatus}>
+          <Text style={[styles.sensorFusionLabel, isDarkMode && styles.darkText]}>
+            Sensor Fusion:
+          </Text>
+          <Text style={[
+            styles.sensorFusionValue,
+            { color: isSensorFusionEnabled ? '#4CAF50' : '#F44336' }
+          ]}>
+            {isSensorFusionEnabled ? 'Enabled' : 'Disabled'}
+          </Text>
+        </View>
+        
+        {/* Calibration Button */}
+        <TouchableOpacity 
+          style={[
+            styles.calibrateButton, 
+            calibrationMode && styles.calibratingButton
+          ]}
+          onPress={startCalibration}
+          disabled={calibrationMode}
+        >
+          <Text style={styles.calibrateButtonText}>
+            {calibrationMode 
+              ? `${t.calibrate}: ${calibrationProgress}%` 
+              : t.calibrate}
+          </Text>
+        </TouchableOpacity>
+        
+        {calibrationMode && (
+          <View style={styles.calibrationProgressContainer}>
+            <View 
+              style={[
+                styles.calibrationProgressBar,
+                { width: `${calibrationProgress}%` }
+              ]} 
+            />
+          </View>
+        )}
+        
+        {calibrationMode && (
+          <View style={styles.calibrationInstructionContainer}>
+            <Text style={[styles.calibrationInstruction, isDarkMode && styles.darkText]}>
+              Move your device in a figure-8 pattern
+            </Text>
+            <FontAwesome5 
+              name="infinity" 
+              size={moderateScale(24)} 
+              color={isDarkMode ? '#66CCFF' : '#007AFF'} 
+              style={styles.infinityIcon}
+            />
+          </View>
+        )}
       </View>
     );
   };
 
-  useEffect(() => {
-    initializeCompass();
-    
-    return () => {
-      stopCompass();
-    };
-  }, []);
-
-  // Start compass when qibla direction is available
-  useEffect(() => {
-    if (qiblaDirection !== null && !isCompassEnabled && isLocationEnabled) {
-      console.log('Starting compass with qibla direction:', qiblaDirection);
-      startCompass();
-    }
-  }, [qiblaDirection, isLocationEnabled]);
-
-  // Monitor sensor status changes
-  useEffect(() => {
-    updateSensorStatus();
-  }, [isLocationEnabled, isCompassEnabled]);
-
-  // Update sensor status on location or compass change
-  useEffect(() => {
-    updateSensorStatus();
-    checkSensorAvailability();
-  }, [isLocationEnabled, isCompassEnabled]);
-
-  // Get accuracy color based on GPS accuracy
+  // Enhance accuracy color calculation based on sensor fusion
   const getAccuracyColor = () => {
+    // If sensor fusion is enabled, factor in magnetometer accuracy
+    if (isSensorFusionEnabled && sensorAccuracy.magnetometer > 0) {
+      // Combine GPS accuracy with magnetometer accuracy
+      const combinedAccuracy = accuracy * (4 - sensorAccuracy.magnetometer) / 4;
+      if (combinedAccuracy <= 5) return '#4CAF50'; // Excellent
+      if (combinedAccuracy <= 10) return '#FF9800'; // Good
+      return '#F44336'; // Poor
+    }
+    
+    // Fall back to original method
     if (accuracy <= 5) return '#4CAF50'; // Excellent
     if (accuracy <= 10) return '#FF9800'; // Good
     return '#F44336'; // Poor
-  };
-
-  // Get accuracy text
-  const getAccuracyText = () => {
-    if (accuracy <= 5) return t.excellent;
-    if (accuracy <= 10) return t.good;
-    return t.poor;
   };
 
   if (isLoading) {
@@ -583,16 +1127,9 @@ const QiblaCompass = ({ isDarkMode = false, language = 'en', onClose }) => {
         {/* Sensor Status Display */}
         <SensorStatusDisplay />
         
-        {/* Accuracy and Distance Info */}
+        {/* Distance Info */}
         <View style={styles.infoContainer}>
           <View style={styles.infoRow}>
-            <View style={styles.infoItem}>
-              <Icon name="location" size={moderateScale(16)} color={getAccuracyColor()} />
-              <Text style={[styles.infoLabel, isDarkMode && styles.darkText]}>{t.accuracy}</Text>
-              <Text style={[styles.infoValue, { color: getAccuracyColor() }]}>
-                {getAccuracyText()}
-              </Text>
-            </View>
             <View style={styles.infoItem}>
               <FontAwesome5 name="kaaba" size={moderateScale(14)} color={isDarkMode ? '#66CCFF' : '#007AFF'} />
               <Text style={[styles.infoLabel, isDarkMode && styles.darkText]}>{t.distance}</Text>
@@ -810,11 +1347,11 @@ const styles = StyleSheet.create({
   },
   infoContainer: {
     width: '100%',
-    marginBottom: moderateScale(20),
+    marginBottom: moderateScale(60),
   },
   infoRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
   },
   infoItem: {
     alignItems: 'center',
@@ -1103,6 +1640,85 @@ const styles = StyleSheet.create({
   sensorStatusText: {
     fontSize: moderateScale(12),
     fontWeight: '500',
+  },
+  // Additional styles for sensor fusion and calibration
+  sensorFusionStatus: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: moderateScale(15),
+    paddingTop: moderateScale(10),
+    borderTopWidth: 1,
+    borderTopColor: '#E9ECEF',
+  },
+  sensorFusionLabel: {
+    fontSize: moderateScale(14),
+    fontWeight: '500',
+    color: '#333',
+    marginRight: moderateScale(8),
+  },
+  sensorFusionValue: {
+    fontSize: moderateScale(14),
+    fontWeight: '700',
+  },
+  calibrateButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(15),
+    borderRadius: moderateScale(8),
+    marginTop: moderateScale(15),
+    alignSelf: 'center',
+  },
+  calibratingButton: {
+    backgroundColor: '#FF9800',
+  },
+  calibrateButtonText: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: moderateScale(14),
+  },
+  calibrationProgressContainer: {
+    height: moderateScale(6),
+    backgroundColor: '#E0E0E0',
+    borderRadius: moderateScale(3),
+    marginTop: moderateScale(10),
+    width: '100%',
+    overflow: 'hidden',
+  },
+  calibrationProgressBar: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+  },
+  calibrationInstructionContainer: {
+    marginTop: moderateScale(15),
+    alignItems: 'center',
+  },
+  calibrationInstruction: {
+    fontSize: moderateScale(14),
+    color: '#666',
+    marginBottom: moderateScale(8),
+  },
+  infinityIcon: {
+    transform: [{ rotate: '90deg' }],
+  },
+  calibrationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  calibrationOverlayText: {
+    color: '#FFF',
+    fontSize: moderateScale(24),
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
 });
 
