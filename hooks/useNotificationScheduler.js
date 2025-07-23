@@ -105,6 +105,9 @@ export const useNotificationScheduler = (language) => {
       const trigger = {
         type: TriggerType.TIMESTAMP,
         timestamp: prayerTime.getTime(),
+        alarmManager: {
+          allowWhileIdle: true,
+        },
       };
       
       // Determine if this is a prayer or other significant time
