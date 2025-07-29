@@ -15,11 +15,11 @@ A comprehensive React Native application providing accurate Islamic prayer times
   - Manual location selection option
   - Location-specific prayer time adjustments
 
-- **🧭 Qibla Compass:**
-  - Real-time Qibla direction finding
-  - Accurate compass with degree display
-  - Map view option for visualization
-  - Works offline after initial setup
+- **🧭 Qibla Finder:**
+  - Google-powered AR Qibla direction finder
+  - WebView-based implementation with camera integration
+  - Real-time direction finding with visual overlay
+  - Automatic permissions handling
 
 - **🌙 Customization Options:**
   - Dark/Light theme with automatic switching
@@ -60,8 +60,7 @@ A comprehensive React Native application providing accurate Islamic prayer times
 
 - **Prayer Times & Location:**
   - Custom Shia prayer calculation algorithms
-  - React Native Geolocation Service
-  - React Native Compass Heading
+  - React Native WebView for Qibla integration
 
 - **UI/UX Components:**
   - React Native Paper
