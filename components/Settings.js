@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   Switch,
   StatusBar,
   ActivityIndicator,
-  Alert
+  Alert,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -17,6 +18,7 @@ import useSettings from '../hooks/useSettings';
 import { checkForPrayerTimeUpdates } from './UpdateManager'; 
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import RatingModal from './RatingModal';
+import notifee from '@notifee/react-native';
 
 const TRANSLATIONS = {
   en: {
@@ -43,7 +45,10 @@ const TRANSLATIONS = {
     disclaimer: "All prayer times according to the opinion of His Eminence Imam Khamenei",
     hijriAdjustmentDescription: "Shift the hijri date based on your marjaa",
     rateApp: "Rate App",
-    rateDescription: "Rate us on Play Store"
+    rateDescription: "Rate us on Play Store",
+    alarmPermission: "Alarm Permission",
+    alarmPermissionSetting: "Grant Alarm Permission",
+    alarmPermissionSettingDescription: "Allow the app to schedule exact alarms for precise prayer time notifications"
   },
   ar: {
     settings: "الإعدادات",
@@ -69,7 +74,10 @@ const TRANSLATIONS = {
     disclaimer: "جميع المواقيت طبقًا لرأي سماحة الإمام الخامنئي (دام ظله)",
     hijriAdjustmentDescription: "ضبط التاريخ الهجري حسب مرجعك",
     rateApp: "قيم التطبيق",
-    rateDescription: "قيمنا على متجر Google"
+    rateDescription: "قيمنا على متجر Google",
+    alarmPermission: "إذن المنبهات",
+    alarmPermissionSetting: "منح إذن المنبهات",
+    alarmPermissionSettingDescription: "السماح للتطبيق بجدولة المنبهات الدقيقة لإشعارات أوقات الصلاة الدقيقة"
   },
 };
 
@@ -82,13 +90,15 @@ const Settings = ({
   hijriDateOffset = 0, 
   updateHijriOffset, 
   useArabicNumerals, 
-  updateUseArabicNumerals 
+  updateUseArabicNumerals,
+  requestAlarmPermission 
 }) => {
   const translations = TRANSLATIONS[language];
   const [settings, setSettings] = useSettings();
   const timeFormat = settings.timeFormat || '24h';
   const [isUpdating, setIsUpdating] = useState(false);
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
+  const [alarmPermissionGranted, setAlarmPermissionGranted] = useState(false);
   const { isOperationInProgress } = useNotificationScheduler(language);
 
   const renderHijriOffsetText = () => {
@@ -124,6 +134,39 @@ const Settings = ({
 
   const handleRateApp = () => {
     setIsRatingModalVisible(true);
+  };
+
+  // Check alarm permission status
+  useEffect(() => {
+    const checkAlarmPermission = async () => {
+      if (Platform.OS === 'android') {
+        try {
+          const settings = await notifee.getNotificationSettings();
+          setAlarmPermissionGranted(settings.android.alarm === 1); // 1 is 'granted'
+        } catch (error) {
+          console.error('Error checking alarm permission:', error);
+        }
+      }
+    };
+    
+    checkAlarmPermission();
+  }, []);
+
+  const handleRequestAlarmPermission = async () => {
+    if (requestAlarmPermission) {
+      await requestAlarmPermission();
+      // Recheck permission status after user returns
+      setTimeout(async () => {
+        if (Platform.OS === 'android') {
+          try {
+            const settings = await notifee.getNotificationSettings();
+            setAlarmPermissionGranted(settings.android.alarm === 1);
+          } catch (error) {
+            console.error('Error rechecking alarm permission:', error);
+          }
+        }
+      }, 1000);
+    }
   };
 
   return (
@@ -320,6 +363,54 @@ const Settings = ({
             {translations.timeFormatDescription}
           </Text>
         </View>
+
+        {/* Alarm Permission Section */}
+        {Platform.OS === 'android' && (
+          <View style={[styles.section, isDarkMode && styles.darkSection]}>
+            <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
+              {translations.alarmPermission}
+            </Text>
+            
+            <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
+                  {translations.alarmPermissionSetting}
+                </Text>
+                {alarmPermissionGranted && (
+                  <Text style={[styles.permissionStatus, styles.grantedStatus]}>
+                    ✓ Granted
+                  </Text>
+                )}
+              </View>
+              
+              {!alarmPermissionGranted && (
+                <TouchableOpacity
+                  style={[
+                    styles.permissionButton,
+                    isDarkMode && styles.darkPermissionButton
+                  ]}
+                  onPress={handleRequestAlarmPermission}
+                >
+                  <Icon 
+                    name="alarm-outline" 
+                    size={18} 
+                    color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                  />
+                  <Text style={[
+                    styles.permissionButtonText,
+                    isDarkMode && styles.darkPermissionButtonText
+                  ]}>
+                    Grant
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            
+            <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
+              {translations.alarmPermissionSettingDescription}
+            </Text>
+          </View>
+        )}
 
         {/* Prayer Time Updates Section */}
         <View style={[styles.section, isDarkMode && styles.darkSection]}>
@@ -656,6 +747,34 @@ const styles = StyleSheet.create({
   },
   darkTestButtonText: {
     color: '#66BB6A',
+  },
+  permissionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(12),
+    borderRadius: moderateScale(8),
+  },
+  darkPermissionButton: {
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+  },
+  permissionButtonText: {
+    marginLeft: 8,
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  darkPermissionButtonText: {
+    color: '#FFA500',
+  },
+  permissionStatus: {
+    fontSize: moderateScale(12),
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  grantedStatus: {
+    color: '#4CAF50',
   },
 });
 

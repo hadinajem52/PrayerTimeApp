@@ -88,7 +88,17 @@ const TRANSLATIONS = {
     rateTitle: "Rate ShiaPrayer Lebanon",
     rateMessage: "If you enjoy using our app, would you mind taking a moment to rate it? It won't take more than a minute. Thanks for your support!",
     rateLater: "Remind Me Later",
-    rateNo: "No, Thanks"
+    rateNo: "No, Thanks",
+    // Permission alerts
+    permissionRequired: "Permission Required",
+    alarmPermissionMessage: "To ensure you receive prayer time notifications exactly on time, please grant the permission to schedule exact alarms.",
+    openSettings: "Open Settings",
+    notificationsDisabled: "Notifications Disabled",
+    notificationPermissionMessage: "Without notification permissions, you might miss important reminders.",
+    allowNotifications: "Allow Notifications",
+    notificationUsageMessage: "This app uses notifications to remind you about prayer times. Please allow notifications.",
+    allow: "Allow",
+    deny: "Deny"
   },
   ar: {
     prayerTimes: "جدول مواقيت الصلاة",
@@ -127,7 +137,17 @@ const TRANSLATIONS = {
     rateTitle: "قيم الصلاة الشيعية لبنان",
     rateMessage: "إذا كنت تستمتع باستخدام تطبيقنا، هل تمانع في تقييمه؟ لن يستغرق الأمر أكثر من دقيقة. شكراً لدعمك!",
     rateLater: "ذكرني لاحقاً",
-    rateNo: "لا، شكراً"
+    rateNo: "لا، شكراً",
+    // Permission alerts
+    permissionRequired: "طلب الإذن ",
+    alarmPermissionMessage: "لضمان وصول إشعارات أوقات الصلاة في الوقت المحدد بدقة، يرجى منح الإذن لجدولة المنبهات الدقيقة.",
+    openSettings: "فتح الإعدادات",
+    notificationsDisabled: "الإشعارات معطلة",
+    notificationPermissionMessage: "بدون أذونات الإشعارات، قد تفوتك التذكيرات المهمة.",
+    allowNotifications: "السماح بالإشعارات",
+    notificationUsageMessage: "يستخدم هذا التطبيق الإشعارات لتذكيرك بأوقات الصلاة. يرجى السماح بالإشعارات.",
+    allow: "سماح",
+    deny: "رفض"
   },
 };
 
@@ -472,6 +492,7 @@ function MainApp() {
   const [isShowingLastAvailableDay, setIsShowingLastAvailableDay] = useState(false);
   const [notificationsScheduled, setNotificationsScheduled] = useState(false);
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
+  const [isAlarmPermissionModalVisible, setIsAlarmPermissionModalVisible] = useState(false);
 
   const {
     scheduleLocalNotification,
@@ -924,22 +945,13 @@ if (language === 'ar') {
   useEffect(() => {
     async function requestPermissions() {
       if (Platform.OS === 'android') {
+        // Check if user has previously dismissed the alarm permission
+        const alarmPermissionDismissed = await AsyncStorage.getItem('alarmPermissionDismissed');
+        
         const alarmPermission = await notifee.getNotificationSettings();
-        if (alarmPermission.android.alarm !== 1) { // 1 is 'granted'
-          Alert.alert(
-            'Permission Required',
-            'To ensure you receive prayer time notifications exactly on time, please grant the permission to schedule exact alarms.',
-            [
-              {
-                text: 'Open Settings',
-                onPress: async () => await notifee.openAlarmPermissionSettings(),
-              },
-              {
-                text: 'Cancel',
-                style: 'cancel',
-              },
-            ],
-          );
+        if (alarmPermission.android.alarm !== 1 && alarmPermissionDismissed !== 'true') { // 1 is 'granted'
+          setIsAlarmPermissionModalVisible(true);
+          return; // Don't continue with other permissions until alarm modal is handled
         }
       }
 
@@ -948,13 +960,13 @@ if (language === 'ar') {
         console.log('Notifee permission granted:', settingsNotifee);
       } else {
         Alert.alert(
-          'Notifications Disabled',
-          'Without notification permissions, you might miss important reminders.'
+          TRANSLATIONS[language].notificationsDisabled,
+          TRANSLATIONS[language].notificationPermissionMessage
         );
       }
     }
     requestPermissions();
-  }, []);
+  }, [language]);
 
   useEffect(() => {
     async function createChannel() {
@@ -974,11 +986,10 @@ if (language === 'ar') {
         const result = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
           {
-            title: 'Allow Notifications',
-            message:
-              'This app uses notifications to remind you about prayer times. Please allow notifications.',
-            buttonPositive: 'Allow',
-            buttonNegative: 'Deny',
+            title: TRANSLATIONS[language].allowNotifications,
+            message: TRANSLATIONS[language].notificationUsageMessage,
+            buttonPositive: TRANSLATIONS[language].allow,
+            buttonNegative: TRANSLATIONS[language].deny,
           }
         );
         if (result === PermissionsAndroid.RESULTS.GRANTED) {
@@ -986,8 +997,8 @@ if (language === 'ar') {
         } else {
           console.log('Notification permission denied');
           Alert.alert(
-            'Notifications Disabled',
-            'Without notification permissions, you might miss important reminders.'
+            TRANSLATIONS[language].notificationsDisabled,
+            TRANSLATIONS[language].notificationPermissionMessage
           );
         }
       } catch (error) {
@@ -998,7 +1009,7 @@ if (language === 'ar') {
         'Notification permission automatically granted on this Android version or not applicable.'
       );
     }
-  }, []);
+  }, [language]);
 
   useEffect(() => {
     requestOSNotificationPermission();
@@ -1220,14 +1231,61 @@ if (language === 'ar') {
   // Check and show rating popup
   useEffect(() => {
     // Show rating popup after 3 seconds when the app is fully loaded
-    if (isSettingsLoaded && !prayerTimesLoading && !isLoading) {
+    // Only show if alarm permission modal is not visible
+    if (isSettingsLoaded && !prayerTimesLoading && !isLoading && !isAlarmPermissionModalVisible) {
       const timer = setTimeout(() => {
         checkAndShowRating();
       }, 3000);
       
       return () => clearTimeout(timer);
     }
-  }, [isSettingsLoaded, prayerTimesLoading, isLoading, checkAndShowRating]);
+  }, [isSettingsLoaded, prayerTimesLoading, isLoading, isAlarmPermissionModalVisible, checkAndShowRating]);
+
+  // Handle alarm permission modal actions
+  const handleAlarmPermissionAccept = async () => {
+    setIsAlarmPermissionModalVisible(false);
+    try {
+      await notifee.openAlarmPermissionSettings();
+    } catch (error) {
+      console.error('Error opening alarm permission settings:', error);
+    }
+    
+    // After closing alarm modal, show rating modal if needed
+    setTimeout(() => {
+      if (isSettingsLoaded && !prayerTimesLoading && !isLoading) {
+        checkAndShowRating();
+      }
+    }, 1000);
+  };
+
+  const handleAlarmPermissionDecline = async () => {
+    setIsAlarmPermissionModalVisible(false);
+    
+    // Save that user dismissed the alarm permission
+    try {
+      await AsyncStorage.setItem('alarmPermissionDismissed', 'true');
+    } catch (error) {
+      console.error('Error saving alarm permission dismissed state:', error);
+    }
+    
+    // After declining alarm modal, show rating modal if needed
+    setTimeout(() => {
+      if (isSettingsLoaded && !prayerTimesLoading && !isLoading) {
+        checkAndShowRating();
+      }
+    }, 500);
+  };
+
+  // Function to manually request alarm permission from Settings
+  const requestAlarmPermissionFromSettings = async () => {
+    try {
+      await notifee.openAlarmPermissionSettings();
+      // Reset the dismissed state when user manually requests permission
+      await AsyncStorage.removeItem('alarmPermissionDismissed');
+    } catch (error) {
+      console.error('Error opening alarm permission settings:', error);
+    }
+  };
   
   if (prayerTimesError) {
     console.error("Prayer Times Error:", prayerTimesError);
@@ -1675,6 +1733,7 @@ if (language === 'ar') {
           updateHijriOffset={updateHijriOffset}
           useArabicNumerals={settings.useArabicNumerals || false}
           updateUseArabicNumerals={(value) => setSettings(prev => ({...prev, useArabicNumerals: value}))}
+          requestAlarmPermission={requestAlarmPermissionFromSettings}
         />
       </Modal>
 
@@ -1685,6 +1744,53 @@ if (language === 'ar') {
         isDarkMode={isDarkMode}
         onClose={() => setIsRatingModalVisible(false)}
       />
+
+      {/* Alarm Permission Modal */}
+      <Modal
+        visible={isAlarmPermissionModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleAlarmPermissionDecline}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, isDarkMode && styles.darkModalContainer]}>
+            <View style={[styles.modalHeader, isDarkMode && styles.darkModalHeader]}>
+              <Icon 
+                name="alarm-outline" 
+                size={moderateScale(32)} 
+                color={isDarkMode ? '#FFA500' : '#007AFF'} 
+              />
+              <Text style={[styles.modalTitle, isDarkMode && styles.darkText]}>
+                {TRANSLATIONS[language].permissionRequired}
+              </Text>
+            </View>
+            
+            <Text style={[styles.modalMessage, isDarkMode && styles.darkText]}>
+              {TRANSLATIONS[language].alarmPermissionMessage}
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, isDarkMode && styles.darkCancelButton]}
+                onPress={handleAlarmPermissionDecline}
+              >
+                <Text style={[styles.cancelButtonText, isDarkMode && styles.darkCancelText]}>
+                  {TRANSLATIONS[language].cancel}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton, isDarkMode && styles.darkConfirmButton]}
+                onPress={handleAlarmPermissionAccept}
+              >
+                <Text style={styles.confirmButtonText}>
+                  {TRANSLATIONS[language].openSettings}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
