@@ -20,7 +20,7 @@ const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) =>
   const [error, setError] = useState(null);
 
   // Google Qibla Finder URL - Use English version for better compatibility
-  const qiblaFinderUrl = 'https://qiblafinder.withgoogle.com/';
+  const qiblaFinderUrl = 'https://qiblafinder.withgoogle.com/intl/ar/finder/ar';
 
   // Request camera and location permissions
   const requestPermissions = async () => {
@@ -39,11 +39,13 @@ const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) =>
 
         if (!cameraGranted || !locationGranted) {
           Alert.alert(
-            'Permissions Required',
-            'Camera and location permissions are required for the Qibla Finder AR experience. Microphone permission is optional.',
+            language === 'ar' ? 'أذونات مطلوبة' : 'Permissions Required',
+            language === 'ar' 
+              ? 'أذونات الكاميرا والموقع مطلوبة لتجربة البحث عن القبلة. إذن الميكروفون اختياري.'
+              : 'Camera and location permissions are required for the Qibla Finder AR experience. Microphone permission is optional.',
             [
-              { text: 'Cancel', onPress: () => onClose() },
-              { text: 'Try Again', onPress: requestPermissions },
+              { text: language === 'ar' ? 'إلغاء' : 'Cancel', onPress: () => onClose() },
+              { text: language === 'ar' ? 'حاول مرة أخرى' : 'Try Again', onPress: requestPermissions },
             ]
           );
           return false;
@@ -76,7 +78,10 @@ const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) =>
   const handleError = (syntheticEvent) => {
     const { nativeEvent } = syntheticEvent;
     console.error('WebView error:', nativeEvent);
-    setError('Failed to load Qibla Finder. Please check your internet connection.');
+    const errorMessage = language === 'ar' 
+      ? 'فشل تحميل باحث القبلة. يرجى التحقق من اتصال الإنترنت.'
+      : 'Failed to load Qibla Finder. Please check your internet connection.';
+    setError(errorMessage);
     setIsLoading(false);
   };
 
@@ -173,11 +178,11 @@ const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) =>
     // Request permissions when component mounts
     requestPermissions();
     
-    // Force hide loading after 10 seconds as a fallback
+    // Force hide loading after 15 seconds as a fallback (extended for slower connections)
     const loadingTimeout = setTimeout(() => {
-      console.log('Forcing loading to false after timeout');
+      console.log('Forcing loading to false after extended timeout');
       setIsLoading(false);
-    }, 10000);
+    }, 15000);
     
     return () => {
       clearTimeout(loadingTimeout);
@@ -273,11 +278,29 @@ const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) =>
               activeOpacity={0.7}
             >
               <View style={styles.loadingContent}>
+                <Icon 
+                  name="compass-outline" 
+                  size={moderateScale(40)} 
+                  color="#66CCFF" 
+                  style={styles.loadingIcon}
+                />
                 <Text style={[styles.loadingText, isDarkMode && styles.darkText]}>
-                  {language === 'ar' ? 'جار التحميل...' : 'Loading Qibla Finder...'}
+                  {language === 'ar' ? 'جار تحميل باحث القبلة...' : 'Loading Qibla Finder...'}
+                </Text>
+                <Text style={[styles.loadingSubText, isDarkMode && styles.darkText]}>
+                  {language === 'ar' 
+                    ? 'يرجى الانتظار، قد يستغرق هذا بضع ثوانٍ'
+                    : 'Please wait, this may take a few seconds'
+                  }
+                </Text>
+                <Text style={[styles.loadingPermissionText, isDarkMode && styles.darkText]}>
+                  {language === 'ar' 
+                    ? 'تأكد من السماح بأذونات الكاميرا والموقع'
+                    : 'Make sure to allow camera and location permissions'
+                  }
                 </Text>
                 <Text style={[styles.tapToHideText, isDarkMode && styles.darkText]}>
-                  {language === 'ar' ? 'اضغط للإخفاء' : 'Tap to hide'}
+                  {language === 'ar' ? 'اضغط للإخفاء إذا تم التحميل' : 'Tap to hide if loaded'}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -317,12 +340,20 @@ const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) =>
 
         {/* Instructions */}
         <View style={[styles.instructionsContainer, isDarkMode && styles.darkInstructionsContainer]}>
-          <Text style={[styles.instructionsText, isDarkMode && styles.darkText]}>
-            {language === 'ar' 
-              ? 'اسمح للكاميرا والموقع للحصول على أفضل تجربة'
-              : 'Allow camera and location permissions for the best experience'
-            }
-          </Text>
+          <View style={styles.instructionsRow}>
+            <Icon 
+              name="information-circle-outline" 
+              size={moderateScale(16)} 
+              color={isDarkMode ? '#66CCFF' : '#007AFF'} 
+              style={styles.instructionsIcon}
+            />
+            <Text style={[styles.instructionsText, isDarkMode && styles.darkText]}>
+              {language === 'ar' 
+                ? 'يرجى الانتظار بعد الضغط على زر "حسنا" لتحميل موقعك'
+                : 'Allow camera and location permissions for the best experience'
+              }
+            </Text>
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -424,19 +455,39 @@ const styles = StyleSheet.create({
   },
   loadingContent: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    padding: moderateScale(20),
-    borderRadius: moderateScale(10),
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    padding: moderateScale(25),
+    borderRadius: moderateScale(15),
+    maxWidth: '90%',
+  },
+  loadingIcon: {
+    marginBottom: moderateScale(15),
   },
   loadingText: {
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(18),
     color: '#FFF',
-    marginBottom: moderateScale(5),
+    marginBottom: moderateScale(8),
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  loadingSubText: {
+    fontSize: moderateScale(14),
+    color: '#E0E0E0',
+    marginBottom: moderateScale(8),
+    textAlign: 'center',
+  },
+  loadingPermissionText: {
+    fontSize: moderateScale(12),
+    color: '#FFEB3B',
+    marginBottom: moderateScale(12),
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   tapToHideText: {
-    fontSize: moderateScale(12),
+    fontSize: moderateScale(10),
     color: '#CCC',
     fontStyle: 'italic',
+    textAlign: 'center',
   },
   instructionsContainer: {
     padding: moderateScale(15),
@@ -449,11 +500,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#2A2A3E',
     borderLeftColor: '#66CCFF',
   },
+  instructionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  instructionsIcon: {
+    marginRight: moderateScale(8),
+  },
   instructionsText: {
     fontSize: moderateScale(12),
     color: '#555',
     textAlign: 'center',
     fontStyle: 'italic',
+    flex: 1,
   },
   errorContainer: {
     flex: 1,

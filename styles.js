@@ -553,5 +553,103 @@ darkEndIconContainer: {
   darkNavLabelActive: {
     color: '#FFA500',
   },
+  
+  // Alarm Permission Modal Styles
+  modalContainer: {
+    width: '80%',
+    maxWidth: moderateScale(320),
+    backgroundColor: '#FFF',
+    borderRadius: moderateScale(16),
+    padding: moderateScale(20),
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  darkModalContainer: {
+    backgroundColor: '#333',
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: moderateScale(18),
+    paddingBottom: moderateScale(12),
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    width: '100%',
+  },
+  darkModalHeader: {
+    borderBottomColor: '#444',
+  },
+  modalTitle: {
+    fontSize: moderateScale(18),
+    fontWeight: '700',
+    color: '#e1e1e1ff',
+    textAlign: 'center',
+    marginTop: moderateScale(12),
+    lineHeight: moderateScale(24),
+  },
+  modalMessage: {
+    fontSize: moderateScale(14),
+    color: '#e1e1e1ff',
+    textAlign: 'center',
+    lineHeight: moderateScale(20),
+    marginBottom: moderateScale(22),
+    paddingHorizontal: moderateScale(8),
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: moderateScale(10),
+    paddingHorizontal: moderateScale(16),
+    borderRadius: moderateScale(8),
+    marginHorizontal: moderateScale(6),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cancelButton: {
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+  },
+  darkCancelButton: {
+    backgroundColor: '#555',
+    borderColor: '#666',
+  },
+  confirmButton: {
+    backgroundColor: '#007AFF',
+    shadowColor: '#007AFF',
+    shadowOpacity: 0.25,
+  },
+  darkConfirmButton: {
+    backgroundColor: '#FFA500',
+    shadowColor: '#FFA500',
+  },
+  cancelButtonText: {
+    color: '#6C757D',
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  darkCancelText: {
+    color: '#CCC',
+  },
+  confirmButtonText: {
+    color: '#FFF',
+    fontSize: moderateScale(14),
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  
   ...loadingStateStyles,
 });
