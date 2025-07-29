@@ -19,7 +19,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to determine Qibla direction.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to determine Qibla direction."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to determine Qibla direction.",
+        "NSCameraUsageDescription": "This app needs access to your camera for the Qibla Finder AR experience."
       }
     },
     "android": {
@@ -31,7 +32,9 @@
       "package": "com.hnjm123.ShiaPrayerLeb",
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "RECORD_AUDIO"
       ]
     },
     "web": {
