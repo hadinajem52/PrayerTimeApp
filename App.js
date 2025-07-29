@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import moment from 'moment-hijri';
 import ProgressBar from 'react-native-progress/Bar'; 
 import dailyQuotes from './data/quotes';
-import QiblaCompass from './QiblaCompass';
+import QiblaFinderWebView from './QiblaFinderWebView';
 import notifee, { AndroidImportance,EventType  } from '@notifee/react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
@@ -923,6 +923,26 @@ if (language === 'ar') {
 
   useEffect(() => {
     async function requestPermissions() {
+      if (Platform.OS === 'android') {
+        const alarmPermission = await notifee.getNotificationSettings();
+        if (alarmPermission.android.alarm !== 1) { // 1 is 'granted'
+          Alert.alert(
+            'Permission Required',
+            'To ensure you receive prayer time notifications exactly on time, please grant the permission to schedule exact alarms.',
+            [
+              {
+                text: 'Open Settings',
+                onPress: async () => await notifee.openAlarmPermissionSettings(),
+              },
+              {
+                text: 'Cancel',
+                style: 'cancel',
+              },
+            ],
+          );
+        }
+      }
+
       const settingsNotifee = await notifee.requestPermission();
       if (settingsNotifee.authorizationStatus >= 1) {
         console.log('Notifee permission granted:', settingsNotifee);
@@ -1635,7 +1655,7 @@ if (language === 'ar') {
         visible={isCompassVisible}
         onRequestClose={() => setIsCompassVisible(false)}
       >
-        <QiblaCompass isDarkMode={isDarkMode} language={language} onClose={() => setIsCompassVisible(false)} />
+        <QiblaFinderWebView isDarkMode={isDarkMode} language={language} onClose={() => setIsCompassVisible(false)} />
       </Modal>
 
       {/* Settings Modal */}

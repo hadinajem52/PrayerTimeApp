@@ -27,8 +27,8 @@ android {
         applicationId 'com.hnjm123.ShiaPrayerLeb'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion 
-        versionCode 44
-        versionName "2.0.4"
+        versionCode 45
+        versionName "2.0.5"
     }
      lint {
         disable 'ExpiredTargetSdkVersion'
