@@ -40,7 +40,7 @@ const TRANSLATIONS = {
   }
 };
 
-export const useNotificationScheduler = (language) => {
+export const useNotificationScheduler = (language, usePrayerSound = true) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isOperationInProgress, setIsOperationInProgress] = useState(false); 
   const [isDataAvailable, setIsDataAvailable] = useState(false);
@@ -119,7 +119,8 @@ export const useNotificationScheduler = (language) => {
           ? translate('prayerApproaching', { prayer: prayerName })
           : translate('timeApproaching', { time: prayerName }),
         android: {
-          channelId: 'prayer-channel',
+          // Must match the channel created in App.js
+          channelId: 'prayer-channel-v2',
           smallIcon: 'ic_launcher', 
           pressAction: {
             id: 'default',
@@ -131,6 +132,8 @@ export const useNotificationScheduler = (language) => {
           alarmManager: {
             allowWhileIdle: true,
           },
+          // Conditionally use prayer sound or system default
+          ...(usePrayerSound && { sound: 'prayersound' }),
         },
       };
       

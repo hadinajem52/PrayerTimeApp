@@ -9,7 +9,8 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
-  Platform
+  Platform,
+  Linking
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -19,6 +20,7 @@ import { checkForPrayerTimeUpdates } from './UpdateManager';
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import RatingModal from './RatingModal';
 import notifee from '@notifee/react-native';
+import DeviceInfo from 'react-native-device-info';
 
 const TRANSLATIONS = {
   en: {
@@ -48,7 +50,15 @@ const TRANSLATIONS = {
     rateDescription: "Rate us on Play Store",
     alarmPermission: "Alarm Permission",
     alarmPermissionSetting: "Grant Alarm Permission",
-    alarmPermissionSettingDescription: "Allow the app to schedule exact alarms for precise prayer time notifications"
+  alarmPermissionSettingDescription: "Allow the app to schedule exact alarms for precise prayer time notifications",
+  batteryOptimization: "Battery Optimization",
+  batteryOptimizationSetting: "Disable Battery Optimization",
+  batteryOptimizationSettingDescription: "Disable Android battery optimization for this app to ensure timely prayer notifications",
+  openSettings: "Open Settings",
+  ok: "OK",
+  notificationSound: "Notification Sound",
+  prayerSoundSetting: "Use Prayer Sound",
+  prayerSoundDescription: "Play adhan sound for notifications, or use system default sound"
   },
   ar: {
     settings: "الإعدادات",
@@ -77,7 +87,15 @@ const TRANSLATIONS = {
     rateDescription: "قيمنا على متجر Google",
     alarmPermission: "إذن المنبهات",
     alarmPermissionSetting: "منح إذن المنبهات",
-    alarmPermissionSettingDescription: "السماح للتطبيق بجدولة المنبهات الدقيقة لإشعارات أوقات الصلاة الدقيقة"
+  alarmPermissionSettingDescription: "السماح للتطبيق بجدولة المنبهات الدقيقة لإشعارات أوقات الصلاة الدقيقة",
+  batteryOptimization: "تحسين البطارية",
+  batteryOptimizationSetting: "إيقاف تحسين البطارية",
+  batteryOptimizationSettingDescription: "أوقف تحسين البطارية لهذا التطبيق لضمان وصول إشعارات أوقات الصلاة في وقتها",
+  openSettings: "فتح الإعدادات",
+  ok: "موافق",
+  notificationSound: "صوت الإشعارات",
+  prayerSoundSetting: "استخدام صوت الأذان",
+  prayerSoundDescription: "تشغيل صوت الأذان للإشعارات، أو استخدام صوت نظام الهاتف"
   },
 };
 
@@ -91,7 +109,9 @@ const Settings = ({
   updateHijriOffset, 
   useArabicNumerals, 
   updateUseArabicNumerals,
-  requestAlarmPermission 
+  requestAlarmPermission,
+  usePrayerSound,
+  updateUsePrayerSound
 }) => {
   const translations = TRANSLATIONS[language];
   const [settings, setSettings] = useSettings();
@@ -99,7 +119,7 @@ const Settings = ({
   const [isUpdating, setIsUpdating] = useState(false);
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
   const [alarmPermissionGranted, setAlarmPermissionGranted] = useState(false);
-  const { isOperationInProgress } = useNotificationScheduler(language);
+  const { isOperationInProgress } = useNotificationScheduler(language, true);
 
   const renderHijriOffsetText = () => {
     if (hijriDateOffset === 0) {
@@ -166,6 +186,21 @@ const Settings = ({
           }
         }
       }, 1000);
+    }
+  };
+
+  const handleDisableBatteryOptimization = async () => {
+    if (Platform.OS !== 'android') return;
+    try {
+      // Open the app settings page where users can access battery optimization
+      await Linking.openSettings();
+    } catch (error) {
+      console.error('Error opening settings:', error);
+      Alert.alert(
+        translations.batteryOptimization,
+        'Unable to open settings automatically. Please go to Settings > Apps > ShiaPrayer Lebanon > Battery to disable battery optimization.',
+        [{ text: translations.ok, style: 'default' }]
+      );
     }
   };
 
@@ -364,6 +399,29 @@ const Settings = ({
           </Text>
         </View>
 
+        {/* Notification Sound Section */}
+        <View style={[styles.section, isDarkMode && styles.darkSection]}>
+          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
+            {translations.notificationSound}
+          </Text>
+          
+          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+            <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
+              {translations.prayerSoundSetting}
+            </Text>
+            <Switch
+              value={usePrayerSound}
+              onValueChange={updateUsePrayerSound}
+              trackColor={{ false: "#767577", true: isDarkMode ? "#66CCFF" : "#007AFF" }}
+              thumbColor={usePrayerSound ? (isDarkMode ? "#FFA500" : "#007AFF") : "#f4f3f4"}
+            />
+          </View>
+          
+          <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
+            {translations.prayerSoundDescription}
+          </Text>
+        </View>
+
         {/* Alarm Permission Section */}
         {Platform.OS === 'android' && (
           <View style={[styles.section, isDarkMode && styles.darkSection]}>
@@ -408,6 +466,47 @@ const Settings = ({
             
             <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
               {translations.alarmPermissionSettingDescription}
+            </Text>
+          </View>
+        )}
+
+        {/* Battery Optimization Section (Android) */}
+        {Platform.OS === 'android' && (
+          <View style={[styles.section, isDarkMode && styles.darkSection]}>
+            <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
+              {translations.batteryOptimization}
+            </Text>
+
+            <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
+                  {translations.batteryOptimizationSetting}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.permissionButton,
+                  isDarkMode && styles.darkPermissionButton
+                ]}
+                onPress={handleDisableBatteryOptimization}
+              >
+                <Icon 
+                  name="battery-charging-outline" 
+                  size={18} 
+                  color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                />
+                <Text style={[
+                  styles.permissionButtonText,
+                  isDarkMode && styles.darkPermissionButtonText
+                ]}>
+                  {translations.openSettings}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
+              {translations.batteryOptimizationSettingDescription}
             </Text>
           </View>
         )}
