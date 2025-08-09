@@ -25,6 +25,7 @@
     "moment-hijri": "^3.0.0",
     "react": "18.3.1",
     "react-native": "0.76.6",
+    "react-native-android-location-services-dialog-box": "^2.8.2",
     "react-native-async-storage": "^0.0.1",
     "react-native-device-info": "^14.0.4",
     "react-native-gesture-handler": "^2.24.0",
