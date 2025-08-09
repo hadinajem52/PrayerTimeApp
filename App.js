@@ -98,7 +98,11 @@ const TRANSLATIONS = {
     allowNotifications: "Allow Notifications",
     notificationUsageMessage: "This app uses notifications to remind you about prayer times. Please allow notifications.",
     allow: "Allow",
-    deny: "Deny"
+    deny: "Deny",
+    // Notification Sound Settings
+    notificationSound: "Notification Sound",
+    prayerSoundSetting: "Use Prayer Sound",
+    prayerSoundDescription: "Play adhan sound for notifications, or use system default sound"
   },
   ar: {
     prayerTimes: "جدول مواقيت الصلاة",
@@ -147,7 +151,11 @@ const TRANSLATIONS = {
     allowNotifications: "السماح بالإشعارات",
     notificationUsageMessage: "يستخدم هذا التطبيق الإشعارات لتذكيرك بأوقات الصلاة. يرجى السماح بالإشعارات.",
     allow: "سماح",
-    deny: "رفض"
+    deny: "رفض",
+    // Notification Sound Settings
+    notificationSound: "صوت الإشعارات",
+    prayerSoundSetting: "استخدام صوت الأذان",
+    prayerSoundDescription: "تشغيل صوت الأذان للإشعارات، أو استخدام صوت النظام الافتراضي"
   },
 };
 
@@ -503,7 +511,7 @@ function MainApp() {
     setupDailyRefresh,
     isLoading: notificationsLoading,
     isDataAvailable
-  } = useNotificationScheduler(language);
+  } = useNotificationScheduler(language, settings.usePrayerSound ?? true);
 
   const animation = useRef(new Animated.Value(0)).current;
   const cardScaleAnim = useRef(new Animated.Value(1)).current;
@@ -970,10 +978,13 @@ if (language === 'ar') {
 
   useEffect(() => {
     async function createChannel() {
+      // Use a new channel id so updates apply even if a previous channel existed without sound
       const channelId = await notifee.createChannel({
-        id: 'prayer-channel',
+        id: 'prayer-channel-v2',
         name: 'Prayer Notifications',
         importance: AndroidImportance.HIGH,
+        sound: 'prayersound',
+        vibration: true,
       });
       console.log('Notification channel created:', channelId);
     }
@@ -1596,6 +1607,7 @@ if (language === 'ar') {
             </Text>
           </Animated.View>
         </TouchableOpacity>
+
       </Animated.View>
       
       {/* Calendar Modal */}
@@ -1734,6 +1746,8 @@ if (language === 'ar') {
           useArabicNumerals={settings.useArabicNumerals || false}
           updateUseArabicNumerals={(value) => setSettings(prev => ({...prev, useArabicNumerals: value}))}
           requestAlarmPermission={requestAlarmPermissionFromSettings}
+          usePrayerSound={settings.usePrayerSound ?? true}
+          updateUsePrayerSound={(value) => setSettings(prev => ({...prev, usePrayerSound: value}))}
         />
       </Modal>
 

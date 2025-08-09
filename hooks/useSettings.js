@@ -22,7 +22,8 @@ const initialSettings = {
   scheduledNotifications: {},
   isSettingsLoaded: false,
   timeFormat: '12h',
-  useArabicNumerals: true, 
+  useArabicNumerals: true,
+  usePrayerSound: true, // true for prayer sound, false for OS default sound
 };
 
 // Helper function to notify all listeners when settings change
