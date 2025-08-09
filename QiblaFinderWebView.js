@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,41 +8,133 @@ import {
   Alert,
   Platform,
   PermissionsAndroid,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { moderateScale } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
+import LocationServicesDialogBox from 'react-native-android-location-services-dialog-box';
 
 const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) => {
   const webViewRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isLocationEnabled, setIsLocationEnabled] = useState(false);
+  const [isCheckingLocation, setIsCheckingLocation] = useState(true);
 
   // Google Qibla Finder URL - Use English version for better compatibility
   const qiblaFinderUrl = 'https://qiblafinder.withgoogle.com/intl/ar/finder/ar';
+
+  // Check if location services are enabled
+  const checkLocationServices = async () => {
+    if (Platform.OS !== 'android') {
+      setIsLocationEnabled(true);
+      setIsCheckingLocation(false);
+      return true;
+    }
+
+    try {
+      const isEnabled = await LocationServicesDialogBox.checkLocationServicesIsEnabled({
+        message: language === 'ar' 
+          ? "يتطلب تطبيق أوقات الصلاة تشغيل خدمات الموقع لتحديد اتجاه القبلة بدقة.\n\nيرجى تشغيل خدمات الموقع من الإعدادات."
+          : "Prayer Times App requires location services to accurately determine the Qibla direction.\n\nPlease turn on location services from settings.",
+        ok: language === 'ar' ? "موافق" : "OK",
+        cancel: language === 'ar' ? "إلغاء" : "Cancel",
+      });
+
+      console.log('Location services enabled:', isEnabled);
+      setIsLocationEnabled(isEnabled);
+      setIsCheckingLocation(false);
+      
+      if (!isEnabled) {
+        // User cancelled or location is disabled
+        onClose();
+        return false;
+      }
+      
+      return isEnabled;
+    } catch (error) {
+      console.error('Error checking location services:', error);
+      // Fallback to manual check
+      setIsCheckingLocation(false);
+      return await requestLocationPermissions();
+    }
+  };
+
+  // Fallback manual location permission check
+  const requestLocationPermissions = async () => {
+    if (Platform.OS !== 'android') {
+      return true;
+    }
+
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: language === 'ar' ? 'إذن الموقع مطلوب' : 'Location Permission Required',
+          message: language === 'ar' 
+            ? 'يحتاج التطبيق للوصول إلى موقعك لتحديد اتجاه القبلة بدقة.'
+            : 'This app needs access to location to accurately determine Qibla direction.',
+          buttonNeutral: language === 'ar' ? 'اسأل لاحقاً' : 'Ask Me Later',
+          buttonNegative: language === 'ar' ? 'إلغاء' : 'Cancel',
+          buttonPositive: language === 'ar' ? 'موافق' : 'OK',
+        },
+      );
+
+      const isGranted = granted === PermissionsAndroid.RESULTS.GRANTED;
+      setIsLocationEnabled(isGranted);
+      
+      if (!isGranted) {
+        Alert.alert(
+          language === 'ar' ? 'إذن الموقع مطلوب' : 'Location Permission Required',
+          language === 'ar' 
+            ? 'إذن الموقع مطلوب لاستخدام باحث القبلة. يرجى السماح بالوصول للموقع من إعدادات التطبيق.'
+            : 'Location permission is required to use Qibla Finder. Please allow location access from app settings.',
+          [
+            { text: language === 'ar' ? 'إلغاء' : 'Cancel', onPress: () => onClose() },
+            { text: language === 'ar' ? 'الإعدادات' : 'Settings', onPress: () => {
+              // You might want to open app settings here
+              onClose();
+            }},
+          ]
+        );
+        return false;
+      }
+      
+      return isGranted;
+    } catch (err) {
+      console.warn('Location permission request error:', err);
+      onClose();
+      return false;
+    }
+  };
 
   // Request camera and location permissions
   const requestPermissions = async () => {
     if (Platform.OS === 'android') {
       try {
+        // First ensure location services are enabled
+        const locationEnabled = await checkLocationServices();
+        if (!locationEnabled) {
+          return false;
+        }
+
         const granted = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.CAMERA,
-          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
           PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
         ]);
 
         const cameraGranted = granted[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
-        const micGranted = granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === PermissionsAndroid.RESULTS.GRANTED;
         const locationGranted = granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED;
 
         if (!cameraGranted || !locationGranted) {
           Alert.alert(
             language === 'ar' ? 'أذونات مطلوبة' : 'Permissions Required',
             language === 'ar' 
-              ? 'أذونات الكاميرا والموقع مطلوبة لتجربة البحث عن القبلة. إذن الميكروفون اختياري.'
-              : 'Camera and location permissions are required for the Qibla Finder AR experience. Microphone permission is optional.',
+              ? 'أذونات الكاميرا والموقع مطلوبة لتجربة البحث عن القبلة.'
+              : 'Camera and location permissions are required for the Qibla Finder experience.',
             [
               { text: language === 'ar' ? 'إلغاء' : 'Cancel', onPress: () => onClose() },
               { text: language === 'ar' ? 'حاول مرة أخرى' : 'Try Again', onPress: requestPermissions },
@@ -51,7 +143,7 @@ const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) =>
           return false;
         }
         
-        console.log('Permissions granted:', { camera: cameraGranted, microphone: micGranted, location: locationGranted });
+        console.log('Permissions granted:', { camera: cameraGranted, location: locationGranted });
         return true;
       } catch (err) {
         console.warn('Permission request error:', err);
@@ -105,7 +197,7 @@ const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) =>
   // Handle WebView permission requests
   const handlePermissionRequest = (request) => {
     console.log('Permission request:', request);
-    // Grant all permissions for camera, microphone, and location
+    // Grant all permissions for camera and location
     request.grant();
   };
 
@@ -174,20 +266,91 @@ const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) =>
     true; // Required for injected JavaScript
   `;
 
-  React.useEffect(() => {
-    // Request permissions when component mounts
-    requestPermissions();
+  useEffect(() => {
+    let isMounted = true;
+
+    const initializeComponent = async () => {
+      if (Platform.OS === 'android') {
+        // First check and enable location services
+        const locationEnabled = await checkLocationServices();
+        if (!isMounted) return;
+        
+        if (locationEnabled) {
+          // Then request permissions
+          await requestPermissions();
+        } else {
+          // User cancelled or location services not available
+          return;
+        }
+      } else {
+        // For iOS or other platforms, just request permissions
+        await requestPermissions();
+      }
+    };
+
+    initializeComponent();
+    
+    // Handle Android back button
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (webViewRef.current) {
+        webViewRef.current.goBack();
+        return true; // Prevent default behavior
+      }
+      return false; // Allow default behavior (close screen)
+    });
     
     // Force hide loading after 15 seconds as a fallback (extended for slower connections)
     const loadingTimeout = setTimeout(() => {
       console.log('Forcing loading to false after extended timeout');
-      setIsLoading(false);
+      if (isMounted) {
+        setIsLoading(false);
+      }
     }, 15000);
     
     return () => {
+      isMounted = false;
+      backHandler.remove();
       clearTimeout(loadingTimeout);
     };
   }, []);
+
+  if (isCheckingLocation) {
+    return (
+      <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
+        <StatusBar
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+          backgroundColor={isDarkMode ? '#222' : '#EAEFF2'}
+        />
+        
+        {/* Header */}
+        <View style={[styles.header, isDarkMode && styles.darkHeader]}>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Icon name="close" size={moderateScale(24)} color={isDarkMode ? '#FFF' : '#333'} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, isDarkMode && styles.darkText]}>
+            Qibla Finder
+          </Text>
+          <View style={styles.refreshButton} />
+        </View>
+
+        {/* Location Check Content */}
+        <View style={[styles.contentContainer, isDarkMode && styles.darkContentContainer]}>
+          <View style={styles.locationCheckContainer}>
+            <Icon name="location-outline" size={moderateScale(60)} color="#66CCFF" />
+            <Text style={[styles.locationCheckTitle, isDarkMode && styles.darkText]}>
+              {language === 'ar' ? 'فحص خدمات الموقع' : 'Checking Location Services'}
+            </Text>
+            <Text style={[styles.locationCheckText, isDarkMode && styles.darkText]}>
+              {language === 'ar' 
+                ? 'يرجى تشغيل خدمات الموقع لاستخدام باحث القبلة'
+                : 'Please enable location services to use Qibla Finder'
+              }
+            </Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (error) {
     return (
@@ -537,6 +700,26 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: moderateScale(16),
     fontWeight: '600',
+  },
+  locationCheckContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: moderateScale(40),
+  },
+  locationCheckTitle: {
+    fontSize: moderateScale(22),
+    fontWeight: '700',
+    color: '#333',
+    marginTop: moderateScale(20),
+    marginBottom: moderateScale(10),
+    textAlign: 'center',
+  },
+  locationCheckText: {
+    fontSize: moderateScale(16),
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: moderateScale(24),
   },
 });
 
