@@ -24,7 +24,7 @@
       }
     },
     "android": {
-      "versionCode": 29, 
+      "versionCode": 29,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -45,6 +45,9 @@
         "projectId": "8dbb9a8c-7250-41a6-a264-df416556a461"
       }
     },
-    "owner": "hhhhjjj"
+    "owner": "hhhhjjj",
+    "plugins": [
+      "expo-build-properties"
+    ]
   }
 }
