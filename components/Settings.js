@@ -9,8 +9,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
-  Platform,
-  Linking
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -54,6 +53,7 @@ const TRANSLATIONS = {
   batteryOptimization: "Battery Optimization",
   batteryOptimizationSetting: "Disable Battery Optimization",
   batteryOptimizationSettingDescription: "Disable Android battery optimization for this app to ensure timely prayer notifications",
+  batteryOptimizationDisabled: "Disabled",
   openSettings: "Open Settings",
   ok: "OK",
   notificationSound: "Notification Sound",
@@ -91,6 +91,7 @@ const TRANSLATIONS = {
   batteryOptimization: "تحسين البطارية",
   batteryOptimizationSetting: "إيقاف تحسين البطارية",
   batteryOptimizationSettingDescription: "أوقف تحسين البطارية لهذا التطبيق لضمان وصول إشعارات أوقات الصلاة في وقتها",
+  batteryOptimizationDisabled: "معطل",
   openSettings: "فتح الإعدادات",
   ok: "موافق",
   notificationSound: "صوت الإشعارات",
@@ -119,6 +120,7 @@ const Settings = ({
   const [isUpdating, setIsUpdating] = useState(false);
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
   const [alarmPermissionGranted, setAlarmPermissionGranted] = useState(false);
+  const [isBatteryOptimizationEnabled, setIsBatteryOptimizationEnabled] = useState(true);
   const { isOperationInProgress } = useNotificationScheduler(language, true);
 
   const renderHijriOffsetText = () => {
@@ -158,18 +160,21 @@ const Settings = ({
 
   // Check alarm permission status
   useEffect(() => {
-    const checkAlarmPermission = async () => {
+    const checkPermissions = async () => {
       if (Platform.OS === 'android') {
         try {
           const settings = await notifee.getNotificationSettings();
           setAlarmPermissionGranted(settings.android.alarm === 1); // 1 is 'granted'
+
+          const isEnabled = await notifee.isBatteryOptimizationEnabled();
+          setIsBatteryOptimizationEnabled(isEnabled);
         } catch (error) {
-          console.error('Error checking alarm permission:', error);
+          console.error('Error checking permissions:', error);
         }
       }
     };
     
-    checkAlarmPermission();
+    checkPermissions();
   }, []);
 
   const handleRequestAlarmPermission = async () => {
@@ -192,13 +197,12 @@ const Settings = ({
   const handleDisableBatteryOptimization = async () => {
     if (Platform.OS !== 'android') return;
     try {
-      // Open the app settings page where users can access battery optimization
-      await Linking.openSettings();
+      await notifee.openBatteryOptimizationSettings();
     } catch (error) {
-      console.error('Error opening settings:', error);
+      console.error('Error opening battery optimization settings:', error);
       Alert.alert(
         translations.batteryOptimization,
-        'Unable to open settings automatically. Please go to Settings > Apps > ShiaPrayer Lebanon > Battery to disable battery optimization.',
+        'Unable to open settings automatically. Please go to your device settings to disable battery optimization for this app.',
         [{ text: translations.ok, style: 'default' }]
       );
     }
@@ -482,27 +486,34 @@ const Settings = ({
                 <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
                   {translations.batteryOptimizationSetting}
                 </Text>
+                {!isBatteryOptimizationEnabled && (
+                  <Text style={[styles.permissionStatus, styles.grantedStatus]}>
+                    ✓ {translations.batteryOptimizationDisabled}
+                  </Text>
+                )}
               </View>
 
-              <TouchableOpacity
-                style={[
-                  styles.permissionButton,
-                  isDarkMode && styles.darkPermissionButton
-                ]}
-                onPress={handleDisableBatteryOptimization}
-              >
-                <Icon 
-                  name="battery-charging-outline" 
-                  size={18} 
-                  color={isDarkMode ? "#FFA500" : "#007AFF"} 
-                />
-                <Text style={[
-                  styles.permissionButtonText,
-                  isDarkMode && styles.darkPermissionButtonText
-                ]}>
-                  {translations.openSettings}
-                </Text>
-              </TouchableOpacity>
+              {isBatteryOptimizationEnabled && (
+                <TouchableOpacity
+                  style={[
+                    styles.permissionButton,
+                    isDarkMode && styles.darkPermissionButton
+                  ]}
+                  onPress={handleDisableBatteryOptimization}
+                >
+                  <Icon 
+                    name="battery-charging-outline" 
+                    size={18} 
+                    color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                  />
+                  <Text style={[
+                    styles.permissionButtonText,
+                    isDarkMode && styles.darkPermissionButtonText
+                  ]}>
+                    {translations.openSettings}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
