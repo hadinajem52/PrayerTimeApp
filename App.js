@@ -510,7 +510,8 @@ function MainApp() {
     scheduleRollingNotifications,
     setupDailyRefresh,
     isLoading: notificationsLoading,
-    isDataAvailable
+    isDataAvailable,
+    triggerTestNotification
   } = useNotificationScheduler(language, settings.usePrayerSound ?? true);
 
   const animation = useRef(new Animated.Value(0)).current;
@@ -977,18 +978,28 @@ if (language === 'ar') {
   }, [language]);
 
   useEffect(() => {
-    async function createChannel() {
-      // Use a new channel id so updates apply even if a previous channel existed without sound
-      const channelId = await notifee.createChannel({
-        id: 'prayer-channel-v2',
-        name: 'Prayer Notifications',
+    async function createChannels() {
+      // Channel with custom adhan sound
+      await notifee.createChannel({
+        id: 'prayer-channel-sound',
+        name: 'Prayer Notifications (Adhan)',
         importance: AndroidImportance.HIGH,
         sound: 'prayersound',
         vibration: true,
       });
-      console.log('Notification channel created:', channelId);
+
+      // Channel with default system sound
+      await notifee.createChannel({
+        id: 'prayer-channel-default',
+        name: 'Prayer Notifications (Default)',
+        importance: AndroidImportance.HIGH,
+        vibration: true,
+        // Sound is intentionally omitted to use the system default
+      });
+
+      console.log('Notification channels created');
     }
-    createChannel();
+    createChannels();
   }, []);
 
   const requestOSNotificationPermission = useCallback(async () => {
@@ -1608,9 +1619,12 @@ if (language === 'ar') {
           </Animated.View>
         </TouchableOpacity>
 
+        
+
       </Animated.View>
       
       {/* Calendar Modal */}
+
       <Modal
         animationType="slide"
         transparent={false}
