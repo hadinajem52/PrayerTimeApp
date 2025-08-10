@@ -510,8 +510,7 @@ function MainApp() {
     scheduleRollingNotifications,
     setupDailyRefresh,
     isLoading: notificationsLoading,
-    isDataAvailable,
-    triggerTestNotification
+    isDataAvailable
   } = useNotificationScheduler(language, settings.usePrayerSound ?? true);
 
   const animation = useRef(new Animated.Value(0)).current;
@@ -1619,7 +1618,7 @@ if (language === 'ar') {
           </Animated.View>
         </TouchableOpacity>
 
-        
+       
 
       </Animated.View>
       
