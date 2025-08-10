@@ -111,6 +111,9 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
       // Determine if this is a prayer or other significant time
       const isPrayer = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].includes(prayerKey);
       
+      // Determine channel based on sound preference
+      const channelId = usePrayerSound ? 'prayer-channel-sound' : 'prayer-channel-default';
+
       // Create notification content with appropriate message format
       const notification = {
         id: standardizedId,
@@ -119,8 +122,8 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
           ? translate('prayerApproaching', { prayer: prayerName })
           : translate('timeApproaching', { time: prayerName }),
         android: {
-          // Must match the channel created in App.js
-          channelId: 'prayer-channel-v2',
+          // Dynamically select channel based on sound setting
+          channelId,
           smallIcon: 'ic_launcher', 
           pressAction: {
             id: 'default',
@@ -132,8 +135,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
           alarmManager: {
             allowWhileIdle: true,
           },
-          // Conditionally use prayer sound or system default
-          ...(usePrayerSound && { sound: 'prayersound' }),
+          // Sound is now handled by the notification channel
         },
       };
       
@@ -428,6 +430,32 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
     }
   }, [translate, getPrayerTimesForDay, parsePrayerTime, scheduleLocalNotification]);
 
+  const triggerTestNotification = useCallback(async () => {
+    try {
+      setIsOperationInProgress(true);
+      const channelId = usePrayerSound ? 'prayer-channel-sound' : 'prayer-channel-default';
+      
+      const testNotification = {
+        title: translate('testNotificationTitle'),
+        body: translate('testNotificationBody'),
+        android: {
+          channelId,
+          smallIcon: 'ic_launcher',
+          pressAction: {
+            id: 'default',
+          },
+        },
+      };
+
+      await notifee.displayNotification(testNotification);
+      console.log('[Notification] Test notification displayed');
+    } catch (error) {
+      console.error('[Notification] Error displaying test notification:', error);
+    } finally {
+      setIsOperationInProgress(false);
+    }
+  }, [usePrayerSound, translate]);
+
   return {
     scheduleLocalNotification,
     scheduleNotificationsForUpcomingPeriod,
@@ -435,6 +463,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
     cancelAllNotifications,
     scheduleRollingNotifications,
     setupDailyRefresh,
+    triggerTestNotification,
     isLoading, 
     isOperationInProgress, 
     isDataAvailable
