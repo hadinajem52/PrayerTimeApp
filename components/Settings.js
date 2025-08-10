@@ -20,6 +20,7 @@ import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import RatingModal from './RatingModal';
 import notifee from '@notifee/react-native';
 import DeviceInfo from 'react-native-device-info';
+import * as IntentLauncher from 'expo-intent-launcher';
 
 const TRANSLATIONS = {
   en: {
@@ -196,15 +197,29 @@ const Settings = ({
 
   const handleDisableBatteryOptimization = async () => {
     if (Platform.OS !== 'android') return;
+  
+    const packageName = DeviceInfo.getBundleId();
+  
     try {
-      await notifee.openBatteryOptimizationSettings();
+        await IntentLauncher.startActivityAsync(
+          'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+          {
+            data: `package:${packageName}`,
+          }
+        );
     } catch (error) {
       console.error('Error opening battery optimization settings:', error);
-      Alert.alert(
-        translations.batteryOptimization,
-        'Unable to open settings automatically. Please go to your device settings to disable battery optimization for this app.',
-        [{ text: translations.ok, style: 'default' }]
-      );
+      // Fallback to the general settings if the specific intent fails
+      try {
+        await notifee.openBatteryOptimizationSettings();
+      } catch (e) {
+        console.error('Error opening battery optimization settings fallback:', e);
+        Alert.alert(
+          translations.batteryOptimization,
+          'Unable to open settings automatically. Please go to your device settings to disable battery optimization for this app.',
+          [{ text: translations.ok, style: 'default' }]
+        );
+      }
     }
   };
 
