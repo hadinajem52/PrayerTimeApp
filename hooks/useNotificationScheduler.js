@@ -128,7 +128,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
           pressAction: {
             id: 'default',
           },
-          importance: AndroidImportance.HIGH,
+          importance: AndroidImportance.MAX,
           // Add timestamp for when notification was posted
           timestamp: prayerTime.getTime(), // Shows the actual prayer time as when notification was sent
           showTimestamp: true,
@@ -150,7 +150,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
     } finally {
       setIsOperationInProgress(false);
     }
-  }, [translate, language]);
+  }, [translate, language, usePrayerSound]);
   
   /**
    * Parse a prayer time string into a Date object

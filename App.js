@@ -102,7 +102,10 @@ const TRANSLATIONS = {
     // Notification Sound Settings
     notificationSound: "Notification Sound",
     prayerSoundSetting: "Use Prayer Sound",
-    prayerSoundDescription: "Play adhan sound for notifications, or use system default sound"
+    prayerSoundDescription: "Play adhan sound for notifications, or use system default sound",
+    test: "Test",
+    testNotification: "Test Notification",
+    testNotificationMessage: "Isha prayer notification has been scheduled to fire immediately."
   },
   ar: {
     prayerTimes: "جدول مواقيت الصلاة",
@@ -155,7 +158,10 @@ const TRANSLATIONS = {
     // Notification Sound Settings
     notificationSound: "صوت الإشعارات",
     prayerSoundSetting: "استخدام صوت الأذان",
-    prayerSoundDescription: "تشغيل صوت الأذان للإشعارات، أو استخدام صوت النظام الافتراضي"
+    prayerSoundDescription: "تشغيل صوت الأذان للإشعارات، أو استخدام صوت النظام الافتراضي",
+    test: "تجربة",
+    testNotification: "إشعار تجريبي",
+    testNotificationMessage: "تمت جدولة إشعار صلاة العشاء ليتم إطلاقه على الفور."
   },
 };
 
@@ -522,6 +528,22 @@ function MainApp() {
   const locationButtonAnim = useRef(new Animated.Value(1)).current;
   const compassButtonAnim = useRef(new Animated.Value(1)).current;
   const appState = useRef(AppState.currentState);
+
+  const handleTestNotification = async () => {
+    console.log('Firing test notification for Isha');
+    const prayerKey = 'isha';
+    // Fire in 1 second
+    const prayerTime = new Date(Date.now() + 1000); 
+    const numericId = `test-${moment().format('YYYYMMDDHHmmss')}`;
+    
+    await scheduleLocalNotification(numericId, prayerKey, prayerTime);
+    
+    Alert.alert(
+      TRANSLATIONS[language].testNotification, 
+      TRANSLATIONS[language].testNotificationMessage,
+      [{ text: TRANSLATIONS[language].ok }]
+    );
+  };
 
   const locationData = useMemo(() => {
     return (prayerTimes && prayerTimes[selectedLocation]) || [];
@@ -982,7 +1004,7 @@ if (language === 'ar') {
       await notifee.createChannel({
         id: 'prayer-channel-sound',
         name: 'Prayer Notifications (Adhan)',
-        importance: AndroidImportance.HIGH,
+        importance: AndroidImportance.MAX, 
         sound: 'prayersound',
         vibration: true,
       });
@@ -991,9 +1013,9 @@ if (language === 'ar') {
       await notifee.createChannel({
         id: 'prayer-channel-default',
         name: 'Prayer Notifications (Default)',
-        importance: AndroidImportance.HIGH,
+        importance: AndroidImportance.MAX,
         vibration: true,
-        // Sound is intentionally omitted to use the system default
+        sound: 'default',
       });
 
       console.log('Notification channels created');
@@ -1614,6 +1636,27 @@ if (language === 'ar') {
               isCompassVisible && isDarkMode && styles.darkNavLabelActive
             ]}>
               {language === 'en' ? 'Qibla' : 'القبلة '}
+            </Text>
+          </Animated.View>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.navItem]} 
+          onPress={handleTestNotification}
+        >
+          <Animated.View style={{ alignItems: 'center', width: '100%' }}>
+            <View style={styles.navIconContainer}>
+              <Icon
+                name="bug-outline"
+                size={28}
+                color={isDarkMode ? "#66CCFF" : "#555"}
+              />
+            </View>
+            <Text style={[
+              styles.navLabel,
+              isDarkMode && styles.darkNavLabel,
+            ]}>
+              {TRANSLATIONS[language].test}
             </Text>
           </Animated.View>
         </TouchableOpacity>
