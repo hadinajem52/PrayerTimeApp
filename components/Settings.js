@@ -502,7 +502,7 @@ const Settings = ({
                   {translations.batteryOptimizationSetting}
                 </Text>
                 {!isBatteryOptimizationEnabled && (
-                  <Text style={[styles.permissionStatus, styles.grantedStatus]}>
+                  <Text style={[styles.permissionStatus, styles.disabledStatus]}>
                     ✓ {translations.batteryOptimizationDisabled}
                   </Text>
                 )}
@@ -900,6 +900,9 @@ const styles = StyleSheet.create({
   },
   grantedStatus: {
     color: '#4CAF50',
+  },
+  disabledStatus: {
+    color: '#888',
   },
 });
 
