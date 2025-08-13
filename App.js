@@ -47,6 +47,8 @@ import { PrayerTimesProvider, usePrayerTimes } from './components/PrayerTimesPro
 import Rate, { AndroidMarket } from 'react-native-rate';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RatingModal from './components/RatingModal';
+import DeviceInfo from 'react-native-device-info';
+import * as IntentLauncher from 'expo-intent-launcher';
 
 
 // ----- Translations & Constants -----
@@ -105,7 +107,10 @@ const TRANSLATIONS = {
     prayerSoundDescription: "Play adhan sound for notifications, or use system default sound",
     test: "Test",
     testNotification: "Test Notification",
-    testNotificationMessage: "Isha prayer notification has been scheduled to fire immediately."
+  testNotificationMessage: "Isha prayer notification has been scheduled to fire immediately.",
+  // Battery Optimization
+  batteryOptimization: "Battery Optimization",
+  batteryOptimizationSettingDescription: "Disable Android battery optimization for this app to ensure timely prayer notifications"
   },
   ar: {
     prayerTimes: "جدول مواقيت الصلاة",
@@ -161,7 +166,10 @@ const TRANSLATIONS = {
     prayerSoundDescription: "تشغيل صوت الأذان للإشعارات، أو استخدام صوت النظام الافتراضي",
     test: "تجربة",
     testNotification: "إشعار تجريبي",
-    testNotificationMessage: "تمت جدولة إشعار صلاة العشاء ليتم إطلاقه على الفور."
+  testNotificationMessage: "تمت جدولة إشعار صلاة العشاء ليتم إطلاقه على الفور.",
+  // Battery Optimization
+  batteryOptimization: "تحسين البطارية",
+  batteryOptimizationSettingDescription: "أوقف تحسين البطارية لهذا التطبيق لضمان وصول إشعارات أوقات الصلاة في وقتها"
   },
 };
 
@@ -506,7 +514,9 @@ function MainApp() {
   const [isShowingLastAvailableDay, setIsShowingLastAvailableDay] = useState(false);
   const [notificationsScheduled, setNotificationsScheduled] = useState(false);
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
-  const [isAlarmPermissionModalVisible, setIsAlarmPermissionModalVisible] = useState(false);
+  
+  const [isBatteryModalVisible, setIsBatteryModalVisible] = useState(false);
+  const [isBatteryOptimizationEnabled, setIsBatteryOptimizationEnabled] = useState(true);
 
   const {
     scheduleLocalNotification,
@@ -974,14 +984,19 @@ if (language === 'ar') {
 
   useEffect(() => {
     async function requestPermissions() {
+      // Check Battery Optimization on Android
       if (Platform.OS === 'android') {
-        // Check if user has previously dismissed the alarm permission
-        const alarmPermissionDismissed = await AsyncStorage.getItem('alarmPermissionDismissed');
-        
-        const alarmPermission = await notifee.getNotificationSettings();
-        if (alarmPermission.android.alarm !== 1 && alarmPermissionDismissed !== 'true') { // 1 is 'granted'
-          setIsAlarmPermissionModalVisible(true);
-          return; // Don't continue with other permissions until alarm modal is handled
+        try {
+          // Determine if battery optimization is enabled for this app
+          // notifee returns true if battery optimization is enabled (needs disabling)
+          const isOptimized = await notifee.isBatteryOptimizationEnabled();
+          setIsBatteryOptimizationEnabled(isOptimized);
+          const dismissed = await AsyncStorage.getItem('batteryOptimizationDismissed');
+          if (isOptimized && dismissed !== 'true') {
+            setIsBatteryModalVisible(true);
+          }
+        } catch (e) {
+          console.warn('Battery optimization check failed:', e);
         }
       }
 
@@ -1022,6 +1037,43 @@ if (language === 'ar') {
     }
     createChannels();
   }, []);
+
+  // One-time migration: move scheduled notifications to v2 channels
+  useEffect(() => {
+    const migrateNotificationsToV2 = async () => {
+      if (!isSettingsLoaded || !selectedLocation || !enabledPrayers) return;
+      try {
+        const migrated = await AsyncStorage.getItem('notif_migrated_v2');
+        if (migrated === 'true') return;
+
+        const triggers = await notifee.getTriggerNotifications();
+        const idsToCancel = triggers
+          .filter(tn => {
+            const ch = tn.notification?.android?.channelId;
+            // Cancel anything not explicitly on a v2 channel
+            return !ch || !String(ch).endsWith('-v2');
+          })
+          .map(tn => String(tn.notification.id))
+          .filter(Boolean);
+
+        if (idsToCancel.length > 0) {
+          console.log('[Migration] Cancelling', idsToCancel.length, 'old notifications');
+          await cancelAllNotifications(idsToCancel);
+        }
+
+        // Reschedule upcoming notifications on v2 channels
+        console.log('[Migration] Rescheduling notifications on v2 channels');
+        await scheduleRollingNotifications(selectedLocation, enabledPrayers);
+
+        await AsyncStorage.setItem('notif_migrated_v2', 'true');
+        console.log('[Migration] Completed notification channel migration to v2');
+      } catch (e) {
+        console.error('[Migration] Failed migrating notifications to v2:', e);
+      }
+    };
+
+    migrateNotificationsToV2();
+  }, [isSettingsLoaded, selectedLocation, enabledPrayers, cancelAllNotifications, scheduleRollingNotifications]);
 
   const requestOSNotificationPermission = useCallback(async () => {
     if (Platform.OS === 'android' && Platform.Version >= 33) {
@@ -1274,61 +1326,16 @@ if (language === 'ar') {
   // Check and show rating popup
   useEffect(() => {
     // Show rating popup after 3 seconds when the app is fully loaded
-    // Only show if alarm permission modal is not visible
-    if (isSettingsLoaded && !prayerTimesLoading && !isLoading && !isAlarmPermissionModalVisible) {
+    if (isSettingsLoaded && !prayerTimesLoading && !isLoading && !isBatteryModalVisible) {
       const timer = setTimeout(() => {
         checkAndShowRating();
       }, 3000);
       
       return () => clearTimeout(timer);
     }
-  }, [isSettingsLoaded, prayerTimesLoading, isLoading, isAlarmPermissionModalVisible, checkAndShowRating]);
+  }, [isSettingsLoaded, prayerTimesLoading, isLoading, isBatteryModalVisible, checkAndShowRating]);
 
-  // Handle alarm permission modal actions
-  const handleAlarmPermissionAccept = async () => {
-    setIsAlarmPermissionModalVisible(false);
-    try {
-      await notifee.openAlarmPermissionSettings();
-    } catch (error) {
-      console.error('Error opening alarm permission settings:', error);
-    }
-    
-    // After closing alarm modal, show rating modal if needed
-    setTimeout(() => {
-      if (isSettingsLoaded && !prayerTimesLoading && !isLoading) {
-        checkAndShowRating();
-      }
-    }, 1000);
-  };
-
-  const handleAlarmPermissionDecline = async () => {
-    setIsAlarmPermissionModalVisible(false);
-    
-    // Save that user dismissed the alarm permission
-    try {
-      await AsyncStorage.setItem('alarmPermissionDismissed', 'true');
-    } catch (error) {
-      console.error('Error saving alarm permission dismissed state:', error);
-    }
-    
-    // After declining alarm modal, show rating modal if needed
-    setTimeout(() => {
-      if (isSettingsLoaded && !prayerTimesLoading && !isLoading) {
-        checkAndShowRating();
-      }
-    }, 500);
-  };
-
-  // Function to manually request alarm permission from Settings
-  const requestAlarmPermissionFromSettings = async () => {
-    try {
-      await notifee.openAlarmPermissionSettings();
-      // Reset the dismissed state when user manually requests permission
-      await AsyncStorage.removeItem('alarmPermissionDismissed');
-    } catch (error) {
-      console.error('Error opening alarm permission settings:', error);
-    }
-  };
+  // Alarm permission modal removed
   
   if (prayerTimesError) {
     console.error("Prayer Times Error:", prayerTimesError);
@@ -1801,7 +1808,6 @@ if (language === 'ar') {
           updateHijriOffset={updateHijriOffset}
           useArabicNumerals={settings.useArabicNumerals || false}
           updateUseArabicNumerals={(value) => setSettings(prev => ({...prev, useArabicNumerals: value}))}
-          requestAlarmPermission={requestAlarmPermissionFromSettings}
           usePrayerSound={settings.usePrayerSound ?? true}
           updateUsePrayerSound={(value) => setSettings(prev => ({...prev, usePrayerSound: value}))}
         />
@@ -1815,34 +1821,40 @@ if (language === 'ar') {
         onClose={() => setIsRatingModalVisible(false)}
       />
 
-      {/* Alarm Permission Modal */}
+      {/* Battery Optimization Modal */}
       <Modal
-        visible={isAlarmPermissionModalVisible}
+        visible={isBatteryModalVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={handleAlarmPermissionDecline}
+        onRequestClose={async () => {
+          setIsBatteryModalVisible(false);
+          await AsyncStorage.setItem('batteryOptimizationDismissed', 'true');
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, isDarkMode && styles.darkModalContainer]}>
             <View style={[styles.modalHeader, isDarkMode && styles.darkModalHeader]}>
               <Icon 
-                name="alarm-outline" 
+                name="battery-charging-outline" 
                 size={moderateScale(32)} 
                 color={isDarkMode ? '#FFA500' : '#007AFF'} 
               />
               <Text style={[styles.modalTitle, isDarkMode && styles.darkText]}>
-                {TRANSLATIONS[language].permissionRequired}
+                {TRANSLATIONS[language].batteryOptimization}
               </Text>
             </View>
             
             <Text style={[styles.modalMessage, isDarkMode && styles.darkText]}>
-              {TRANSLATIONS[language].alarmPermissionMessage}
+              {TRANSLATIONS[language].batteryOptimizationSettingDescription}
             </Text>
             
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton, isDarkMode && styles.darkCancelButton]}
-                onPress={handleAlarmPermissionDecline}
+                onPress={async () => {
+                  setIsBatteryModalVisible(false);
+                  await AsyncStorage.setItem('batteryOptimizationDismissed', 'true');
+                }}
               >
                 <Text style={[styles.cancelButtonText, isDarkMode && styles.darkCancelText]}>
                   {TRANSLATIONS[language].cancel}
@@ -1851,7 +1863,25 @@ if (language === 'ar') {
               
               <TouchableOpacity
                 style={[styles.modalButton, styles.confirmButton, isDarkMode && styles.darkConfirmButton]}
-                onPress={handleAlarmPermissionAccept}
+                onPress={async () => {
+                  try {
+                    const packageName = DeviceInfo.getBundleId();
+                    await IntentLauncher.startActivityAsync(
+                      'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+                      { data: `package:${packageName}` }
+                    );
+                  } catch (error) {
+                    console.error('Error opening battery optimization settings:', error);
+                    try {
+                      await notifee.openBatteryOptimizationSettings();
+                    } catch (e) {
+                      console.error('Fallback battery optimization settings failed:', e);
+                    }
+                  } finally {
+                    setIsBatteryModalVisible(false);
+                    await AsyncStorage.setItem('batteryOptimizationDismissed', 'true');
+                  }
+                }}
               >
                 <Text style={styles.confirmButtonText}>
                   {TRANSLATIONS[language].openSettings}
@@ -1861,6 +1891,8 @@ if (language === 'ar') {
           </View>
         </View>
       </Modal>
+
+      
     </SafeAreaView>
   );
 }
