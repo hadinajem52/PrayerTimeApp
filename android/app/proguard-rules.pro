@@ -11,4 +11,13 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
+# Keep custom notification sounds
+-keep class **.R$raw { *; }
+-keepclassmembers class **.R$raw {
+    public static final int prayersound;
+}
+
+# Keep raw resources
+-keep class com.hnjm123.ShiaPrayerLeb.R$raw { *; }
+
 # Add any project specific keep options here:

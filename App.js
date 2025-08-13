@@ -1002,7 +1002,7 @@ if (language === 'ar') {
     async function createChannels() {
       // Channel with custom adhan sound
       await notifee.createChannel({
-        id: 'prayer-channel-sound',
+        id: 'prayer-channel-sound-v2',
         name: 'Prayer Notifications (Adhan)',
         importance: AndroidImportance.MAX, 
         sound: 'prayersound',
@@ -1011,7 +1011,7 @@ if (language === 'ar') {
 
       // Channel with default system sound
       await notifee.createChannel({
-        id: 'prayer-channel-default',
+        id: 'prayer-channel-default-v2',
         name: 'Prayer Notifications (Default)',
         importance: AndroidImportance.MAX,
         vibration: true,

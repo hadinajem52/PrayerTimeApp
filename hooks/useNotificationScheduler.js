@@ -112,7 +112,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
       const isPrayer = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].includes(prayerKey);
       
       // Determine channel based on sound preference
-      const channelId = usePrayerSound ? 'prayer-channel-sound' : 'prayer-channel-default';
+  const channelId = usePrayerSound ? 'prayer-channel-sound-v2' : 'prayer-channel-default-v2';
 
       // Create notification content with appropriate message format
       const notification = {
@@ -433,7 +433,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
   const triggerTestNotification = useCallback(async () => {
     try {
       setIsOperationInProgress(true);
-      const channelId = usePrayerSound ? 'prayer-channel-sound' : 'prayer-channel-default';
+  const channelId = usePrayerSound ? 'prayer-channel-sound-v2' : 'prayer-channel-default-v2';
       
       const testNotification = {
         title: translate('testNotificationTitle'),
