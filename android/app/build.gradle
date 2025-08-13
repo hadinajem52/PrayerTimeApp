@@ -27,8 +27,8 @@ android {
         applicationId 'com.hnjm123.ShiaPrayerLeb'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion 
-        versionCode 52
-        versionName "2.1.11"
+        versionCode 55
+        versionName "2.1.14"
     }
      lint {
         disable 'ExpiredTargetSdkVersion'
@@ -59,7 +59,8 @@ android {
         }
         release {
             signingConfig signingConfigs.release
-            shrinkResources true
+            // TEMP: disable resource shrinking to verify custom notification sound inclusion
+            shrinkResources false
             minifyEnabled true
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)

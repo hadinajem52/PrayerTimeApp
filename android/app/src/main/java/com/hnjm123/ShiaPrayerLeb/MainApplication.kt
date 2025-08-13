@@ -51,9 +51,14 @@ class MainApplication : Application(), ReactApplication {
     super.onCreate()
     SoLoader.init(this, OpenSourceMergedSoMapping)
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
-      load()
+        load()
     }
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
+    
+    // Reference custom notification sound so resource shrinker keeps @raw/prayersound
+    // (Used by Notifee channel sound: 'prayersound')
+    @Suppress("UNUSED_VARIABLE")
+    val keepSound = R.raw.prayersound // Make sure this line stays
     
     // Schedule prayer time updates
     schedulePrayerTimeUpdates()
