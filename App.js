@@ -105,9 +105,6 @@ const TRANSLATIONS = {
     notificationSound: "Notification Sound",
     prayerSoundSetting: "Use Prayer Sound",
     prayerSoundDescription: "Play adhan sound for notifications, or use system default sound",
-    test: "Test",
-    testNotification: "Test Notification",
-  testNotificationMessage: "Isha prayer notification has been scheduled to fire immediately.",
   // Battery Optimization
   batteryOptimization: "Battery Optimization",
   batteryOptimizationSettingDescription: "Disable Android battery optimization for this app to ensure timely prayer notifications"
@@ -164,9 +161,6 @@ const TRANSLATIONS = {
     notificationSound: "صوت الإشعارات",
     prayerSoundSetting: "استخدام صوت الأذان",
     prayerSoundDescription: "تشغيل صوت الأذان للإشعارات، أو استخدام صوت النظام الافتراضي",
-    test: "تجربة",
-    testNotification: "إشعار تجريبي",
-  testNotificationMessage: "تمت جدولة إشعار صلاة العشاء ليتم إطلاقه على الفور.",
   // Battery Optimization
   batteryOptimization: "تحسين البطارية",
   batteryOptimizationSettingDescription: "أوقف تحسين البطارية لهذا التطبيق لضمان وصول إشعارات أوقات الصلاة في وقتها"
@@ -538,22 +532,6 @@ function MainApp() {
   const locationButtonAnim = useRef(new Animated.Value(1)).current;
   const compassButtonAnim = useRef(new Animated.Value(1)).current;
   const appState = useRef(AppState.currentState);
-
-  const handleTestNotification = async () => {
-    console.log('Firing test notification for Isha');
-    const prayerKey = 'isha';
-    // Fire in 1 second
-    const prayerTime = new Date(Date.now() + 1000); 
-    const numericId = `test-${moment().format('YYYYMMDDHHmmss')}`;
-    
-    await scheduleLocalNotification(numericId, prayerKey, prayerTime);
-    
-    Alert.alert(
-      TRANSLATIONS[language].testNotification, 
-      TRANSLATIONS[language].testNotificationMessage,
-      [{ text: TRANSLATIONS[language].ok }]
-    );
-  };
 
   const locationData = useMemo(() => {
     return (prayerTimes && prayerTimes[selectedLocation]) || [];
@@ -1643,27 +1621,6 @@ if (language === 'ar') {
               isCompassVisible && isDarkMode && styles.darkNavLabelActive
             ]}>
               {language === 'en' ? 'Qibla' : 'القبلة '}
-            </Text>
-          </Animated.View>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.navItem]} 
-          onPress={handleTestNotification}
-        >
-          <Animated.View style={{ alignItems: 'center', width: '100%' }}>
-            <View style={styles.navIconContainer}>
-              <Icon
-                name="bug-outline"
-                size={28}
-                color={isDarkMode ? "#66CCFF" : "#555"}
-              />
-            </View>
-            <Text style={[
-              styles.navLabel,
-              isDarkMode && styles.darkNavLabel,
-            ]}>
-              {TRANSLATIONS[language].test}
             </Text>
           </Animated.View>
         </TouchableOpacity>

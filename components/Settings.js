@@ -28,6 +28,11 @@ const TRANSLATIONS = {
     appearance: "Appearance",
     darkMode: "Dark Mode",
     language: "Language",
+  general: "General",
+  notifications: "Notifications",
+  system: "System",
+  updates: "Updates",
+  feedback: "Feedback",
     english: "English",
     arabic: "Arabic",
     back: "Back",
@@ -66,6 +71,11 @@ const TRANSLATIONS = {
     appearance: "المظهر",
     darkMode: "الوضع المظلم",
     language: "اللغة",
+  general: "عام",
+  notifications: "الإشعارات",
+  system: "النظام",
+  updates: "التحديثات",
+  feedback: "التقييم",
     english: "الإنجليزية",
     arabic: "العربية",
     back: "رجوع",
@@ -258,6 +268,97 @@ const Settings = ({
       </Text>
       
       <ScrollView style={styles.scrollView}>
+        {/* Main Title: Notifications */}
+        <Text
+          style={[
+            styles.mainTitle,
+            isDarkMode && styles.darkMainTitle,
+            language === 'ar' && styles.rtlTitle,
+          ]}
+        >
+          {translations.notifications}
+        </Text>
+        {/* Notification Sound Section */}
+        <View style={[styles.section, isDarkMode && styles.darkSection]}>
+          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
+            {translations.notificationSound}
+          </Text>
+          
+          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+            <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
+              {translations.prayerSoundSetting}
+            </Text>
+            <Switch
+              value={usePrayerSound}
+              onValueChange={updateUsePrayerSound}
+              trackColor={{ false: "#767577", true: isDarkMode ? "#66CCFF" : "#007AFF" }}
+              thumbColor={usePrayerSound ? (isDarkMode ? "#FFA500" : "#007AFF") : "#f4f3f4"}
+            />
+          </View>
+          
+          <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
+            {translations.prayerSoundDescription}
+          </Text>
+        </View>
+
+        {/* Alarm Permission Section */}
+        {Platform.OS === 'android' && (
+          <View style={[styles.section, isDarkMode && styles.darkSection]}>
+            <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
+              {translations.alarmPermission}
+            </Text>
+            
+            <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
+                  {translations.alarmPermissionSetting}
+                </Text>
+                {alarmPermissionGranted && (
+                  <Text style={[styles.permissionStatus, styles.grantedStatus]}>
+                    ✓ Granted
+                  </Text>
+                )}
+              </View>
+              
+              {!alarmPermissionGranted && (
+                <TouchableOpacity
+                  style={[
+                    styles.permissionButton,
+                    isDarkMode && styles.darkPermissionButton
+                  ]}
+                  onPress={handleRequestAlarmPermission}
+                >
+                  <Icon 
+                    name="alarm-outline" 
+                    size={18} 
+                    color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                  />
+                  <Text style={[
+                    styles.permissionButtonText,
+                    isDarkMode && styles.darkPermissionButtonText
+                  ]}>
+                    Grant
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            
+            <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
+              {translations.alarmPermissionSettingDescription}
+            </Text>
+          </View>
+        )}
+
+        {/* Main Title: General */}
+        <Text
+          style={[
+            styles.mainTitle,
+            isDarkMode && styles.darkMainTitle,
+            language === 'ar' && styles.rtlTitle,
+          ]}
+        >
+          {translations.general}
+        </Text>
         {/* Appearance Section */}
         <View style={[styles.section, isDarkMode && styles.darkSection]}>
           <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
@@ -418,77 +519,20 @@ const Settings = ({
           </Text>
         </View>
 
-        {/* Notification Sound Section */}
-        <View style={[styles.section, isDarkMode && styles.darkSection]}>
-          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-            {translations.notificationSound}
-          </Text>
-          
-          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
-            <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
-              {translations.prayerSoundSetting}
-            </Text>
-            <Switch
-              value={usePrayerSound}
-              onValueChange={updateUsePrayerSound}
-              trackColor={{ false: "#767577", true: isDarkMode ? "#66CCFF" : "#007AFF" }}
-              thumbColor={usePrayerSound ? (isDarkMode ? "#FFA500" : "#007AFF") : "#f4f3f4"}
-            />
-          </View>
-          
-          <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
-            {translations.prayerSoundDescription}
-          </Text>
-        </View>
+        
 
-        {/* Alarm Permission Section */}
+        {/* Main Title: System */}
         {Platform.OS === 'android' && (
-          <View style={[styles.section, isDarkMode && styles.darkSection]}>
-            <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-              {translations.alarmPermission}
-            </Text>
-            
-            <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
-                  {translations.alarmPermissionSetting}
-                </Text>
-                {alarmPermissionGranted && (
-                  <Text style={[styles.permissionStatus, styles.grantedStatus]}>
-                    ✓ Granted
-                  </Text>
-                )}
-              </View>
-              
-              {!alarmPermissionGranted && (
-                <TouchableOpacity
-                  style={[
-                    styles.permissionButton,
-                    isDarkMode && styles.darkPermissionButton
-                  ]}
-                  onPress={handleRequestAlarmPermission}
-                >
-                  <Icon 
-                    name="alarm-outline" 
-                    size={18} 
-                    color={isDarkMode ? "#FFA500" : "#007AFF"} 
-                  />
-                  <Text style={[
-                    styles.permissionButtonText,
-                    isDarkMode && styles.darkPermissionButtonText
-                  ]}>
-                    Grant
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            
-            <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
-              {translations.alarmPermissionSettingDescription}
-            </Text>
-          </View>
+          <Text
+            style={[
+              styles.mainTitle,
+              isDarkMode && styles.darkMainTitle,
+              language === 'ar' && styles.rtlTitle,
+            ]}
+          >
+            {translations.system}
+          </Text>
         )}
-
         {/* Battery Optimization Section (Android) */}
         {Platform.OS === 'android' && (
           <View style={[styles.section, isDarkMode && styles.darkSection]}>
@@ -537,6 +581,16 @@ const Settings = ({
           </View>
         )}
 
+        {/* Main Title: Updates */}
+        <Text
+          style={[
+            styles.mainTitle,
+            isDarkMode && styles.darkMainTitle,
+            language === 'ar' && styles.rtlTitle,
+          ]}
+        >
+          {translations.updates}
+        </Text>
         {/* Prayer Time Updates Section */}
         <View style={[styles.section, isDarkMode && styles.darkSection]}>
           <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
@@ -581,6 +635,16 @@ const Settings = ({
           </Text>
         </View>
 
+        {/* Main Title: Feedback */}
+        <Text
+          style={[
+            styles.mainTitle,
+            isDarkMode && styles.darkMainTitle,
+            language === 'ar' && styles.rtlTitle,
+          ]}
+        >
+          {translations.feedback}
+        </Text>
         {/* Rate App Section */}
         <View style={[styles.section, isDarkMode && styles.darkSection]}>
           <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
@@ -674,6 +738,25 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
     overflow: 'hidden',
+  },
+  mainTitle: {
+    marginTop: 12,
+    marginBottom: 4,
+    marginHorizontal: 16,
+    fontSize: moderateScale(12),
+    fontWeight: '700',
+    color: '#007AFF',
+    letterSpacing: 0.5,
+    textTransform: 'none',
+  },
+  darkMainTitle: {
+    color: '#FFA500',
+  },
+  rtlTitle: {
+    textAlign: 'right',
+    // Swap horizontal margin emphasis to feel aligned with the edge in RTL
+    marginLeft: 16,
+    marginRight: 16,
   },
   darkSection: {
     backgroundColor: '#222',
