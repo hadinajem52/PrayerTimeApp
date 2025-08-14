@@ -349,6 +349,54 @@ const Settings = ({
           </View>
         )}
 
+        {/* Battery Optimization Section (Android) inside Notifications */}
+        {Platform.OS === 'android' && (
+          <View style={[styles.section, isDarkMode && styles.darkSection]}>
+            <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
+              {translations.batteryOptimization}
+            </Text>
+
+            <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
+                  {translations.batteryOptimizationSetting}
+                </Text>
+                {!isBatteryOptimizationEnabled && (
+                  <Text style={[styles.permissionStatus, styles.disabledStatus]}>
+                    ✓ {translations.batteryOptimizationDisabled}
+                  </Text>
+                )}
+              </View>
+
+              {isBatteryOptimizationEnabled && (
+                <TouchableOpacity
+                  style={[
+                    styles.permissionButton,
+                    isDarkMode && styles.darkPermissionButton
+                  ]}
+                  onPress={handleDisableBatteryOptimization}
+                >
+                  <Icon 
+                    name="battery-charging-outline" 
+                    size={18} 
+                    color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                  />
+                  <Text style={[
+                    styles.permissionButtonText,
+                    isDarkMode && styles.darkPermissionButtonText
+                  ]}>
+                    {translations.openSettings}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
+              {translations.batteryOptimizationSettingDescription}
+            </Text>
+          </View>
+        )}
+
         {/* Main Title: General */}
         <Text
           style={[
@@ -521,65 +569,7 @@ const Settings = ({
 
         
 
-        {/* Main Title: System */}
-        {Platform.OS === 'android' && (
-          <Text
-            style={[
-              styles.mainTitle,
-              isDarkMode && styles.darkMainTitle,
-              language === 'ar' && styles.rtlTitle,
-            ]}
-          >
-            {translations.system}
-          </Text>
-        )}
-        {/* Battery Optimization Section (Android) */}
-        {Platform.OS === 'android' && (
-          <View style={[styles.section, isDarkMode && styles.darkSection]}>
-            <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-              {translations.batteryOptimization}
-            </Text>
-
-            <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
-                  {translations.batteryOptimizationSetting}
-                </Text>
-                {!isBatteryOptimizationEnabled && (
-                  <Text style={[styles.permissionStatus, styles.disabledStatus]}>
-                    ✓ {translations.batteryOptimizationDisabled}
-                  </Text>
-                )}
-              </View>
-
-              {isBatteryOptimizationEnabled && (
-                <TouchableOpacity
-                  style={[
-                    styles.permissionButton,
-                    isDarkMode && styles.darkPermissionButton
-                  ]}
-                  onPress={handleDisableBatteryOptimization}
-                >
-                  <Icon 
-                    name="battery-charging-outline" 
-                    size={18} 
-                    color={isDarkMode ? "#FFA500" : "#007AFF"} 
-                  />
-                  <Text style={[
-                    styles.permissionButtonText,
-                    isDarkMode && styles.darkPermissionButtonText
-                  ]}>
-                    {translations.openSettings}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
-              {translations.batteryOptimizationSettingDescription}
-            </Text>
-          </View>
-        )}
+        
 
         {/* Main Title: Updates */}
         <Text
