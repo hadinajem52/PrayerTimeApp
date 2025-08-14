@@ -780,8 +780,23 @@ const getTodayIndex = useCallback((data) => {
                 await cancelAllNotifications(upcomingNotificationIds);
                 setUpcomingNotificationIds([]);
               }
+              // Reset scheduling flags and clear any stored notification mapping
+              setNotificationsScheduled(false);
               setSettings((prev) => ({ ...prev, scheduledNotifications: {} }));
               setSettings((prev) => ({ ...prev, selectedLocation: newLocation }));
+
+              // Proactively schedule notifications for the new location
+              try {
+                await scheduleRollingNotifications(newLocation, enabledPrayers);
+              } catch (e) {
+                console.error('Failed to schedule rolling notifications after location change:', e);
+              }
+              try {
+                const ids = await scheduleNotificationsForUpcomingPeriod(newLocation, enabledPrayers);
+                if (Array.isArray(ids)) setUpcomingNotificationIds(ids);
+              } catch (e) {
+                console.error('Failed to schedule upcoming notifications after location change:', e);
+              }
               setIsLocationModalVisible(false);
             },
           },
@@ -791,10 +806,52 @@ const getTodayIndex = useCallback((data) => {
     } else {
       AnimationUtils.pulse(locationChangeAnim);
       
-      setSettings((prev) => ({ ...prev, selectedLocation: newLocation }));
-      setIsLocationModalVisible(false);
+      (async () => {
+        try {
+          // Ensure a clean state and force fresh scheduling
+          const scheduledIds = Object.values(scheduledNotifications).filter(Boolean);
+          if (scheduledIds.length > 0) await cancelAllNotifications(scheduledIds);
+          if (upcomingNotificationIds.length > 0) {
+            await cancelAllNotifications(upcomingNotificationIds);
+            setUpcomingNotificationIds([]);
+          }
+        } catch (e) {
+          console.warn('Error during notification cleanup on quick location change:', e);
+        }
+
+        setNotificationsScheduled(false);
+        setSettings((prev) => ({ ...prev, scheduledNotifications: {} }));
+        setSettings((prev) => ({ ...prev, selectedLocation: newLocation }));
+
+        try {
+          await scheduleRollingNotifications(newLocation, enabledPrayers);
+        } catch (e) {
+          console.error('Failed to schedule rolling notifications on quick location change:', e);
+        }
+        try {
+          const ids = await scheduleNotificationsForUpcomingPeriod(newLocation, enabledPrayers);
+          if (Array.isArray(ids)) setUpcomingNotificationIds(ids);
+        } catch (e) {
+          console.error('Failed to schedule upcoming notifications on quick location change:', e);
+        }
+
+        setIsLocationModalVisible(false);
+      })();
     }
-  }, [TRANSLATIONS, language, locationChangeAnim, scheduledNotifications, upcomingNotificationIds, cancelAllNotifications, setSettings]);
+  }, [
+    TRANSLATIONS,
+    language,
+    locationChangeAnim,
+    scheduledNotifications,
+    upcomingNotificationIds,
+    cancelAllNotifications,
+    setSettings,
+    setUpcomingNotificationIds,
+    setNotificationsScheduled,
+    scheduleRollingNotifications,
+    scheduleNotificationsForUpcomingPeriod,
+    enabledPrayers,
+  ]);
 
   const upcomingPrayerKey = usePrayerTimer(
     currentPrayer,
@@ -1664,13 +1721,34 @@ if (language === 'ar') {
             styles.enhancedModalContent, 
             isDarkMode && styles.darkEnhancedModalContent,
           ]}>
-            <View style={styles.modalHeader}>
+            <View style={[
+              styles.modalHeader, 
+              { 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                position: 'relative',
+                minHeight: moderateScale(52),
+                paddingVertical: moderateScale(10),
+                // reserve space so title doesn't collide with the close button
+                ...(language === 'ar' ? { paddingLeft: moderateScale(44) } : { paddingRight: moderateScale(44) })
+              }
+            ]}>
               <Text style={[styles.enhancedModalTitle, isDarkMode && styles.darkEnhancedModalTitle]}>
                 {TRANSLATIONS[language].dailyQuote}
               </Text>
               <TouchableOpacity 
-                style={[styles.roundedCloseButton, isDarkMode && styles.darkRoundedCloseButton]} 
+                style={[
+                  styles.roundedCloseButton, 
+                  isDarkMode && styles.darkRoundedCloseButton,
+                  (
+                    language === 'ar'
+                      ? { left: moderateScale(12) }
+                      : { right: moderateScale(12) }
+                  ),
+                  { top: moderateScale(8), position: 'absolute', zIndex: 10 }
+                ]} 
                 onPress={() => setIsQuoteModalVisible(false)}
+                hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
               >
                 <Icon name="close" size={20} color="#FFF" />
               </TouchableOpacity>
@@ -1705,13 +1783,33 @@ if (language === 'ar') {
               isDarkMode && styles.darkEnhancedModalContent,
             ]}
           >
-            <View style={styles.modalHeader}>
+            <View style={[
+              styles.modalHeader, 
+              { 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                position: 'relative',
+                minHeight: moderateScale(52),
+                paddingVertical: moderateScale(10),
+                ...(language === 'ar' ? { paddingLeft: moderateScale(44) } : { paddingRight: moderateScale(44) })
+              }
+            ]}>
               <Text style={[styles.enhancedModalTitle, isDarkMode && styles.darkEnhancedModalTitle]}>
                 {TRANSLATIONS[language].selectLocation}
               </Text>
               <TouchableOpacity 
-                style={[styles.roundedCloseButton, isDarkMode && styles.darkRoundedCloseButton]} 
+                style={[
+                  styles.roundedCloseButton, 
+                  isDarkMode && styles.darkRoundedCloseButton,
+                  (
+                    language === 'ar'
+                      ? { left: moderateScale(12) }
+                      : { right: moderateScale(12) }
+                  ),
+                  { top: moderateScale(8), position: 'absolute', zIndex: 10 }
+                ]} 
                 onPress={() => setIsLocationModalVisible(false)}
+                hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
               >
                 <Icon name="close" size={20} color={isDarkMode ? "#FFF" : "#FFF"} />
               </TouchableOpacity>
