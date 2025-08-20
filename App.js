@@ -532,6 +532,8 @@ function MainApp() {
   const locationButtonAnim = useRef(new Animated.Value(1)).current;
   const compassButtonAnim = useRef(new Animated.Value(1)).current;
   const appState = useRef(AppState.currentState);
+  // Prevent duplicate scheduling by effects right after manual reschedule on location change
+  const justChangedLocationRef = useRef(false);
 
   const locationData = useMemo(() => {
     return (prayerTimes && prayerTimes[selectedLocation]) || [];
@@ -788,6 +790,8 @@ const getTodayIndex = useCallback((data) => {
               // Proactively schedule notifications for the new location
               try {
                 await scheduleRollingNotifications(newLocation, enabledPrayers);
+                // Mark as scheduled to avoid duplicate effect-based scheduling
+                setNotificationsScheduled(true);
               } catch (e) {
                 console.error('Failed to schedule rolling notifications after location change:', e);
               }
@@ -797,6 +801,8 @@ const getTodayIndex = useCallback((data) => {
               } catch (e) {
                 console.error('Failed to schedule upcoming notifications after location change:', e);
               }
+              // Signal the next effect pass to skip re-scheduling once
+              justChangedLocationRef.current = true;
               setIsLocationModalVisible(false);
             },
           },
@@ -825,6 +831,7 @@ const getTodayIndex = useCallback((data) => {
 
         try {
           await scheduleRollingNotifications(newLocation, enabledPrayers);
+          setNotificationsScheduled(true);
         } catch (e) {
           console.error('Failed to schedule rolling notifications on quick location change:', e);
         }
@@ -835,6 +842,7 @@ const getTodayIndex = useCallback((data) => {
           console.error('Failed to schedule upcoming notifications on quick location change:', e);
         }
 
+        justChangedLocationRef.current = true;
         setIsLocationModalVisible(false);
       })();
     }
@@ -1147,6 +1155,11 @@ if (language === 'ar') {
 
   useEffect(() => {
     if (isSettingsLoaded && selectedLocation) {
+      // Skip one cycle right after manual rescheduling on location change
+      if (justChangedLocationRef.current) {
+        justChangedLocationRef.current = false;
+        return;
+      }
       if (upcomingNotificationIds.length > 0) {
         cancelAllNotifications(upcomingNotificationIds);
         setUpcomingNotificationIds([]);
@@ -1328,6 +1341,33 @@ if (language === 'ar') {
       global.fetchPrayerData = undefined;
     };
   }, [refreshPrayerTimes]);
+
+  // Apply notification sound preference immediately by rescheduling upcoming notifications
+  useEffect(() => {
+    const rescheduleForSoundChange = async () => {
+      try {
+        if (!isSettingsLoaded || !selectedLocation || !enabledPrayers || !isDataAvailable) return;
+        console.log('[Notification Sound] Preference changed ->', settings.usePrayerSound ? 'Adhan' : 'Default');
+
+        // Cancel only prayer trigger notifications (keep other app triggers intact)
+        const triggers = await notifee.getTriggerNotifications();
+        const prayerIds = triggers
+          .map(tn => String(tn.notification?.id))
+          .filter(id => id && id.startsWith('prayer_'));
+
+        if (prayerIds.length > 0) {
+          await cancelAllNotifications(prayerIds);
+        }
+
+        // Reschedule with the new channel selection
+        const ids = await scheduleRollingNotifications(selectedLocation, enabledPrayers);
+        if (Array.isArray(ids)) setUpcomingNotificationIds(ids);
+      } catch (e) {
+        console.error('[Notification Sound] Failed to re-schedule after sound change:', e);
+      }
+    };
+    rescheduleForSoundChange();
+  }, [settings.usePrayerSound, isSettingsLoaded, selectedLocation, enabledPrayers, isDataAvailable, cancelAllNotifications, scheduleRollingNotifications]);
   
   // Rating functionality
   const checkAndShowRating = useCallback(async () => {
