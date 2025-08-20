@@ -9,6 +9,8 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Do NOT ignore Gradle files; ensure they remain tracked
+
 # Native
 *.orig.*
 *.jks
@@ -16,6 +18,8 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+*.keystore
+keystore.properties
 
 # Metro
 .metro-health-check*
