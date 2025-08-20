@@ -2,9 +2,6 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
-import java.util.Properties
-import java.io.FileInputStream
-
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
 react {
@@ -30,32 +27,25 @@ android {
         applicationId 'com.hnjm123.ShiaPrayerLeb'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion 
-        versionCode 58
-        versionName "2.1.3"
+        versionCode 56
+        versionName "2.1.15"
     }
      lint {
         disable 'ExpiredTargetSdkVersion'
         abortOnError false
     }
-    def keystorePropertiesFile = rootProject.file("keystore.properties")
-    def keystoreProperties = new Properties()
-    if (keystorePropertiesFile.exists()) {
-        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-    } else {
-        println "[warn] keystore.properties not found. Release signing will fail until it's provided."
-    }
-
     signingConfigs {
-        debug {}
+        debug {
+            storeFile file("@hhhhjjj__ShiaPrayerLeb.jks")
+            storePassword "b173e1fdfcf4e928a8dc7e6893576d86"
+            keyAlias "170bd2fc66af05b38d0c140491eec8f1"
+            keyPassword "7169eb7cec113d0e4ad197e8103b2612"
+        }
         release {
-            if (keystoreProperties['storeFile'] && keystoreProperties['storePassword'] && keystoreProperties['keyAlias'] && keystoreProperties['keyPassword']) {
-                storeFile file(keystoreProperties['storeFile'])
-                storePassword keystoreProperties['storePassword']
-                keyAlias keystoreProperties['keyAlias']
-                keyPassword keystoreProperties['keyPassword']
-            } else {
-                println "[warn] Missing release signing props. Configure keystore.properties before making release builds."
-            }
+            storeFile file("@hhhhjjj__ShiaPrayerLeb.jks")
+            storePassword "b173e1fdfcf4e928a8dc7e6893576d86"
+            keyAlias "170bd2fc66af05b38d0c140491eec8f1"
+            keyPassword "7169eb7cec113d0e4ad197e8103b2612"
         }
     }
     
