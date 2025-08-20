@@ -105,7 +105,12 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
       const trigger = {
         type: TriggerType.TIMESTAMP,
         timestamp: prayerTime.getTime(),
-
+        // Ensure delivery during Doze by using exact AlarmManager with AlarmClock
+        alarmManager: {
+          allowWhileIdle: true,
+          exact: true,
+          alarmClock: true,
+        },
       };
       
       // Determine if this is a prayer or other significant time
@@ -132,10 +137,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
           // Add timestamp for when notification was posted
           timestamp: prayerTime.getTime(), // Shows the actual prayer time as when notification was sent
           showTimestamp: true,
-          alarmManager: {
-            allowWhileIdle: true,
-          },
-          // Sound is now handled by the notification channel
+
         },
       };
       
