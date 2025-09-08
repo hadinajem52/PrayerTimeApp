@@ -32,6 +32,7 @@ class MainApplication : Application(), ReactApplication {
             val packages = PackageList(this).packages
             // Packages that cannot be autolinked yet can be added manually here
             packages.add(UpdateModulePackage())
+            packages.add(WidgetUpdateModulePackage())
             return packages
           }
 
