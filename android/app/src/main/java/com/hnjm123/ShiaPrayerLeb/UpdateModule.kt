@@ -3,6 +3,9 @@ package com.hnjm123.ShiaPrayerLeb
 import android.util.Log
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import android.content.Intent
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -26,6 +29,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import com.hnjm123.ShiaPrayerLeb.widgets.PrayerTimesWidgetProvider
 
 class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
     override fun getName(): String {
@@ -112,6 +116,8 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             // Save last updated timestamp to SharedPreferences
             val sharedPrefs = reactApplicationContext.getSharedPreferences("PrayerAppPrefs", Context.MODE_PRIVATE)
             sharedPrefs.edit().putLong("prayer_data_updated_at", System.currentTimeMillis()).apply()
+            // Notify widgets to refresh
+            notifyWidgets()
             
             promise.resolve(true)
         } catch (e: Exception) {
@@ -181,6 +187,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                     // Set update flag
                     val prefs = reactApplicationContext.getSharedPreferences("PrayerAppPrefs", Context.MODE_PRIVATE)
                     prefs.edit().putBoolean("HAS_UPDATED_PRAYER_DATA", true).apply()
+                    notifyWidgets()
                     
                     promise.resolve(true)
                 } else {
@@ -189,6 +196,41 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             } catch (e: Exception) {
                 promise.reject("DOWNLOAD_ERROR", e.message, e)
             }
+        }
+    }
+
+    @ReactMethod
+    fun syncSettingsForWidget(settings: ReadableMap, promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences("PrayerAppPrefs", Context.MODE_PRIVATE)
+            val editor = prefs.edit()
+            if (settings.hasKey("selectedLocation")) {
+                editor.putString("SELECTED_LOCATION", settings.getString("selectedLocation"))
+            }
+            if (settings.hasKey("timeFormat")) {
+                editor.putString("TIME_FORMAT", settings.getString("timeFormat"))
+            }
+            if (settings.hasKey("language")) {
+                editor.putString("LANGUAGE", settings.getString("language"))
+            }
+            editor.apply()
+            notifyWidgets()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to sync settings for widget", e)
+        }
+    }
+
+    private fun notifyWidgets() {
+        try {
+            val ctx = reactApplicationContext
+            val intent = Intent(ctx, PrayerTimesWidgetProvider::class.java)
+            intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+            val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, PrayerTimesWidgetProvider::class.java))
+            intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+            ctx.sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.w("PrayerApp", "Failed to notify widgets", e)
         }
     }
 }
