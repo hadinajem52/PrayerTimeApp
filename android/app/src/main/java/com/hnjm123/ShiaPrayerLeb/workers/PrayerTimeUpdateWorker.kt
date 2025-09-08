@@ -12,7 +12,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
-import com.hnjm123.ShiaPrayerLeb.widgets.PrayerTimesWidgetProvider
+import com.hnjm123.ShiaPrayerLeb.PrayerWidgetProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -233,9 +233,9 @@ class PrayerTimeUpdateWorker(
     private fun notifyWidgets() {
         try {
             val ctx = applicationContext
-            val intent = Intent(ctx, PrayerTimesWidgetProvider::class.java)
+            val intent = Intent(ctx, PrayerWidgetProvider::class.java)
             intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-            val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, PrayerTimesWidgetProvider::class.java))
+            val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, PrayerWidgetProvider::class.java))
             intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
             ctx.sendBroadcast(intent)
         } catch (e: Exception) {
