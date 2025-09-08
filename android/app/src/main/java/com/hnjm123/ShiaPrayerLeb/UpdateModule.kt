@@ -29,7 +29,6 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import com.hnjm123.ShiaPrayerLeb.widgets.PrayerTimesWidgetProvider
 
 class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
     override fun getName(): String {
@@ -224,9 +223,9 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
     private fun notifyWidgets() {
         try {
             val ctx = reactApplicationContext
-            val intent = Intent(ctx, PrayerTimesWidgetProvider::class.java)
+            val intent = Intent(ctx, PrayerWidgetProvider::class.java)
             intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-            val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, PrayerTimesWidgetProvider::class.java))
+            val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, PrayerWidgetProvider::class.java))
             intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
             ctx.sendBroadcast(intent)
         } catch (e: Exception) {
