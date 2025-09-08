@@ -11,6 +11,7 @@
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
   <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
   <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
   <queries>
     <intent>
@@ -38,15 +39,5 @@
       </intent-filter>
     </activity>
     <receiver android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationPublisher" android:exported="false"/>
-    
-    <!-- Prayer Widget Provider -->
-    <receiver android:name=".PrayerWidgetProvider" android:exported="true">
-      <intent-filter>
-        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
-      </intent-filter>
-      <meta-data
-        android:name="android.appwidget.provider"
-        android:resource="@xml/prayer_widget_info" />
-    </receiver>
   </application>
 </manifest>

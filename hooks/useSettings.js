@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Singleton pattern to ensure all components share the same settings state
@@ -44,11 +45,28 @@ export default function useSettings() {
           currentSettings = parsedSettings;
           setLocalSettings(parsedSettings);
           notifyListeners(parsedSettings);
+          // Sync with native for widget
+          try {
+            NativeModules.UpdateModule?.syncSettingsForWidget({
+              selectedLocation: parsedSettings.selectedLocation,
+              timeFormat: parsedSettings.timeFormat,
+              language: parsedSettings.language,
+            });
+          } catch (e) {
+            // noop
+          }
         } else {
           const defaultSettings = { ...initialSettings, isSettingsLoaded: true };
           currentSettings = defaultSettings;
           setLocalSettings(defaultSettings);
           notifyListeners(defaultSettings);
+          try {
+            NativeModules.UpdateModule?.syncSettingsForWidget({
+              selectedLocation: defaultSettings.selectedLocation,
+              timeFormat: defaultSettings.timeFormat,
+              language: defaultSettings.language,
+            });
+          } catch (e) {}
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -56,6 +74,13 @@ export default function useSettings() {
         currentSettings = defaultSettings;
         setLocalSettings(defaultSettings);
         notifyListeners(defaultSettings);
+        try {
+          NativeModules.UpdateModule?.syncSettingsForWidget({
+            selectedLocation: defaultSettings.selectedLocation,
+            timeFormat: defaultSettings.timeFormat,
+            language: defaultSettings.language,
+          });
+        } catch (e) {}
       }
     }
     
@@ -91,6 +116,17 @@ export default function useSettings() {
     
     // Notify all listeners
     notifyListeners(newSettings);
+    
+    // Sync with native for widget and trigger refresh
+    try {
+      NativeModules.UpdateModule?.syncSettingsForWidget({
+        selectedLocation: newSettings.selectedLocation,
+        timeFormat: newSettings.timeFormat,
+        language: newSettings.language,
+      });
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   return [settings, setSettings];
