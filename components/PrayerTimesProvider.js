@@ -40,6 +40,7 @@ export const PrayerTimesProvider = ({ children }) => {
         // Use the updated data from file
         console.log('Using updated prayer times data from file');
         setPrayerTimes(JSON.parse(updatedData));
+  try { NativeModules.UpdateModule?.triggerWorkManagerJob?.(); } catch (e) {}
       } else {
         // Fall back to bundled data
         console.log('No updated file found, using bundled data');
