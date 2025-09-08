@@ -21,6 +21,7 @@ import RatingModal from './RatingModal';
 import notifee from '@notifee/react-native';
 import DeviceInfo from 'react-native-device-info';
 import * as IntentLauncher from 'expo-intent-launcher';
+import WidgetManager from '../utils/WidgetManager';
 
 const TRANSLATIONS = {
   en: {
@@ -187,6 +188,18 @@ const Settings = ({
     
     checkPermissions();
   }, []);
+
+  // Update widget when relevant settings change
+  useEffect(() => {
+    if (settings.isSettingsLoaded) {
+      WidgetManager.updateWidget();
+    }
+  }, [
+    settings.timeFormat, 
+    useArabicNumerals, 
+    settings.selectedLocation, 
+    settings.isSettingsLoaded
+  ]);
 
   const handleRequestAlarmPermission = async () => {
     if (requestAlarmPermission) {
