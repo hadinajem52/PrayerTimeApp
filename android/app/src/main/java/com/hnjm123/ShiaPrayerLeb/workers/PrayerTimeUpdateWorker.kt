@@ -10,6 +10,9 @@ import androidx.core.app.NotificationCompat
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import com.hnjm123.ShiaPrayerLeb.widgets.PrayerTimesWidgetProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -130,6 +133,7 @@ class PrayerTimeUpdateWorker(
             if (updateResult) {
                 Log.d("PrayerApp", "Prayer time update completed successfully")
                 showUpdateNotification()
+                notifyWidgets()
                 return@withContext Result.success()
             } else {
                 Log.w("PrayerApp", "Prayer time update did not find new data")
@@ -162,6 +166,7 @@ class PrayerTimeUpdateWorker(
                 output.write(jsonContent.toByteArray(StandardCharsets.UTF_8))
             }
             Log.d(TAG, "Successfully saved updated prayer times")
+            notifyWidgets()
         } catch (e: Exception) {
             Log.e(TAG, "Error saving updated data", e)
         }
@@ -222,6 +227,19 @@ class PrayerTimeUpdateWorker(
         } else {
             Log.e(TAG, "HTTP error: $responseCode")
             return false
+        }
+    }
+
+    private fun notifyWidgets() {
+        try {
+            val ctx = applicationContext
+            val intent = Intent(ctx, PrayerTimesWidgetProvider::class.java)
+            intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+            val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, PrayerTimesWidgetProvider::class.java))
+            intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+            ctx.sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to notify widgets", e)
         }
     }
 
