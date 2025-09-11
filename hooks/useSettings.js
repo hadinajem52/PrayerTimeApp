@@ -51,6 +51,7 @@ export default function useSettings() {
               selectedLocation: parsedSettings.selectedLocation,
               timeFormat: parsedSettings.timeFormat,
               language: parsedSettings.language,
+              isDarkMode: parsedSettings.isDarkMode,
             });
           } catch (e) {
             // noop
@@ -65,6 +66,7 @@ export default function useSettings() {
               selectedLocation: defaultSettings.selectedLocation,
               timeFormat: defaultSettings.timeFormat,
               language: defaultSettings.language,
+              isDarkMode: defaultSettings.isDarkMode,
             });
           } catch (e) {}
         }
@@ -79,6 +81,7 @@ export default function useSettings() {
             selectedLocation: defaultSettings.selectedLocation,
             timeFormat: defaultSettings.timeFormat,
             language: defaultSettings.language,
+            isDarkMode: defaultSettings.isDarkMode,
           });
         } catch (e) {}
       }
@@ -123,6 +126,7 @@ export default function useSettings() {
         selectedLocation: newSettings.selectedLocation,
         timeFormat: newSettings.timeFormat,
         language: newSettings.language,
+        isDarkMode: newSettings.isDarkMode,
       });
     } catch (e) {
       // ignore
