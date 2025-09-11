@@ -212,6 +212,9 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             if (settings.hasKey("language")) {
                 editor.putString("LANGUAGE", settings.getString("language"))
             }
+            if (settings.hasKey("isDarkMode")) {
+                editor.putBoolean("DARK_MODE", settings.getBoolean("isDarkMode"))
+            }
             editor.apply()
             notifyWidgets()
             promise.resolve(true)

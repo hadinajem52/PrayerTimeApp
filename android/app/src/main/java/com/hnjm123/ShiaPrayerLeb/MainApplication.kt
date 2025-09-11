@@ -67,8 +67,19 @@ class MainApplication : Application(), ReactApplication {
 
   private fun schedulePrayerTimeUpdates() {
     Log.d("PrayerApp", "Starting to schedule prayer time updates")
+
+  // Version the scheduling spec so we only reschedule when logic/time changes
+  val CURRENT_SCHEDULE_VERSION = 2 // increment when changing target time or constraints
+  val prefs = getSharedPreferences("PrayerAppPrefs", MODE_PRIVATE)
+  val storedVersion = prefs.getInt("PRAYER_UPDATE_SCHEDULE_VERSION", 0)
+  if (storedVersion == CURRENT_SCHEDULE_VERSION) {
+    Log.d("PrayerApp", "Prayer time update work already scheduled with current version; skipping re-schedule.")
+    return
+  } else {
+    Log.d("PrayerApp", "Scheduling update worker (schedule version change: stored=$storedVersion -> new=$CURRENT_SCHEDULE_VERSION)")
+  }
     
-    // Calculate delay until next 12:20 AM
+  // Calculate delay until next 12:30 AM
     val calendar = Calendar.getInstance()
     val now = calendar.timeInMillis
     
@@ -76,18 +87,18 @@ class MainApplication : Application(), ReactApplication {
     val currentTime = Calendar.getInstance()
     Log.d("PrayerApp", "Current time: ${currentTime.time}")
     
-    // Set target time to 12:20 AM
+  // Set target time to 12:30 AM
     calendar.set(Calendar.HOUR_OF_DAY, 0)
-    calendar.set(Calendar.MINUTE, 20)
+  calendar.set(Calendar.MINUTE, 30)
     calendar.set(Calendar.SECOND, 0)
     calendar.set(Calendar.MILLISECOND, 0)
     
-    // If current time is after today's 12:20 AM, schedule for tomorrow
+  // If current time is after today's 12:30 AM, schedule for tomorrow
     if (now > calendar.timeInMillis) {
         calendar.add(Calendar.DAY_OF_YEAR, 1)
-        Log.d("PrayerApp", "Scheduling for tomorrow at 12:20 AM: ${calendar.time}")
+    Log.d("PrayerApp", "Scheduling for tomorrow at 12:30 AM: ${calendar.time}")
     } else {
-        Log.d("PrayerApp", "Scheduling for today at 12:20 AM: ${calendar.time}")
+    Log.d("PrayerApp", "Scheduling for today at 12:30 AM: ${calendar.time}")
     }
     
     // Calculate initial delay in milliseconds
@@ -110,12 +121,16 @@ class MainApplication : Application(), ReactApplication {
         .setConstraints(constraints)
         .build()
         
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "prayer_time_update",
-            ExistingPeriodicWorkPolicy.KEEP,
-            updateWorkRequest
-        )
-        Log.d("PrayerApp", "Prayer time update work successfully scheduled with ID: ${updateWorkRequest.id}")
+    val workManager = WorkManager.getInstance(this)
+    workManager.enqueueUniquePeriodicWork(
+      "prayer_time_update",
+      ExistingPeriodicWorkPolicy.REPLACE, // Replace only because schedule version changed (we gated above)
+      updateWorkRequest
+    )
+    Log.d("PrayerApp", "Prayer time update work scheduled (12:30 AM daily) with ID: ${updateWorkRequest.id}")
+
+    // Persist schedule version so we don't reschedule every launch
+    prefs.edit().putInt("PRAYER_UPDATE_SCHEDULE_VERSION", CURRENT_SCHEDULE_VERSION).apply()
     } catch (e: Exception) {
         Log.e("PrayerApp", "Failed to schedule prayer time updates", e)
     }
