@@ -51,7 +51,7 @@ const NextPrayerWidget = () => {
       }
 
       const prayerNames = {
-        fajr: 'الفجر',
+        fajr: 'الصبح',
         sunrise: 'الشروق',
         dhuhr: 'الظهر',
         asr: 'العصر',

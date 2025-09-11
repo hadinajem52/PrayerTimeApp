@@ -41,9 +41,13 @@
     <receiver android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationPublisher" android:exported="false"/>
     
     <!-- Prayer Widget Provider -->
-    <receiver android:name=".PrayerWidgetProvider" android:exported="true">
+  <receiver android:name=".PrayerWidgetProvider" android:exported="true">
       <intent-filter>
         <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+    <action android:name="android.intent.action.BOOT_COMPLETED"/>
+    <action android:name="android.intent.action.TIMEZONE_CHANGED"/>
+    <action android:name="android.intent.action.TIME_SET"/>
+    <action android:name="android.intent.action.DATE_CHANGED"/>
       </intent-filter>
       <meta-data
         android:name="android.appwidget.provider"
