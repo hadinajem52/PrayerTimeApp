@@ -27,6 +27,7 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
     private static final String SELECTED_LOCATION_PREF = "SELECTED_LOCATION";
     private static final String TIME_FORMAT_PREF = "TIME_FORMAT"; // "12h" | "24h"
     private static final String ARABIC_NUMERALS_PREF = "USE_AR_NUMS"; // optional future
+    private static final String DARK_MODE_PREF = "DARK_MODE"; // optional
 
     private static final String ACTION_UPDATE_NOW = "com.hnjm123.ShiaPrayerLeb.action.UPDATE_NOW";
     private static final int REQ_CODE_UPDATE = 10042;
@@ -41,7 +42,9 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
     }
 
     static void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.prayer_widget);
+        WidgetSettings settings = loadSettings(context);
+        int layoutId = settings.darkMode ? R.layout.prayer_widget_dark : R.layout.prayer_widget;
+        RemoteViews views = new RemoteViews(context.getPackageName(), layoutId);
 
         try {
             NextPrayerInfo nextPrayer = getNextPrayerInfo(context);
@@ -56,18 +59,24 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
                 long countdownMillis = nextPrayer.millisUntil;
                 long base = nowElapsed + countdownMillis; // countDown true => base in the future
                 views.setChronometer(R.id.countdown_chronometer, base, "%s", true);
+
+                // progress toward next prayer
+                int progress = computeProgressPercent(nextPrayer);
+                views.setProgressBar(R.id.progress, 100, progress, false);
             } else {
                 views.setTextViewText(R.id.prayer_name, "\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644...");
                 views.setTextViewText(R.id.prayer_time, "--:--");
                 views.setTextViewText(R.id.city_name, "");
                 // stop chronometer
                 views.setChronometer(R.id.countdown_chronometer, android.os.SystemClock.elapsedRealtime(), "%s", false);
+                views.setProgressBar(R.id.progress, 100, 0, false);
             }
         } catch (Exception e) {
             views.setTextViewText(R.id.prayer_name, "\u062e\u0637\u0623");
             views.setTextViewText(R.id.prayer_time, "--:--");
             views.setTextViewText(R.id.city_name, "");
             views.setChronometer(R.id.countdown_chronometer, android.os.SystemClock.elapsedRealtime(), "%s", false);
+            views.setProgressBar(R.id.progress, 100, 0, false);
         }
 
         // Create an intent to open the main app when widget is tapped
@@ -113,6 +122,19 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
         cancelScheduledUpdate(context);
     }
 
+    private static int computeProgressPercent(NextPrayerInfo nextPrayer) {
+        // We need duration from previous prayer start to this next one.
+        // As we currently only return millisUntil next prayer, approximate by assuming equal spacing
+        // if we don't know previous. For better accuracy, extend NextPrayerInfo to include prev timestamp.
+        if (nextPrayer.totalWindowMillis <= 0) return 0;
+        long done = nextPrayer.totalWindowMillis - nextPrayer.millisUntil;
+        if (done < 0) done = 0;
+        int pct = (int) Math.round((done * 100.0) / nextPrayer.totalWindowMillis);
+        if (pct < 0) pct = 0;
+        if (pct > 100) pct = 100;
+        return pct;
+    }
+
     private static NextPrayerInfo getNextPrayerInfo(Context context) {
         try {
             WidgetSettings s = loadSettings(context);
@@ -155,7 +177,35 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
                 if (prayerTimeInSeconds > currentTimeInSeconds) {
                     String formattedTime = formatTime(prayerTimeStr, s.timeFormat24h, s.arabicNumerals);
                     long millisUntil = (prayerTimeInSeconds - currentTimeInSeconds) * 1000L;
-                    return new NextPrayerInfo(prayerNames[i], formattedTime, displayCity(s.selectedLocation), millisUntil);
+                    // determine previous prayer time to compute total window
+                    int prevIndex = i - 1;
+                    int prevSecs;
+                    if (prevIndex >= 0) {
+                        String prevStr = todayPrayers.optString(prayerOrder[prevIndex], null);
+                        // if missing, fallback to earlier available
+                        while ((prevStr == null || prevStr.trim().isEmpty()) && prevIndex > 0) {
+                            prevIndex--;
+                            prevStr = todayPrayers.optString(prayerOrder[prevIndex], null);
+                        }
+                        if (prevStr == null || prevStr.trim().isEmpty()) {
+                            // fallback to yesterday isha
+                            int yIndex = (todayIndex - 1 + cityData.length()) % cityData.length();
+                            JSONObject yPrayers = cityData.getJSONObject(yIndex);
+                            String yIsha = yPrayers.optString("isha", yPrayers.optString("maghrib", "18:00"));
+                            prevSecs = parseTimeToSeconds(yIsha) - 24*3600; // yesterday seconds baseline
+                        } else {
+                            prevSecs = parseTimeToSeconds(prevStr);
+                        }
+                    } else {
+                        // previous is yesterday isha
+                        int yIndex = (todayIndex - 1 + cityData.length()) % cityData.length();
+                        JSONObject yPrayers = cityData.getJSONObject(yIndex);
+                        String yIsha = yPrayers.optString("isha", yPrayers.optString("maghrib", "18:00"));
+                        prevSecs = parseTimeToSeconds(yIsha) - 24*3600; // map to negative seconds to represent yesterday
+                    }
+
+                    long totalWindowMillis = (long) (prayerTimeInSeconds - prevSecs) * 1000L;
+                    return new NextPrayerInfo(prayerNames[i], formattedTime, displayCity(s.selectedLocation), millisUntil, totalWindowMillis);
                 }
             }
 
@@ -168,7 +218,12 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
             int fajrSecs = parseTimeToSeconds(fajrTime);
             int secondsLeftToday = (24 * 3600) - currentTimeInSeconds;
             long millisUntil = (secondsLeftToday + fajrSecs) * 1000L;
-            return new NextPrayerInfo("\u0627\u0644\u0635\u0628\u062d (\u063a\u062f\u0627\u064b)", formattedTime, displayCity(s.selectedLocation), millisUntil);
+            // previous is today's isha (or maghrib if missing)
+            String ishaToday = todayPrayers.optString("isha", todayPrayers.optString("maghrib", "18:00"));
+            int ishaSecs = parseTimeToSeconds(ishaToday);
+            // window from today's isha to tomorrow fajr crosses midnight
+            long totalWindowMillis = (long) ((24*3600 - ishaSecs) + fajrSecs) * 1000L;
+            return new NextPrayerInfo("\u0627\u0644\u0635\u0628\u062d (\u063a\u062f\u0627\u064b)", formattedTime, displayCity(s.selectedLocation), millisUntil, totalWindowMillis);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -200,10 +255,12 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
             String loc = p.getString(SELECTED_LOCATION_PREF, null);
             String tf = p.getString(TIME_FORMAT_PREF, null); // "12h" | "24h"
             boolean useArNumsPref = p.getBoolean(ARABIC_NUMERALS_PREF, false);
+            boolean darkModePref = p.getBoolean(DARK_MODE_PREF, false);
 
             if (loc != null) s.selectedLocation = loc;
             if (tf != null) s.timeFormat24h = "24h".equalsIgnoreCase(tf);
             s.arabicNumerals = useArNumsPref;
+            s.darkMode = darkModePref;
 
             // 2) Fallback to AsyncStorage 'settings'
             if (s.selectedLocation == null || tf == null) {
@@ -218,6 +275,7 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
                         if (obj.has("selectedLocation")) s.selectedLocation = obj.optString("selectedLocation", s.selectedLocation);
                         if (obj.has("timeFormat")) s.timeFormat24h = "24h".equalsIgnoreCase(obj.optString("timeFormat", "12h"));
                         if (obj.has("useArabicNumerals")) s.arabicNumerals = obj.optBoolean("useArabicNumerals", s.arabicNumerals);
+                        if (obj.has("isDarkMode")) s.darkMode = obj.optBoolean("isDarkMode", s.darkMode);
                     } catch (Exception ignored) {}
                 }
             }
@@ -337,6 +395,7 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
         String selectedLocation = "beirut";
         boolean timeFormat24h = false;
         boolean arabicNumerals = false;
+    boolean darkMode = false;
     }
 
     private static class NextPrayerInfo {
@@ -344,12 +403,17 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
         String time;
         String city;
         long millisUntil;
+        long totalWindowMillis; // new: duration from prev prayer to next
 
         NextPrayerInfo(String name, String time, String city, long millisUntil) {
+            this(name, time, city, millisUntil, 0L);
+        }
+        NextPrayerInfo(String name, String time, String city, long millisUntil, long totalWindowMillis) {
             this.name = name;
             this.time = time;
             this.city = city;
             this.millisUntil = millisUntil;
+            this.totalWindowMillis = totalWindowMillis;
         }
     }
 
