@@ -27,8 +27,8 @@ android {
         applicationId 'com.hnjm123.ShiaPrayerLeb'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion 
-        versionCode 59
-        versionName "2.1.5"
+    versionCode 60
+    versionName "2.1.6"
     }
      lint {
         disable 'ExpiredTargetSdkVersion'
@@ -69,7 +69,12 @@ android {
     
     packagingOptions {
         jniLibs {
-            useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
+            // If expo.useLegacyPackaging=true (set in gradle.properties) then
+            // native .so libs are compressed and alignment requirements for
+            // 16 KB page size devices are avoided. Once AGP is upgraded to
+            // >= 8.5.1 we can revert this to false for smaller install size
+            // and rely on automatic 16 KB alignment of uncompressed libs.
+            useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: true)
         }
     }
     
