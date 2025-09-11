@@ -22,7 +22,7 @@
         android:id="@+id/prayer_name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="الفجر"
+    android:text=""
         android:textColor="#FFFFFF"
         android:textSize="18sp"
         android:textStyle="bold"
@@ -33,10 +33,20 @@
         android:id="@+id/prayer_time"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="05:30"
+    android:text="--:--"
         android:textColor="#FFFFFF"
         android:textSize="24sp"
         android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="4dp" />
+
+    <Chronometer
+        android:id="@+id/countdown_chronometer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:format="%s"
+        android:textColor="#E8F5E8"
+        android:textSize="14sp"
         android:gravity="center"
         android:layout_marginBottom="4dp" />
 
@@ -44,7 +54,7 @@
         android:id="@+id/city_name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="بيروت"
+    android:text=""
         android:textColor="#E8F5E8"
         android:textSize="12sp"
         android:gravity="center" />
