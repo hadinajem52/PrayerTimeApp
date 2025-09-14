@@ -57,7 +57,11 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
                 // Configure chronometer for a ticking countdown to next prayer (HH:MM:SS)
                 long nowElapsed = android.os.SystemClock.elapsedRealtime();
                 long countdownMillis = nextPrayer.millisUntil;
-                long base = nowElapsed + countdownMillis; // countDown true => base in the future
+                long base = nowElapsed + countdownMillis; // For countdown mode, base is future moment
+                // Enable real countdown (no leading minus) on API 24+; otherwise fallback to static formatted text later if needed
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    views.setChronometerCountDown(R.id.countdown_chronometer, true);
+                }
                 views.setChronometer(R.id.countdown_chronometer, base, "%s", true);
 
                 // progress toward next prayer
@@ -285,6 +289,15 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
         return s;
     }
 
+    // Public helper to allow other widget providers to reuse theme choice
+    public static boolean isDarkModeEnabled(Context context) {
+        try {
+            return loadSettings(context).darkMode;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private static String loadPrayerTimes(Context context) {
         // Try updated file written by worker/module, then default file, then asset
         // 1) updated_prayer_times.json
@@ -326,13 +339,52 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
     }
 
     private static int getTodayIndex(JSONArray cityData) {
+        // The previous implementation used day-of-year % length which drifts when the JSON
+        // file only contains a subset (e.g. one month). We instead parse the explicit date
+        // field (format like "14/9/2025" or with zero-padded month) to find an exact match.
         try {
-            Calendar cal = Calendar.getInstance();
-            int dayOfYear = cal.get(Calendar.DAY_OF_YEAR);
-            return dayOfYear % cityData.length();
-        } catch (Exception e) {
-            return 0;
-        }
+            Calendar now = Calendar.getInstance();
+            int y = now.get(Calendar.YEAR);
+            int m = now.get(Calendar.MONTH) + 1; // Calendar.MONTH is 0-based
+            int d = now.get(Calendar.DAY_OF_MONTH);
+
+            for (int i = 0; i < cityData.length(); i++) {
+                JSONObject obj = cityData.optJSONObject(i);
+                if (obj == null) continue;
+                String dateStr = obj.optString("date", null);
+                if (dateStr == null || dateStr.trim().isEmpty()) continue;
+                // Expected formats: D/M/YYYY or DD/M/YYYY etc. Split on '/'
+                String[] parts = dateStr.trim().split("/");
+                if (parts.length < 3) continue;
+                try {
+                    int day = Integer.parseInt(parts[0]);
+                    int month = Integer.parseInt(parts[1]);
+                    int year = Integer.parseInt(parts[2]);
+                    if (day == d && month == m && year == y) {
+                        return i;
+                    }
+                } catch (NumberFormatException ignored) { /* skip malformed */ }
+            }
+            // If not found (e.g., data only for future month), fallback: if current year/month match first entry's month/year, clamp by day-1
+            if (cityData.length() > 0) {
+                try {
+                    JSONObject first = cityData.getJSONObject(0);
+                    String dateStr = first.optString("date", "");
+                    String[] parts = dateStr.split("/");
+                    if (parts.length >= 3) {
+                        int firstMonth = Integer.parseInt(parts[1]);
+                        int firstYear = Integer.parseInt(parts[2]);
+                        if (firstMonth == m && firstYear == y) {
+                            int idx = d - 1; // 1-based day to 0-based index
+                            if (idx < 0) idx = 0;
+                            if (idx >= cityData.length()) idx = cityData.length() - 1;
+                            return idx;
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+        return 0; // safe fallback
     }
 
     private static int parseTimeToSeconds(String timeStr) {
@@ -398,7 +450,7 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
     boolean darkMode = false;
     }
 
-    private static class NextPrayerInfo {
+    public static class NextPrayerInfo {
         String name;
         String time;
         String city;
@@ -415,6 +467,11 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
             this.millisUntil = millisUntil;
             this.totalWindowMillis = totalWindowMillis;
         }
+    }
+
+    // Expose next prayer info for other widget variants (small widget)
+    public static NextPrayerInfo provideNextPrayerInfo(Context context) {
+        return getNextPrayerInfo(context);
     }
 
     private static void scheduleNextUpdate(Context context) {
