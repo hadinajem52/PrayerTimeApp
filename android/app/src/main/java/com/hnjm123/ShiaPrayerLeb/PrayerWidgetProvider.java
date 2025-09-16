@@ -110,6 +110,14 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
             for (int id : ids) {
                 updateAppWidget(context, manager, id);
             }
+            // Also update small widget variant so both sizes stay in sync
+            try {
+                ComponentName smallComp = new ComponentName(context, PrayerWidgetSmallProvider.class);
+                int[] smallIds = manager.getAppWidgetIds(smallComp);
+                for (int sid : smallIds) {
+                    PrayerWidgetSmallProvider.updateAppWidget(context, manager, sid);
+                }
+            } catch (Exception ignored) {}
             scheduleNextUpdate(context);
         }
     }
@@ -474,7 +482,8 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
         return getNextPrayerInfo(context);
     }
 
-    private static void scheduleNextUpdate(Context context) {
+    // Made public so small widget provider can reuse a single exact alarm
+    public static void scheduleNextUpdate(Context context) {
         try {
             long triggerAt = computeNextPrayerEpochMillis(context);
             if (triggerAt <= 0) return;
@@ -500,10 +509,22 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
             } else {
                 am.set(AlarmManager.RTC_WAKEUP, triggerAt, pi);
             }
+
+            // Safety fallback: schedule a secondary inexact update 30 minutes later
+            long fallbackAt = System.currentTimeMillis() + 30 * 60 * 1000L;
+            if (fallbackAt < triggerAt - 2 * 60 * 1000L || fallbackAt > triggerAt + 2 * 60 * 1000L) { // only if sufficiently different
+                PendingIntent fallbackPi = PendingIntent.getBroadcast(
+                        context,
+                        REQ_CODE_UPDATE + 1,
+                        new Intent(context, PrayerWidgetProvider.class).setAction(ACTION_UPDATE_NOW),
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                am.set(AlarmManager.RTC_WAKEUP, fallbackAt, fallbackPi);
+            }
         } catch (Exception ignored) {}
     }
 
-    private static void cancelScheduledUpdate(Context context) {
+    public static void cancelScheduledUpdate(Context context) {
         try {
             Intent intent = new Intent(context, PrayerWidgetProvider.class);
             intent.setAction(ACTION_UPDATE_NOW);
@@ -516,6 +537,14 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
             AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
             if (am != null) {
                 am.cancel(pi);
+                // cancel fallback
+                PendingIntent fallbackPi = PendingIntent.getBroadcast(
+                        context,
+                        REQ_CODE_UPDATE + 1,
+                        new Intent(context, PrayerWidgetProvider.class).setAction(ACTION_UPDATE_NOW),
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                am.cancel(fallbackPi);
             }
         } catch (Exception ignored) {}
     }
