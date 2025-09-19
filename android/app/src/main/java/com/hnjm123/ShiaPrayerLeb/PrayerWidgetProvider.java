@@ -41,9 +41,30 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
         scheduleNextUpdate(context);
     }
 
+    @Override
+    public void onAppWidgetOptionsChanged(Context context, AppWidgetManager appWidgetManager, int appWidgetId, android.os.Bundle newOptions) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions);
+        updateAppWidget(context, appWidgetManager, appWidgetId);
+    }
+
     static void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
         WidgetSettings settings = loadSettings(context);
-        int layoutId = settings.darkMode ? R.layout.prayer_widget_dark : R.layout.prayer_widget;
+
+        // Determine responsive layout choice based on current widget bounds
+        int layoutId;
+        try {
+            android.os.Bundle opts = appWidgetManager.getAppWidgetOptions(appWidgetId);
+            int minW = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH); // dp
+            int minH = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT); // dp
+            boolean compact = (minW < 180) || (minH < 100); // heuristic breakpoint
+            if (compact) {
+                layoutId = settings.darkMode ? R.layout.prayer_widget_compact_dark : R.layout.prayer_widget_compact;
+            } else {
+                layoutId = settings.darkMode ? R.layout.prayer_widget_dark : R.layout.prayer_widget;
+            }
+        } catch (Exception e) {
+            layoutId = settings.darkMode ? R.layout.prayer_widget_dark : R.layout.prayer_widget;
+        }
         RemoteViews views = new RemoteViews(context.getPackageName(), layoutId);
 
         try {
