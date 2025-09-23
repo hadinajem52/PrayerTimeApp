@@ -531,6 +531,25 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
                 am.set(AlarmManager.RTC_WAKEUP, triggerAt, pi);
             }
 
+            // Also trigger small widget provider directly to ensure it updates even if large path is skipped
+            try {
+                Intent smallIntent = new Intent(context, PrayerWidgetSmallProvider.class)
+                        .setAction("com.hnjm123.ShiaPrayerLeb.action.UPDATE_NOW_SMALL");
+                PendingIntent piSmall = PendingIntent.getBroadcast(
+                        context,
+                        REQ_CODE_UPDATE + 2,
+                        smallIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, piSmall);
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                    am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, piSmall);
+                } else {
+                    am.set(AlarmManager.RTC_WAKEUP, triggerAt, piSmall);
+                }
+            } catch (Exception ignored) {}
+
             // Safety fallback: schedule a secondary inexact update 30 minutes later
             long fallbackAt = System.currentTimeMillis() + 30 * 60 * 1000L;
             if (fallbackAt < triggerAt - 2 * 60 * 1000L || fallbackAt > triggerAt + 2 * 60 * 1000L) { // only if sufficiently different
@@ -541,6 +560,17 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                 );
                 am.set(AlarmManager.RTC_WAKEUP, fallbackAt, fallbackPi);
+
+                // Fallback for small widget as well
+                try {
+                    PendingIntent fallbackPiSmall = PendingIntent.getBroadcast(
+                            context,
+                            REQ_CODE_UPDATE + 3,
+                            new Intent(context, PrayerWidgetSmallProvider.class).setAction("com.hnjm123.ShiaPrayerLeb.action.UPDATE_NOW_SMALL"),
+                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                    );
+                    am.set(AlarmManager.RTC_WAKEUP, fallbackAt, fallbackPiSmall);
+                } catch (Exception ignored) {}
             }
         } catch (Exception ignored) {}
     }
@@ -566,6 +596,24 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                 );
                 am.cancel(fallbackPi);
+
+                // cancel small provider alarms
+                try {
+                    PendingIntent piSmall = PendingIntent.getBroadcast(
+                            context,
+                            REQ_CODE_UPDATE + 2,
+                            new Intent(context, PrayerWidgetSmallProvider.class).setAction("com.hnjm123.ShiaPrayerLeb.action.UPDATE_NOW_SMALL"),
+                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                    );
+                    am.cancel(piSmall);
+                    PendingIntent fallbackPiSmall = PendingIntent.getBroadcast(
+                            context,
+                            REQ_CODE_UPDATE + 3,
+                            new Intent(context, PrayerWidgetSmallProvider.class).setAction("com.hnjm123.ShiaPrayerLeb.action.UPDATE_NOW_SMALL"),
+                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                    );
+                    am.cancel(fallbackPiSmall);
+                } catch (Exception ignored) {}
             }
         } catch (Exception ignored) {}
     }
