@@ -2,8 +2,10 @@ name: Update Prayer Times Data
 
 on:
   schedule:
-    - cron: '10 21 1 * *'   # 21:10 UTC on the 1st -> 00:10 Beirut during DST (UTC+3)
-    - cron: '10 22 1 * *'   # 22:10 UTC on the 1st -> 00:10 Beirut during standard time (UTC+2)
+    # 22:30 UTC on 28th-31st.
+    # In Beirut (UTC+2/UTC+3), this is 00:30 or 01:30 on the next day (the 1st).
+    # We check the date in the steps to ensure it runs only on the 1st.
+    - cron: '30 22 28-31 * *'
   workflow_dispatch:            
 
 permissions:
@@ -35,6 +37,8 @@ jobs:
           pip install requests pdfplumber
       
       - name: Run extraction script
+        env:
+          TZ: 'Asia/Beirut'
         run: python extract_prayer_times.py
       
       - name: Commit and push if there are changes
@@ -46,24 +50,3 @@ jobs:
           git diff --staged --quiet || git commit -m "Update prayer times data for $(date +'%B %Y') [skip ci]"
           git push
       
-      - name: Send Discord notification on success
-        if: success()
-        uses: rjstone/discord-webhook-notify@v1
-        with:
-          severity: info
-          username: Prayer Times Bot
-          description: "✅ Prayer times update completed successfully!"
-          details: "The prayer times update workflow completed successfully on ${{ github.repository }} for $(date +'%B %Y')."
-          footer: "Automated notification from GitHub Actions"
-          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
-      
-      - name: Send Discord notification on failure
-        if: failure()
-        uses: rjstone/discord-webhook-notify@v1
-        with:
-          severity: error
-          username: Prayer Times Bot
-          description: "❌ Prayer times update failed!"
-          details: "The prayer times update workflow failed on ${{ github.repository }}. Manual intervention required."
-          footer: "Automated notification from GitHub Actions"
-          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
