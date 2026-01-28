@@ -11,13 +11,13 @@ current_year = datetime.datetime.now().year
 current_month = datetime.datetime.now().month 
 
 locations = {
-    "beirut": f"https://almanar.com.lb/static/calendars/{current_year}/beirut-{current_month}.pdf",
-    "tyre": f"https://almanar.com.lb/static/calendars/{current_year}/tyre-{current_month}.pdf",
-    "saida": f"https://almanar.com.lb/static/calendars/{current_year}/saida-{current_month}.pdf",
-    "baalbek": f"https://almanar.com.lb/static/calendars/{current_year}/baalbek-{current_month}.pdf",
-    "hermel": f"https://almanar.com.lb/static/calendars/{current_year}/hermel-{current_month}.pdf",
-    "tripoli": f"https://almanar.com.lb/static/calendars/{current_year}/tripoli-{current_month}.pdf",
-    "nabatieh-bintjbeil": f"https://almanar.com.lb/static/calendars/{current_year}/nabatieh-bintjbeil-{current_month}.pdf"
+    "beirut": f"https://almanar.com.lb/static/calendars/2026/beirut-1.pdf",
+    "tyre": f"https://almanar.com.lb/static/calendars/2026/tyre-1.pdf",
+    "saida": f"https://almanar.com.lb/static/calendars/2026/saida-1.pdf",
+    "baalbek": f"https://almanar.com.lb/static/calendars/2026/baalbek-1.pdf",
+    "hermel": f"https://almanar.com.lb/static/calendars/2026/hermel-1.pdf",
+    "tripoli": f"https://almanar.com.lb/static/calendars/2026/tripoli-1.pdf",
+    "nabatieh-bintjbeil": f"https://almanar.com.lb/static/calendars/2026/nabatieh-bintjbeil-1.pdf"
 }
 
 PDF_FORMATS = {
