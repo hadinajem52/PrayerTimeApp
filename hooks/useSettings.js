@@ -8,7 +8,7 @@ let listeners = [];
 
 const initialSettings = {
   language: 'ar',
-  isDarkMode: true, 
+  isDarkMode: true,
   selectedLocation: 'beirut',
   enabledPrayers: {
     imsak: false,
@@ -32,6 +32,20 @@ const notifyListeners = (newSettings) => {
   listeners.forEach(listener => listener(newSettings));
 };
 
+/**
+ * Mirror the four keys that onBackgroundEvent needs as flat AsyncStorage
+ * entries so they can be read without React context.
+ */
+const mirrorBgKeys = (s) => {
+  if (!s) return;
+  AsyncStorage.multiSet([
+    ['selectedLocation', s.selectedLocation || 'beirut'],
+    ['enabledPrayers', JSON.stringify(s.enabledPrayers || {})],
+    ['language', s.language || 'en'],
+    ['usePrayerSound', String(s.usePrayerSound !== false)],
+  ]).catch(e => console.warn('[Settings] Failed to mirror bg keys:', e));
+};
+
 export default function useSettings() {
   const [settings, setLocalSettings] = useState(currentSettings || initialSettings);
 
@@ -45,6 +59,7 @@ export default function useSettings() {
           currentSettings = parsedSettings;
           setLocalSettings(parsedSettings);
           notifyListeners(parsedSettings);
+          mirrorBgKeys(parsedSettings);
           // Sync with native for widget
           try {
             NativeModules.UpdateModule?.syncSettingsForWidget({
@@ -61,6 +76,7 @@ export default function useSettings() {
           currentSettings = defaultSettings;
           setLocalSettings(defaultSettings);
           notifyListeners(defaultSettings);
+          mirrorBgKeys(defaultSettings);
           try {
             NativeModules.UpdateModule?.syncSettingsForWidget({
               selectedLocation: defaultSettings.selectedLocation,
@@ -68,7 +84,7 @@ export default function useSettings() {
               language: defaultSettings.language,
               isDarkMode: defaultSettings.isDarkMode,
             });
-          } catch (e) {}
+          } catch (e) { }
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -83,10 +99,10 @@ export default function useSettings() {
             language: defaultSettings.language,
             isDarkMode: defaultSettings.isDarkMode,
           });
-        } catch (e) {}
+        } catch (e) { }
       }
     }
-    
+
     if (!currentSettings || !currentSettings.isSettingsLoaded) {
       loadSettings();
     }
@@ -97,9 +113,9 @@ export default function useSettings() {
     const listener = (newSettings) => {
       setLocalSettings(newSettings);
     };
-    
+
     listeners.push(listener);
-    
+
     return () => {
       listeners = listeners.filter(l => l !== listener);
     };
@@ -107,19 +123,20 @@ export default function useSettings() {
 
   // Wrapped setSettings function that updates global state
   const setSettings = useCallback((updater) => {
-    const newSettings = typeof updater === 'function' 
-      ? updater(currentSettings) 
+    const newSettings = typeof updater === 'function'
+      ? updater(currentSettings)
       : updater;
-    
+
     currentSettings = newSettings;
-    
-    // Save settings to AsyncStorage
+
+    // Save settings to AsyncStorage (full blob + individual bg keys)
     AsyncStorage.setItem('settings', JSON.stringify(newSettings))
       .catch(error => console.error('Failed to save settings:', error));
-    
+    mirrorBgKeys(newSettings);
+
     // Notify all listeners
     notifyListeners(newSettings);
-    
+
     // Sync with native for widget and trigger refresh
     try {
       NativeModules.UpdateModule?.syncSettingsForWidget({

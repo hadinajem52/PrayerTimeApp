@@ -14,21 +14,26 @@ import {
   useWindowDimensions,
   AppState,
   Easing,
-  PanResponder,  
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import moment from 'moment-hijri';
-import ProgressBar from 'react-native-progress/Bar'; 
+import ProgressBar from 'react-native-progress/Bar';
 import dailyQuotes from './data/quotes';
 import QiblaFinderWebView from './QiblaFinderWebView';
-import notifee, { AndroidImportance,EventType  } from '@notifee/react-native';
+import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 import styles from './styles';
 import PrayerRow from './components/PrayerRow';
 import useSettings from './hooks/useSettings';
 import usePrayerTimer from './hooks/usePrayerTimer';
-import { useNotificationScheduler } from './hooks/useNotificationScheduler';
+import {
+  useNotificationScheduler,
+  schedulePrayerNotificationsRaw,
+  scheduleNightlyRefreshTrigger,
+  getPrayerTimesForDayStatic,
+} from './hooks/useNotificationScheduler';
 import { moderateScale } from 'react-native-size-matters';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -36,13 +41,13 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import Settings from './components/Settings';
 import CalendarView from './components/Calendar';
 import SkeletonLoader from './components/SkeletonLoader';
-import {AnimationUtils } from './utils/animations';
+import { AnimationUtils } from './utils/animations';
 import { UpdateManager } from './components/UpdateManager';
 import './firebase';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MonthTransitionNotice from './components/MonthTransitionNotice';
-import {toArabicNumerals } from './utils/timeFormatters';
+import { toArabicNumerals } from './utils/timeFormatters';
 import { PrayerTimesProvider, usePrayerTimes } from './components/PrayerTimesProvider';
 import Rate, { AndroidMarket } from 'react-native-rate';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -73,7 +78,7 @@ const TRANSLATIONS = {
     ok: "OK",
     cancel: "Cancel",
     allEnded: "All prayer times for today have ended",
-    progressBarLabelPrayer: "Next Prayer in:", 
+    progressBarLabelPrayer: "Next Prayer in:",
     progressBarLabelTime: "Next Time in:",
     midnight: "Midnight",
     today: "Today",
@@ -82,7 +87,7 @@ const TRANSLATIONS = {
     settings: "Settings",
     calendar: "Calendar",
     hijriMonths: [
-      "Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", 
+      "Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani",
       "Jumada al-Awwal", "Jumada al-Thani", "Rajab", "Sha'ban",
       "Ramadan", "Shawwal", "Dhu al-Qi'dah", "Dhu al-Hijjah"
     ],
@@ -105,9 +110,9 @@ const TRANSLATIONS = {
     notificationSound: "Notification Sound",
     prayerSoundSetting: "Use Prayer Sound",
     prayerSoundDescription: "Play adhan sound for notifications, or use system default sound",
-  // Battery Optimization
-  batteryOptimization: "Battery Optimization",
-  batteryOptimizationSettingDescription: "Disable Android battery optimization for this app to ensure timely prayer notifications"
+    // Battery Optimization
+    batteryOptimization: "Battery Optimization",
+    batteryOptimizationSettingDescription: "Disable Android battery optimization for this app to ensure timely prayer notifications"
   },
   ar: {
     prayerTimes: "جدول مواقيت الصلاة",
@@ -129,16 +134,16 @@ const TRANSLATIONS = {
     ok: "موافق",
     cancel: "إلغاء",
     allEnded: "انتهت كل مواعيد الصلاة لهذا اليوم",
-    progressBarLabelPrayer: "الصلاة القادمة في:", 
+    progressBarLabelPrayer: "الصلاة القادمة في:",
     progressBarLabelTime: "الوقت القادم في:",
     midnight: "منتصف الليل",
     today: "اليوم",
-    months: ["كانون ٢", "شباط", "آذار", "نيسان", "أيار", "حزيران","تموز", "آب", "أيلول", "تشرين ١", "تشرين ٢", "كانون ١"],
+    months: ["كانون ٢", "شباط", "آذار", "نيسان", "أيار", "حزيران", "تموز", "آب", "أيلول", "تشرين ١", "تشرين ٢", "كانون ١"],
     days: ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"],
     settings: "الإعدادات",
     calendar: "التقويم",
     hijriMonths: [
-      "محرم", "صفر", "ربيع ١", "ربيع ٢", 
+      "محرم", "صفر", "ربيع ١", "ربيع ٢",
       "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان",
       "رمضان", "شوال", "ذو القعدة", "ذو الحجة"
     ],
@@ -161,21 +166,67 @@ const TRANSLATIONS = {
     notificationSound: "صوت الإشعارات",
     prayerSoundSetting: "استخدام صوت الأذان",
     prayerSoundDescription: "تشغيل صوت الأذان للإشعارات، أو استخدام صوت النظام الافتراضي",
-  // Battery Optimization
-  batteryOptimization: "تحسين البطارية",
-  batteryOptimizationSettingDescription: "أوقف تحسين البطارية لهذا التطبيق لضمان وصول إشعارات أوقات الصلاة في وقتها"
+    // Battery Optimization
+    batteryOptimization: "تحسين البطارية",
+    batteryOptimizationSettingDescription: "أوقف تحسين البطارية لهذا التطبيق لضمان وصول إشعارات أوقات الصلاة في وقتها"
   },
 };
 
 notifee.onBackgroundEvent(async ({ type, detail }) => {
-  if (type === EventType.TRIGGER) {
-    const { notification } = detail;
-    
-    if (notification?.data?.type === 'refresh') {
-      console.log('[Background] Daily refresh trigger received');
+  if (type !== EventType.TRIGGER) return;
+
+  const { notification } = detail;
+  if (notification?.data?.type !== 'refresh') return;
+
+  console.log('[Background] Daily refresh trigger received — rescheduling prayers');
+
+  try {
+    // Load settings from AsyncStorage (no React context in background)
+    const AsyncStorageBg = require('@react-native-async-storage/async-storage').default;
+
+    const [locationRaw, enabledPrayersRaw, languageRaw, useSoundRaw] = await Promise.all([
+      AsyncStorageBg.getItem('selectedLocation'),
+      AsyncStorageBg.getItem('enabledPrayers'),
+      AsyncStorageBg.getItem('language'),
+      AsyncStorageBg.getItem('usePrayerSound'),
+    ]);
+
+    const location = locationRaw || 'beirut';
+    const language = languageRaw || 'en';
+    const usePrayerSound = useSoundRaw !== 'false'; // default true
+    const enabledPrayers = enabledPrayersRaw
+      ? JSON.parse(enabledPrayersRaw)
+      : { imsak: true, fajr: true, shuruq: true, dhuhr: true, asr: true, maghrib: true, isha: true, midnight: true };
+
+    // Load prayer data from the bundled asset (always available)
+    let prayerTimes;
+    try {
+      const updatedRaw = await AsyncStorageBg.getItem('updatedPrayerTimes');
+      prayerTimes = updatedRaw ? JSON.parse(updatedRaw) : require('./assets/prayer_times.json');
+    } catch (_) {
+      prayerTimes = require('./assets/prayer_times.json');
     }
 
-    return null;
+    const locationData = prayerTimes?.[location];
+    if (!locationData) {
+      console.warn('[Background] No prayer data for location:', location);
+      return;
+    }
+
+    // Schedule the next 7 days; duplicates are skipped automatically
+    const scheduled = await schedulePrayerNotificationsRaw(
+      locationData,
+      enabledPrayers,
+      language,
+      usePrayerSound,
+      7
+    );
+    console.log(`[Background] Rescheduled ${scheduled.length} notifications`);
+
+    // Recreate tomorrow's nightly refresh trigger so the rolling window continues
+    await scheduleNightlyRefreshTrigger();
+  } catch (err) {
+    console.error('[Background] Failed to reschedule prayers:', err);
   }
 });
 
@@ -191,11 +242,11 @@ const LOCATION_NAMES = {
 
 const PRAYER_ICONS = {
   imsak: 'cloudy-night',
-  fajr: 'sunrise',           
+  fajr: 'sunrise',
   shuruq: 'partly-sunny',
   dhuhr: 'sunny',
-  asr: 'sunny-snowing',      
-  maghrib: 'sunset',          
+  asr: 'sunny-snowing',
+  maghrib: 'sunset',
   isha: 'moon-outline',
   midnight: 'moon',
 };
@@ -237,7 +288,7 @@ const Countdown = ({
 }) => {
   const [timeRemaining, setTimeRemaining] = useState('');
   const [progress, setProgress] = useState(0);
-  
+
   const [settings] = useSettings();
   const { timeFormat, useArabicNumerals } = settings;
   const forceUpdate = useRef(0);
@@ -265,13 +316,13 @@ const Countdown = ({
         const hours = String(Math.floor(duration.asHours())).padStart(2, '0');
         const minutes = String(duration.minutes()).padStart(2, '0');
         const seconds = String(duration.seconds()).padStart(2, '0');
-        
+
         let displayTime = `${hours}:${minutes}:${seconds}`;
-        
+
         if (language === 'ar' && useArabicNumerals) {
           displayTime = toArabicNumerals(displayTime);
         }
-        
+
         setTimeRemaining(displayTime);
 
         const progressFraction = Math.min(Math.max(elapsed / totalDuration, 0), 1);
@@ -347,7 +398,7 @@ const TodayIndicator = ({ isDarkMode }) => {
         top: 15,
         left: 15,
         zIndex: 5,
-        }}
+      }}
     >
       <View
         style={{
@@ -381,7 +432,7 @@ const QuoteIconButton = ({ isDarkMode, onPress }) => {
       style={{
         position: 'absolute',
         top: 15,
-        right: 15, 
+        right: 15,
         zIndex: 5,
       }}
     >
@@ -410,17 +461,17 @@ const QuoteIconButton = ({ isDarkMode, onPress }) => {
   );
 };
 
-const LocationItem = React.memo(({ 
-  loc, 
-  locDisplay, 
-  isSelected, 
-  isDarkMode, 
-  onPress 
+const LocationItem = React.memo(({
+  loc,
+  locDisplay,
+  isSelected,
+  isDarkMode,
+  onPress
 }) => {
-  const iconColor = isSelected 
-    ? (isDarkMode ? "#FFA500" : "#007AFF") 
+  const iconColor = isSelected
+    ? (isDarkMode ? "#FFA500" : "#007AFF")
     : (isDarkMode ? "#66CCFF" : "#555");
-    
+
   return (
     <TouchableOpacity
       key={loc}
@@ -461,9 +512,9 @@ const LocationItem = React.memo(({
         {locDisplay}
       </Text>
       {isSelected && (
-        <Icon 
-          name="checkmark-circle" 
-          size={22} 
+        <Icon
+          name="checkmark-circle"
+          size={22}
           color={isDarkMode ? "#FFA500" : "#007AFF"}
           style={styles.selectedCheckmark}
         />
@@ -488,7 +539,7 @@ export default function App() {
 function MainApp() {
   const [settings, setSettings] = useSettings();
   const { prayerTimes, isLoading: prayerTimesLoading, error: prayerTimesError, refreshPrayerTimes } = usePrayerTimes();
-  
+
   const {
     language,
     isDarkMode,
@@ -496,7 +547,7 @@ function MainApp() {
     enabledPrayers,
     scheduledNotifications,
     isSettingsLoaded,
-    timeFormat, 
+    timeFormat,
   } = settings;
 
   const [currentPrayer, setCurrentPrayer] = useState(null);
@@ -508,11 +559,11 @@ function MainApp() {
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [timeRemaining, setTimeRemaining] = useState(''); 
+  const [timeRemaining, setTimeRemaining] = useState('');
   const [isShowingLastAvailableDay, setIsShowingLastAvailableDay] = useState(false);
   const [notificationsScheduled, setNotificationsScheduled] = useState(false);
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
-  
+
   const [isBatteryModalVisible, setIsBatteryModalVisible] = useState(false);
   const [isBatteryOptimizationEnabled, setIsBatteryOptimizationEnabled] = useState(true);
 
@@ -543,7 +594,7 @@ function MainApp() {
     return (prayerTimes && prayerTimes[selectedLocation]) || [];
   }, [prayerTimes, selectedLocation]);
 
-  const locationKeys = useMemo(() => 
+  const locationKeys = useMemo(() =>
     Object.keys(prayerTimes || {}).filter(loc => loc !== "last_updated"),
     [prayerTimes]
   );
@@ -552,38 +603,38 @@ function MainApp() {
     // Create a seed based on current date (year, month, day)
     const today = new Date();
     const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-    
+
     // Simple seeded random function
     const seededRandom = (seed) => {
       const x = Math.sin(seed) * 10000;
       return x - Math.floor(x);
     };
-    
+
     // Get a random index based on the date seed
     const randomIndex = Math.floor(seededRandom(seed) * dailyQuotes.length);
     return dailyQuotes[randomIndex][language];
   }, [language, dailyQuotes]);
 
 
-// Add this debug code temporarily to see what's happening
-const getTodayIndex = useCallback((data) => {
-  const today = new Date();
-  const formattedDate = moment(today).format('D/M/YYYY');
-  
-  // Normalize by converting both to Date objects for comparison
-  const todayObj = moment(formattedDate, ['D/M/YYYY', 'D/MM/YYYY']).toDate();
-  
-  const index = data.findIndex((item) => {
-    if (!item.date) return false;
-    // Parse the data date with flexible format
-    const dataDate = moment(item.date.trim(), ['D/M/YYYY', 'D/MM/YYYY']).toDate();
-    return dataDate.getDate() === todayObj.getDate() && 
-           dataDate.getMonth() === todayObj.getMonth() && 
-           dataDate.getFullYear() === todayObj.getFullYear();
-  });
-  
-  return index;
-}, []);
+  // Add this debug code temporarily to see what's happening
+  const getTodayIndex = useCallback((data) => {
+    const today = new Date();
+    const formattedDate = moment(today).format('D/M/YYYY');
+
+    // Normalize by converting both to Date objects for comparison
+    const todayObj = moment(formattedDate, ['D/M/YYYY', 'D/MM/YYYY']).toDate();
+
+    const index = data.findIndex((item) => {
+      if (!item.date) return false;
+      // Parse the data date with flexible format
+      const dataDate = moment(item.date.trim(), ['D/M/YYYY', 'D/MM/YYYY']).toDate();
+      return dataDate.getDate() === todayObj.getDate() &&
+        dataDate.getMonth() === todayObj.getMonth() &&
+        dataDate.getFullYear() === todayObj.getFullYear();
+    });
+
+    return index;
+  }, []);
 
   const parsePrayerTime = useCallback((timeStr) => {
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -611,7 +662,7 @@ const getTodayIndex = useCallback((data) => {
         duration: 120,
         useNativeDriver: true,
       }).start();
-      
+
       Animated.timing(animation, {
         toValue: -direction * 300,
         duration: 180,
@@ -621,7 +672,7 @@ const getTodayIndex = useCallback((data) => {
         setCurrentIndex(newIndex);
         setCurrentPrayer(locationData[newIndex]);
         animation.setValue(direction * 300);
-        
+
         Animated.parallel([
           Animated.spring(animation, {
             toValue: 0,
@@ -664,7 +715,7 @@ const getTodayIndex = useCallback((data) => {
   const updateHijriOffset = useCallback((newOffset) => {
     setSettings((prev) => ({ ...prev, hijriDateOffset: newOffset }));
   }, [setSettings]);
-  
+
   const handleNotificationToggle = useCallback(
     async (prayerKey) => {
       console.log(`Toggling notification for prayer: ${prayerKey}`);
@@ -712,31 +763,31 @@ const getTodayIndex = useCallback((data) => {
 
   const convertToArabicNumerals = useCallback((str, lang) => {
     if (lang !== 'ar') return str;
-    
+
     const arabicNumerals = {
       '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤',
       '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩'
     };
-    
+
     return str.toString().replace(/[0-9]/g, match => arabicNumerals[match]);
   }, []);
 
   const formatDate = useCallback((dateStr, lang) => {
     if (!dateStr) return "";
-    
+
     const [day, month, year] = dateStr.split('/').map(Number);
     const date = new Date(year, month - 1, day);
-    
+
     const translations = TRANSLATIONS[lang];
     const dayName = translations.days[date.getDay()];
     const dayNum = date.getDate();
     const monthName = translations.months[date.getMonth()];
-    
+
     const formattedDayNum = convertToArabicNumerals(dayNum, lang);
-    
+
     return `${dayName} ${formattedDayNum} ${monthName}`;
   }, [convertToArabicNumerals]);
-  
+
   const animateNavItem = useCallback(() => {
     AnimationUtils.bounce(navigationBarAnim);
   }, [navigationBarAnim]);
@@ -745,17 +796,17 @@ const getTodayIndex = useCallback((data) => {
     AnimationUtils.bounce(settingsButtonAnim);
     setIsSettingsVisible(true);
   }, [settingsButtonAnim]);
-  
+
   const animateCalendarButton = useCallback(() => {
     AnimationUtils.bounce(calendarButtonAnim);
     setIsCalendarVisible(true);
   }, [calendarButtonAnim]);
-  
+
   const animateLocationButton = useCallback(() => {
     AnimationUtils.bounce(locationButtonAnim);
     setIsLocationModalVisible(true);
   }, [locationButtonAnim]);
-  
+
   const animateCompassButton = useCallback(() => {
     AnimationUtils.bounce(compassButtonAnim);
     setIsCompassVisible(true);
@@ -773,13 +824,13 @@ const getTodayIndex = useCallback((data) => {
           {
             text: TRANSLATIONS[language].cancel,
             style: "cancel",
-            onPress: () => {},
+            onPress: () => { },
           },
           {
             text: TRANSLATIONS[language].ok,
             onPress: async () => {
               AnimationUtils.pulse(locationChangeAnim);
-              
+
               const scheduledIds = Object.values(scheduledNotifications).filter(Boolean);
               await cancelAllNotifications(scheduledIds);
               if (upcomingNotificationIds.length > 0) {
@@ -815,7 +866,7 @@ const getTodayIndex = useCallback((data) => {
       );
     } else {
       AnimationUtils.pulse(locationChangeAnim);
-      
+
       (async () => {
         try {
           // Ensure a clean state and force fresh scheduling
@@ -899,30 +950,30 @@ const getTodayIndex = useCallback((data) => {
 
   const formattedHijriDate = useMemo(() => {
     if (!currentPrayer || !currentPrayer.date) return "";
-    
+
     const hijriDateObj = moment(currentPrayer.date, "D/M/YYYY");
     if (settings.hijriDateOffset) {
       hijriDateObj.add(settings.hijriDateOffset, 'days');
     }
-    
-      const day = hijriDateObj.iDate();
-      const monthIndex = hijriDateObj.iMonth();
-      const year = hijriDateObj.iYear();
 
-      const monthName = TRANSLATIONS[language].hijriMonths[monthIndex];
-  
-if (language === 'ar') {
-    const dayStr = convertToArabicNumerals(String(day), 'ar');
-    const yearStr = convertToArabicNumerals(String(year), 'ar');
-    return `${dayStr} ${monthName} ${yearStr}`;
-  } else {
-    return `${day} ${monthName} ${year}`;
-  }
-}, [currentPrayer, language, convertToArabicNumerals, settings.hijriDateOffset]);
-  
+    const day = hijriDateObj.iDate();
+    const monthIndex = hijriDateObj.iMonth();
+    const year = hijriDateObj.iYear();
+
+    const monthName = TRANSLATIONS[language].hijriMonths[monthIndex];
+
+    if (language === 'ar') {
+      const dayStr = convertToArabicNumerals(String(day), 'ar');
+      const yearStr = convertToArabicNumerals(String(year), 'ar');
+      return `${dayStr} ${monthName} ${yearStr}`;
+    } else {
+      return `${day} ${monthName} ${year}`;
+    }
+  }, [currentPrayer, language, convertToArabicNumerals, settings.hijriDateOffset]);
+
   const preparedPrayerData = useMemo(() => {
     if (!currentPrayer) return null;
-    
+
     return {
       times: ["imsak", "fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha", "midnight"]
         .map(key => ({
@@ -942,19 +993,19 @@ if (language === 'ar') {
         onStartShouldSetPanResponder: () => false,
         onMoveShouldSetPanResponder: (evt, gestureState) => {
           const minMovementThreshold = 8;
-          
+
           const { dx, dy } = gestureState;
           const absDx = Math.abs(dx);
           const absDy = Math.abs(dy);
-          
+
           return (
             absDx > absDy &&
             absDx > minMovementThreshold &&
             ((dx > 0 && currentIndex > 0) ||
-             (dx < 0 && currentIndex < locationData.length - 1))
+              (dx < 0 && currentIndex < locationData.length - 1))
           );
         },
-        
+
         onPanResponderGrant: () => {
           Animated.spring(cardScaleAnim, {
             toValue: 0.98,
@@ -963,22 +1014,22 @@ if (language === 'ar') {
             useNativeDriver: true
           }).start();
         },
-        
+
         onPanResponderMove: (evt, gestureState) => {
           if (Math.abs(gestureState.dx) > Math.abs(gestureState.dy)) {
             animation.setValue(gestureState.dx * 0.8);
           }
         },
-        
+
         onPanResponderRelease: (evt, gestureState) => {
           const swipeThreshold = 80;
-          
+
           if (gestureState.dx > swipeThreshold && currentIndex > 0) {
             handlePrevious();
-          } 
+          }
           else if (gestureState.dx < -swipeThreshold && currentIndex < locationData.length - 1) {
             handleNext();
-          } 
+          }
           else {
             Animated.parallel([
               Animated.spring(animation, {
@@ -996,7 +1047,7 @@ if (language === 'ar') {
             ]).start();
           }
         },
-        
+
         onPanResponderTerminationRequest: () => true,
       }),
     [animation, cardScaleAnim, handlePrevious, handleNext, currentIndex, locationData.length]
@@ -1006,23 +1057,23 @@ if (language === 'ar') {
   const headerHeight = moderateScale(50);
   const navHeight = moderateScale(70);
   const cardContainerHeight = windowHeight - headerHeight - navHeight;
-  
+
   const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
   const upcomingIndex = prayerOrder.indexOf(upcomingPrayerKey);
-  
+
   const lastPrayerKey = useMemo(() => {
     if (upcomingIndex > 0) {
       return prayerOrder[upcomingIndex - 1];
     }
     return 'imsak';
   }, [upcomingIndex]);
-  
+
   const lastPrayerTime = useMemo(() => {
     if (upcomingIndex > 0 && currentPrayer) {
       const key = prayerOrder[upcomingIndex - 1];
       return parsePrayerTime(currentPrayer[key]);
     }
-    return new Date(); 
+    return new Date();
   }, [upcomingIndex, currentPrayer, parsePrayerTime]);
 
   useEffect(() => {
@@ -1066,7 +1117,7 @@ if (language === 'ar') {
       await notifee.createChannel({
         id: 'prayer-channel-sound-v2',
         name: 'Prayer Notifications (Adhan)',
-        importance: AndroidImportance.MAX, 
+        importance: AndroidImportance.MAX,
         sound: 'prayersound',
         vibration: true,
       });
@@ -1155,7 +1206,7 @@ if (language === 'ar') {
 
   useEffect(() => {
     requestOSNotificationPermission();
-  }, [requestOSNotificationPermission]); 
+  }, [requestOSNotificationPermission]);
 
   useEffect(() => {
     if (isSettingsLoaded && selectedLocation) {
@@ -1187,7 +1238,7 @@ if (language === 'ar') {
     if (locationData.length > 0) {
       const todayIdx = getTodayIndex(locationData);
       console.log(`[REFRESH] Today's index in prayer data: ${todayIdx}`);
-      
+
       if (todayIdx !== -1) {
         console.log(`[REFRESH] Setting current index to today: ${todayIdx}`);
         setCurrentIndex(todayIdx);
@@ -1195,21 +1246,21 @@ if (language === 'ar') {
       } else {
         console.log('[REFRESH] Today not found in prayer data, determining best date to show');
         const today = new Date();
-        
+
         const datesToCompare = locationData.map(dayData => {
           const [day, month, year] = dayData.date.split('/').map(Number);
           return new Date(year, month - 1, day);
         });
-        
+
         const earliestDate = new Date(Math.min(...datesToCompare));
         const latestDate = new Date(Math.max(...datesToCompare));
-        
+
         if (today > latestDate) {
           const lastIndex = locationData.length - 1;
           console.log(`[REFRESH] Today (${today.toLocaleDateString()}) is after latest data (${latestDate.toLocaleDateString()}), using last available date at index ${lastIndex}`);
           setCurrentIndex(lastIndex);
           setCurrentPrayer(locationData[lastIndex]);
-        
+
           setIsShowingLastAvailableDay(true);
         } else if (today < earliestDate) {
           console.log(`[REFRESH] Today (${today.toLocaleDateString()}) is before earliest data (${earliestDate.toLocaleDateString()}), using first date at index 0`);
@@ -1220,18 +1271,18 @@ if (language === 'ar') {
           console.log('[REFRESH] Today is within date range but exact date not found, finding closest date');
           let closestIndex = 0;
           let smallestDiff = Infinity;
-          
+
           locationData.forEach((dayData, index) => {
             const [day, month, year] = dayData.date.split('/').map(Number);
             const dataDate = new Date(year, month - 1, day);
             const diff = Math.abs(dataDate - today);
-            
+
             if (diff < smallestDiff) {
               smallestDiff = diff;
               closestIndex = index;
             }
           });
-          
+
           console.log(`[REFRESH] Using closest date at index: ${closestIndex}`);
           setCurrentIndex(closestIndex);
           setCurrentPrayer(locationData[closestIndex]);
@@ -1244,18 +1295,18 @@ if (language === 'ar') {
   useEffect(() => {
     const handleAppStateChange = async (nextAppState) => {
       if (
-        appState.current.match(/inactive|background/) && 
+        appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
         console.log('App has come to the foreground - refreshing data and notifications');
-        
+
         refreshCurrentPrayerData();
-        
+
         if (settings.selectedLocation && settings.enabledPrayers && isDataAvailable) {
           console.log('Scheduling notifications with loaded prayer times data');
           try {
             scheduleRollingNotifications(
-              settings.selectedLocation, 
+              settings.selectedLocation,
               settings.enabledPrayers
             );
           } catch (error) {
@@ -1269,20 +1320,20 @@ if (language === 'ar') {
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
+
     return () => {
       subscription.remove();
     };
   }, [scheduleRollingNotifications, settings, refreshCurrentPrayerData, isDataAvailable]);
 
-  useEffect(() => { 
-    if (isDataAvailable && !notificationsScheduled) { 
+  useEffect(() => {
+    if (isDataAvailable && !notificationsScheduled) {
       scheduleRollingNotifications(selectedLocation, enabledPrayers)
-        .then(() => { 
-          setNotificationsScheduled(true);  
+        .then(() => {
+          setNotificationsScheduled(true);
         })
-        .catch(error => console.error('Failed to schedule notifications:', error)); 
-    } 
+        .catch(error => console.error('Failed to schedule notifications:', error));
+    }
   }, [isDataAvailable, notificationsScheduled, scheduleRollingNotifications, selectedLocation, enabledPrayers]);
 
   useEffect(() => {
@@ -1292,55 +1343,31 @@ if (language === 'ar') {
       setCurrentPrayer(null);
     }
   }, [selectedLocation, locationData, refreshCurrentPrayerData]);
-  
+
   useEffect(() => {
     let loadTimer;
-    
+
     if (locationData.length > 0 && isSettingsLoaded) {
       loadTimer = setTimeout(() => {
         setIsLoading(false);
       }, 700);
     }
-    
+
     return () => {
       if (loadTimer) clearTimeout(loadTimer);
     };
   }, [locationData, isSettingsLoaded]);
-  
-  useEffect(() => {
-    const handleAppStateChange = async (nextAppState) => {
-      if (
-        appState.current.match(/inactive|background/) && 
-        nextAppState === 'active'
-      ) {
-        console.log('App has come to the foreground - refreshing notifications');
-        if (settings.selectedLocation && settings.enabledPrayers) {
-          scheduleRollingNotifications(
-            settings.selectedLocation, 
-            settings.enabledPrayers
-          );
-        }
-      }
-      appState.current = nextAppState;
-    };
-    
-    if (settings.selectedLocation && settings.enabledPrayers) {
-      setupDailyRefresh(
-        settings.selectedLocation,
-        settings.enabledPrayers
-      );
-    }
-    
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
-    return () => {
-      subscription.remove();
-    };
-  }, [setupDailyRefresh, settings]); 
-  
+
+  // NOTE: The duplicate AppState listener and setupDailyRefresh call that
+  // previously lived here has been intentionally removed.  All foreground
+  // recovery and daily refresh scheduling is handled by the single
+  // AppState listener above (lines ~1244-1276) together with
+  // scheduleRollingNotifications() which now always recreates the nightly
+  // refresh trigger via scheduleNightlyRefreshTrigger().
+
   useEffect(() => {
     global.fetchPrayerData = refreshPrayerTimes;
-    
+
     return () => {
       global.fetchPrayerData = undefined;
     };
@@ -1372,7 +1399,7 @@ if (language === 'ar') {
     };
     rescheduleForSoundChange();
   }, [settings.usePrayerSound, isSettingsLoaded, selectedLocation, enabledPrayers, isDataAvailable, cancelAllNotifications, scheduleRollingNotifications]);
-  
+
   // Rating functionality
   const checkAndShowRating = useCallback(async () => {
     try {
@@ -1380,12 +1407,12 @@ if (language === 'ar') {
       const hasRated = await AsyncStorage.getItem('hasRated');
       const ratingDismissed = await AsyncStorage.getItem('ratingDismissed');
       const lastRatingPrompt = await AsyncStorage.getItem('lastRatingPrompt');
-      
+
       // Don't show if user has rated or permanently dismissed
       if (hasRated === 'true' || ratingDismissed === 'true') {
         return;
       }
-      
+
       // Show rating popup every 7 days if user selected "Remind Me Later"
       const now = Date.now();
       if (lastRatingPrompt) {
@@ -1394,7 +1421,7 @@ if (language === 'ar') {
           return;
         }
       }
-      
+
       // Show the rating modal
       setIsRatingModalVisible(true);
     } catch (error) {
@@ -1409,31 +1436,31 @@ if (language === 'ar') {
       const timer = setTimeout(() => {
         checkAndShowRating();
       }, 3000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [isSettingsLoaded, prayerTimesLoading, isLoading, isBatteryModalVisible, checkAndShowRating]);
 
   // Alarm permission modal removed
-  
+
   if (prayerTimesError) {
     console.error("Prayer Times Error:", prayerTimesError);
     return (
       <SafeAreaView style={[{ flex: 1 }, isDarkMode && styles.darkContainer]}>
         <StatusBar translucent backgroundColor="transparent" />
-        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20}}>
-          <Text style={{color: isDarkMode ? '#FFF' : '#000', marginBottom: 20}}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Text style={{ color: isDarkMode ? '#FFF' : '#000', marginBottom: 20 }}>
             {language === 'en' ? 'Failed to load prayer times' : 'فشل تحميل أوقات الصلاة'}
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={{
-              padding: 10, 
+              padding: 10,
               backgroundColor: isDarkMode ? '#FFA500' : '#007AFF',
               borderRadius: 8
             }}
             onPress={refreshPrayerTimes}
           >
-            <Text style={{color: '#FFF'}}>
+            <Text style={{ color: '#FFF' }}>
               {language === 'en' ? 'Try Again' : 'حاول مرة أخرى'}
             </Text>
           </TouchableOpacity>
@@ -1441,9 +1468,9 @@ if (language === 'ar') {
       </SafeAreaView>
     );
   }
-  
-  if (!isSettingsLoaded || !currentPrayer || isLoading || prayerTimesLoading || 
-    (notificationsLoading && !isOperationInProgress)){
+
+  if (!isSettingsLoaded || !currentPrayer || isLoading || prayerTimesLoading ||
+    (notificationsLoading && !isOperationInProgress)) {
     return (
       <SafeAreaView style={[{ flex: 1 }, isDarkMode && styles.darkContainer]}>
         <StatusBar translucent backgroundColor="transparent" />
@@ -1462,17 +1489,17 @@ if (language === 'ar') {
     >
       <StatusBar translucent backgroundColor="transparent" />
       <UpdateManager language={language} />
-      
 
-      
+
+
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
         {TRANSLATIONS[language].prayerTimes}
       </Text>
 
-      <Animated.View 
+      <Animated.View
         style={[
-          { 
-            height: cardContainerHeight, 
+          {
+            height: cardContainerHeight,
             transform: [
               { translateX: animation },
               { scale: cardScaleAnim }
@@ -1485,15 +1512,15 @@ if (language === 'ar') {
         <View style={[styles.card, isDarkMode && styles.darkCard, { height: '100%' }]}>
           {/* Add Today Indicator if this is today's card */}
           {isToday && <TodayIndicator isDarkMode={isDarkMode} />}
-          
+
           {/* Show QuoteIconButton only for today's prayer card */}
           {isToday && (
-            <QuoteIconButton 
-              isDarkMode={isDarkMode} 
-              onPress={() => setIsQuoteModalVisible(true)} 
+            <QuoteIconButton
+              isDarkMode={isDarkMode}
+              onPress={() => setIsQuoteModalVisible(true)}
             />
           )}
-          
+
           {isToday && (
             <View
               style={{
@@ -1509,17 +1536,17 @@ if (language === 'ar') {
               }}
             />
           )}
-          
+
           <Text style={[styles.date, isDarkMode && styles.darkDate]}>
-            {currentPrayer.date ? formatDate(currentPrayer.date, language) : ''} 
+            {currentPrayer.date ? formatDate(currentPrayer.date, language) : ''}
           </Text>
           <View style={styles.dateRow}>
             <Text style={[styles.hijriDate, isDarkMode && styles.darkHijriDate]}>{formattedHijriDate}</Text>
-            <Animated.Text 
+            <Animated.Text
               style={[
-                styles.locationLabel, 
+                styles.locationLabel,
                 isDarkMode && styles.darkLocationLabel,
-                { transform: [{ scale: locationChangeAnim }]}
+                { transform: [{ scale: locationChangeAnim }] }
               ]}
             >
               {" - " + displayLocation}
@@ -1529,8 +1556,8 @@ if (language === 'ar') {
             style={{ flex: 1 }}
             contentContainerStyle={styles.prayerContainer}
             showsVerticalScrollIndicator={false}
-            removeClippedSubviews={true} 
-            scrollEventThrottle={16} 
+            removeClippedSubviews={true}
+            scrollEventThrottle={16}
           >
             {preparedPrayerData && preparedPrayerData.times.map((item) => (
               <PrayerRow
@@ -1544,7 +1571,7 @@ if (language === 'ar') {
                 onToggleNotification={handleNotificationToggle}
                 isDarkMode={isDarkMode}
                 upcomingLabel={TRANSLATIONS[language].upcoming}
-                language={language} 
+                language={language}
               />
             ))}
             {isToday && (
@@ -1592,30 +1619,30 @@ if (language === 'ar') {
           >
             <Icon name="close" size={20} color={isDarkMode ? "#FFA500" : "#007AFF"} />
           </TouchableOpacity>
-          <MonthTransitionNotice 
+          <MonthTransitionNotice
             language={language}
             isDarkMode={isDarkMode}
           />
         </View>
       )}
-      
+
       <Animated.View
         style={[
           styles.navigation,
           isDarkMode && styles.darkNavigation,
-          { 
-            height: navHeight, 
+          {
+            height: navHeight,
             direction: "ltr",
             transform: [{ scale: navigationBarAnim }]
           }
         ]}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
             styles.navItem,
             isSettingsVisible && styles.navItemActive,
             isSettingsVisible && isDarkMode && styles.darkNavItemActive
-          ]} 
+          ]}
           onPress={animateSettingsButton}
         >
           <Animated.View style={[
@@ -1626,8 +1653,8 @@ if (language === 'ar') {
               <Icon
                 name="settings-outline"
                 size={28}
-                color={isDarkMode ? 
-                  (isSettingsVisible ? "#FFA500" : "#66CCFF") : 
+                color={isDarkMode ?
+                  (isSettingsVisible ? "#FFA500" : "#66CCFF") :
                   (isSettingsVisible ? "#007AFF" : "#555")}
               />
             </View>
@@ -1641,21 +1668,21 @@ if (language === 'ar') {
             </Text>
           </Animated.View>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[
             styles.navItem,
             isCalendarVisible && styles.navItemActive,
             isCalendarVisible && isDarkMode && styles.darkNavItemActive
-          ]} 
+          ]}
           onPress={animateCalendarButton}
         >
           <Animated.View style={{ transform: [{ scale: calendarButtonAnim }] }}>
             <Icon
               name="calendar-outline"
               size={28}
-              color={isDarkMode ? 
-                (isCalendarVisible ? "#FFA500" : "#66CCFF") : 
+              color={isDarkMode ?
+                (isCalendarVisible ? "#FFA500" : "#66CCFF") :
                 (isCalendarVisible ? "#007AFF" : "#555")}
               style={styles.navIcon}
             />
@@ -1669,21 +1696,21 @@ if (language === 'ar') {
             </Text>
           </Animated.View>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[
             styles.navItem,
             isLocationModalVisible && styles.navItemActive,
             isLocationModalVisible && isDarkMode && styles.darkNavItemActive
-          ]} 
+          ]}
           onPress={animateLocationButton}
         >
           <Animated.View style={{ transform: [{ scale: locationButtonAnim }] }}>
-            <Icon 
-              name="location-outline" 
-              size={28} 
-              color={isDarkMode ? 
-                (isLocationModalVisible ? "#FFA500" : "#66CCFF") : 
+            <Icon
+              name="location-outline"
+              size={28}
+              color={isDarkMode ?
+                (isLocationModalVisible ? "#FFA500" : "#66CCFF") :
                 (isLocationModalVisible ? "#007AFF" : "#555")}
               style={styles.navIcon}
             />
@@ -1697,21 +1724,21 @@ if (language === 'ar') {
             </Text>
           </Animated.View>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[
             styles.navItem,
             isCompassVisible && styles.navItemActive,
             isCompassVisible && isDarkMode && styles.darkNavItemActive
-          ]} 
+          ]}
           onPress={animateCompassButton}
         >
           <Animated.View style={{ transform: [{ scale: compassButtonAnim }] }}>
-            <Icon 
-              name="compass-outline" 
-              size={28} 
-              color={isDarkMode ? 
-                (isCompassVisible ? "#FFA500" : "#66CCFF") : 
+            <Icon
+              name="compass-outline"
+              size={28}
+              color={isDarkMode ?
+                (isCompassVisible ? "#FFA500" : "#66CCFF") :
                 (isCompassVisible ? "#007AFF" : "#555")}
               style={styles.navIcon}
             />
@@ -1726,10 +1753,10 @@ if (language === 'ar') {
           </Animated.View>
         </TouchableOpacity>
 
-       
+
 
       </Animated.View>
-      
+
       {/* Calendar Modal */}
 
       <Modal
@@ -1750,7 +1777,7 @@ if (language === 'ar') {
           currentSelectedDate={currentPrayer ? currentPrayer.date : null}
           todayIndex={getTodayIndex(locationData)}
           selectedLocation={selectedLocation}
-          prayerTimes={prayerTimes} 
+          prayerTimes={prayerTimes}
         />
       </Modal>
       {/* Quote Modal */}
@@ -1762,14 +1789,14 @@ if (language === 'ar') {
       >
         <View style={styles.modalOverlay}>
           <Animated.View style={[
-            styles.enhancedModalContent, 
+            styles.enhancedModalContent,
             isDarkMode && styles.darkEnhancedModalContent,
           ]}>
             <View style={[
-              styles.modalHeader, 
-              { 
-                alignItems: 'center', 
-                justifyContent: 'center', 
+              styles.modalHeader,
+              {
+                alignItems: 'center',
+                justifyContent: 'center',
                 position: 'relative',
                 minHeight: moderateScale(52),
                 paddingVertical: moderateScale(10),
@@ -1780,9 +1807,9 @@ if (language === 'ar') {
               <Text style={[styles.enhancedModalTitle, isDarkMode && styles.darkEnhancedModalTitle]}>
                 {TRANSLATIONS[language].dailyQuote}
               </Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
-                  styles.roundedCloseButton, 
+                  styles.roundedCloseButton,
                   isDarkMode && styles.darkRoundedCloseButton,
                   (
                     language === 'ar'
@@ -1790,19 +1817,19 @@ if (language === 'ar') {
                       : { right: moderateScale(12) }
                   ),
                   { top: moderateScale(8), position: 'absolute', zIndex: 10 }
-                ]} 
+                ]}
                 onPress={() => setIsQuoteModalVisible(false)}
                 hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
               >
                 <Icon name="close" size={20} color="#FFF" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.quoteContainer}>
-              <FontAwesome6 
-                name="hands-praying" 
-                size={24} 
-                color={isDarkMode ? "#FFA500" : "#007AFF"} 
+              <FontAwesome6
+                name="hands-praying"
+                size={24}
+                color={isDarkMode ? "#FFA500" : "#007AFF"}
                 style={styles.quoteIcon}
               />
               <Text style={[styles.enhancedQuoteText, isDarkMode && styles.darkEnhancedQuoteText]}>
@@ -1821,17 +1848,17 @@ if (language === 'ar') {
         onRequestClose={() => setIsLocationModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <Animated.View 
+          <Animated.View
             style={[
-              styles.enhancedModalContent, 
+              styles.enhancedModalContent,
               isDarkMode && styles.darkEnhancedModalContent,
             ]}
           >
             <View style={[
-              styles.modalHeader, 
-              { 
-                alignItems: 'center', 
-                justifyContent: 'center', 
+              styles.modalHeader,
+              {
+                alignItems: 'center',
+                justifyContent: 'center',
                 position: 'relative',
                 minHeight: moderateScale(52),
                 paddingVertical: moderateScale(10),
@@ -1841,9 +1868,9 @@ if (language === 'ar') {
               <Text style={[styles.enhancedModalTitle, isDarkMode && styles.darkEnhancedModalTitle]}>
                 {TRANSLATIONS[language].selectLocation}
               </Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
-                  styles.roundedCloseButton, 
+                  styles.roundedCloseButton,
                   isDarkMode && styles.darkRoundedCloseButton,
                   (
                     language === 'ar'
@@ -1851,19 +1878,19 @@ if (language === 'ar') {
                       : { right: moderateScale(12) }
                   ),
                   { top: moderateScale(8), position: 'absolute', zIndex: 10 }
-                ]} 
+                ]}
                 onPress={() => setIsLocationModalVisible(false)}
                 hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
               >
                 <Icon name="close" size={20} color={isDarkMode ? "#FFF" : "#FFF"} />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.locationListContainer}>
               {locationKeys.map((loc) => {
                 const locDisplay = LOCATION_NAMES[loc] ? LOCATION_NAMES[loc][language] : loc;
                 const isSelected = selectedLocation === loc;
-                
+
                 return (
                   <LocationItem
                     key={loc}
@@ -1906,14 +1933,14 @@ if (language === 'ar') {
           hijriDateOffset={settings.hijriDateOffset || 0}
           updateHijriOffset={updateHijriOffset}
           useArabicNumerals={settings.useArabicNumerals || false}
-          updateUseArabicNumerals={(value) => setSettings(prev => ({...prev, useArabicNumerals: value}))}
+          updateUseArabicNumerals={(value) => setSettings(prev => ({ ...prev, useArabicNumerals: value }))}
           usePrayerSound={settings.usePrayerSound ?? true}
-          updateUsePrayerSound={(value) => setSettings(prev => ({...prev, usePrayerSound: value}))}
+          updateUsePrayerSound={(value) => setSettings(prev => ({ ...prev, usePrayerSound: value }))}
         />
       </Modal>
 
       {/* Rating Modal */}
-      <RatingModal 
+      <RatingModal
         visible={isRatingModalVisible}
         language={language}
         isDarkMode={isDarkMode}
@@ -1933,20 +1960,20 @@ if (language === 'ar') {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, isDarkMode && styles.darkModalContainer]}>
             <View style={[styles.modalHeader, isDarkMode && styles.darkModalHeader]}>
-              <Icon 
-                name="battery-charging-outline" 
-                size={moderateScale(32)} 
-                color={isDarkMode ? '#FFA500' : '#007AFF'} 
+              <Icon
+                name="battery-charging-outline"
+                size={moderateScale(32)}
+                color={isDarkMode ? '#FFA500' : '#007AFF'}
               />
               <Text style={[styles.modalTitle, isDarkMode && styles.darkText]}>
                 {TRANSLATIONS[language].batteryOptimization}
               </Text>
             </View>
-            
+
             <Text style={[styles.modalMessage, isDarkMode && styles.darkText]}>
               {TRANSLATIONS[language].batteryOptimizationSettingDescription}
             </Text>
-            
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton, isDarkMode && styles.darkCancelButton]}
@@ -1959,7 +1986,7 @@ if (language === 'ar') {
                   {TRANSLATIONS[language].cancel}
                 </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.modalButton, styles.confirmButton, isDarkMode && styles.darkConfirmButton]}
                 onPress={async () => {
@@ -1991,7 +2018,7 @@ if (language === 'ar') {
         </View>
       </Modal>
 
-      
+
     </SafeAreaView>
   );
 }
