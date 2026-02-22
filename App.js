@@ -473,11 +473,15 @@ const LocationItem = React.memo(({
 });
 
 // ----- Main App Component -----
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 export default function App() {
   return (
-    <PrayerTimesProvider>
-      <MainApp />
-    </PrayerTimesProvider>
+    <SafeAreaProvider>
+      <PrayerTimesProvider>
+        <MainApp />
+      </PrayerTimesProvider>
+    </SafeAreaProvider>
   );
 }
 
