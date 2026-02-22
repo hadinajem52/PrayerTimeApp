@@ -10,8 +10,14 @@ web-build/
 expo-env.d.ts
 
 # Do NOT ignore Gradle files; ensure they remain tracked
-# Android build outputs
-android/app/
+# Android build outputs and caches
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+*.iml
 
 # Native
 *.orig.*
