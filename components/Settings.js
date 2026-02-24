@@ -262,7 +262,7 @@ const Settings = ({
           <Icon 
             name={language === 'ar' ? "arrow-forward" : "arrow-back"} 
             size={24} 
-            color={isDarkMode ? "#FFA500" : "#007AFF"} 
+            color={isDarkMode ? "#D4AF37" : "#059669"} 
           />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, isDarkMode && styles.darkHeaderTitle]}>
@@ -304,8 +304,8 @@ const Settings = ({
             <Switch
               value={usePrayerSound}
               onValueChange={updateUsePrayerSound}
-              trackColor={{ false: "#767577", true: isDarkMode ? "#66CCFF" : "#007AFF" }}
-              thumbColor={usePrayerSound ? (isDarkMode ? "#FFA500" : "#007AFF") : "#f4f3f4"}
+              trackColor={{ false: "#767577", true: isDarkMode ? "#D4AF37" : "#059669" }}
+              thumbColor={usePrayerSound ? (isDarkMode ? "#D4AF37" : "#059669") : "#f4f3f4"}
             />
           </View>
           
@@ -344,7 +344,7 @@ const Settings = ({
                   <Icon 
                     name="alarm-outline" 
                     size={18} 
-                    color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                    color={isDarkMode ? "#D4AF37" : "#059669"} 
                   />
                   <Text style={[
                     styles.permissionButtonText,
@@ -392,7 +392,7 @@ const Settings = ({
                   <Icon 
                     name="battery-charging-outline" 
                     size={18} 
-                    color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                    color={isDarkMode ? "#D4AF37" : "#059669"} 
                   />
                   <Text style={[
                     styles.permissionButtonText,
@@ -434,7 +434,7 @@ const Settings = ({
               value={isDarkMode}
               onValueChange={toggleDarkMode}
               trackColor={{ false: "#767577", true: "#143d66" }}
-              thumbColor={isDarkMode ? "#FFA500" : "#007AFF"}
+              thumbColor={isDarkMode ? "#D4AF37" : "#059669"}
               ios_backgroundColor="#3e3e3e"
             />
           </View>
@@ -458,7 +458,7 @@ const Settings = ({
                 <Icon 
                   name="remove-outline" 
                   size={22} 
-                  color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                  color={isDarkMode ? "#D4AF37" : "#059669"} 
                 />
               </TouchableOpacity>
               
@@ -473,7 +473,7 @@ const Settings = ({
                 <Icon 
                   name="add-outline" 
                   size={22} 
-                  color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                  color={isDarkMode ? "#D4AF37" : "#059669"} 
                 />
               </TouchableOpacity>
             </View>
@@ -511,7 +511,7 @@ const Settings = ({
               <Icon 
                 name="checkmark" 
                 size={20} 
-                color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                color={isDarkMode ? "#D4AF37" : "#059669"} 
               />
             )}
           </TouchableOpacity>
@@ -537,7 +537,7 @@ const Settings = ({
               <Icon 
                 name="checkmark" 
                 size={20} 
-                color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                color={isDarkMode ? "#D4AF37" : "#059669"} 
               />
             )}
           </TouchableOpacity>
@@ -550,8 +550,8 @@ const Settings = ({
               <Switch
                 value={useArabicNumerals}
                 onValueChange={updateUseArabicNumerals}
-                trackColor={{ false: "#767577", true: isDarkMode ? "#66CCFF" : "#007AFF" }}
-                thumbColor={useArabicNumerals ? (isDarkMode ? "#FFA500" : "#007AFF") : "#f4f3f4"}
+                trackColor={{ false: "#767577", true: isDarkMode ? "#D4AF37" : "#059669" }}
+                thumbColor={useArabicNumerals ? (isDarkMode ? "#D4AF37" : "#059669") : "#f4f3f4"}
               />
             </View>
           )}
@@ -570,8 +570,8 @@ const Settings = ({
             <Switch
               value={timeFormat === '12h'}
               onValueChange={toggleTimeFormat}
-              trackColor={{ false: "#767577", true: isDarkMode ? "#66CCFF" : "#007AFF" }}
-              thumbColor={isDarkMode ? "#FFA500" : "#f4f3f4"}
+              trackColor={{ false: "#767577", true: isDarkMode ? "#D4AF37" : "#059669" }}
+              thumbColor={isDarkMode ? "#D4AF37" : "#f4f3f4"}
             />
           </View>
           
@@ -668,7 +668,7 @@ const Settings = ({
               <Icon 
                 name="star-outline" 
                 size={22} 
-                color={isDarkMode ? "#FFA500" : "#007AFF"} 
+                color={isDarkMode ? "#D4AF37" : "#059669"} 
               />
               <Text style={[
                 styles.rateButtonText,
@@ -748,12 +748,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     fontSize: moderateScale(12),
     fontWeight: '700',
-    color: '#007AFF',
+    color: '#059669',
     letterSpacing: 0.5,
     textTransform: 'none',
   },
   darkMainTitle: {
-    color: '#FFA500',
+    color: '#D4AF37',
   },
   rtlTitle: {
     textAlign: 'right',
@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   darkSection: {
-    backgroundColor: '#222',
+    backgroundColor: '#0F172A',
   },
   sectionTitle: {
     fontSize: moderateScale(16),
@@ -807,10 +807,10 @@ const styles = StyleSheet.create({
     borderTopColor: '#333',
   },
   selectedOption: {
-    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+    backgroundColor: 'rgba(5, 150, 105, 0.05)',
   },
   darkSelectedOption: {
-    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
   },
   languageText: {
     fontSize: moderateScale(16),
@@ -821,10 +821,10 @@ const styles = StyleSheet.create({
   },
   selectedLanguageText: {
     fontWeight: '600',
-    color: '#007AFF',
+    color: '#059669',
   },
   darkSelectedLanguageText: {
-    color: '#FFA500',
+    color: '#D4AF37',
   },
   adjustmentContainer: {
     flexDirection: 'row',
@@ -837,10 +837,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 18,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: 'rgba(5, 150, 105, 0.1)',
   },
   darkAdjustButton: {
-    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
   },
   offsetValue: {
     fontSize: moderateScale(14),
@@ -867,7 +867,7 @@ const styles = StyleSheet.create({
     color: '#aaa',
   },
   updateButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#059669',
     paddingVertical: moderateScale(8),
     paddingHorizontal: moderateScale(12),
     borderRadius: moderateScale(8),
@@ -876,7 +876,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   darkUpdateButton: {
-    backgroundColor: '#FFA500',
+    backgroundColor: '#D4AF37',
   },
   disabledButton: {
     opacity: 0.7,
@@ -922,22 +922,22 @@ const styles = StyleSheet.create({
   rateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: 'rgba(5, 150, 105, 0.1)',
     paddingVertical: moderateScale(8),
     paddingHorizontal: moderateScale(12),
     borderRadius: moderateScale(8),
   },
   darkRateButton: {
-    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
   },
   rateButtonText: {
     marginLeft: 8,
     fontSize: moderateScale(14),
     fontWeight: '600',
-    color: '#007AFF',
+    color: '#059669',
   },
   darkRateButtonText: {
-    color: '#FFA500',
+    color: '#D4AF37',
   },
   testButton: {
     flexDirection: 'row',
@@ -962,22 +962,22 @@ const styles = StyleSheet.create({
   permissionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: 'rgba(5, 150, 105, 0.1)',
     paddingVertical: moderateScale(8),
     paddingHorizontal: moderateScale(12),
     borderRadius: moderateScale(8),
   },
   darkPermissionButton: {
-    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
   },
   permissionButtonText: {
     marginLeft: 8,
     fontSize: moderateScale(14),
     fontWeight: '600',
-    color: '#007AFF',
+    color: '#059669',
   },
   darkPermissionButtonText: {
-    color: '#FFA500',
+    color: '#D4AF37',
   },
   permissionStatus: {
     fontSize: moderateScale(12),

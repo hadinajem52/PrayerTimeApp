@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   updateButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#059669',
     paddingVertical: moderateScale(10),
     paddingHorizontal: moderateScale(20),
     borderRadius: moderateScale(5),

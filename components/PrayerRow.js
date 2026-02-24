@@ -101,7 +101,7 @@ const PrayerRow = ({
       <IconComponent 
         name={iconName || PRAYER_ICONS[prayerKey] || 'time-outline'} 
         size={24} 
-        color={isDarkMode ? "#FFA500" : "#007AFF"}
+        color={isDarkMode ? "#D4AF37" : "#059669"}
         style={styles.prayerIcon}
       />
       
@@ -120,7 +120,7 @@ const PrayerRow = ({
           <Ionicons
             name={isEnabled ? "notifications" : "notifications-off-outline"}
             size={24}
-            color={isEnabled ? (isDarkMode ? "#FFA500" : "#007AFF") : "#999"}
+            color={isEnabled ? (isDarkMode ? "#D4AF37" : "#059669") : "#999"}
           />
         </TouchableOpacity>
       </Animated.View>

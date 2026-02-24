@@ -50,7 +50,14 @@
     },
     "owner": "hhhhjjj",
     "plugins": [
-      "expo-build-properties"
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "ndkVersion": "27.1.12297006"
+          }
+        }
+      ]
     ]
   }
 }

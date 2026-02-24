@@ -366,14 +366,14 @@ const Countdown = ({
           <StartIcon
             name={PRAYER_ICONS[lastPrayerKey] || 'time-outline'}
             size={20}
-            color={isDarkMode ? "#FFA500" : "#007AFF"}
+            color={isDarkMode ? "#D4AF37" : "#059669"}
           />
         </View>
         <View style={{ transform: [{ scaleX: language === 'ar' ? 1 : -1 }] }}>
           <ProgressBar
             progress={progress}
             width={230}
-            color={isDarkMode ? "#66CCFF" : "#66CCFF"}
+            color={isDarkMode ? "#D4AF37" : "#D4AF37"}
             unfilledColor="#555"
             borderWidth={0}
           />
@@ -382,7 +382,7 @@ const Countdown = ({
           <EndIcon
             name={PRAYER_ICONS[nextPrayerKey] || 'time-outline'}
             size={20}
-            color={isDarkMode ? "#FFA500" : "#007AFF"}
+            color={isDarkMode ? "#D4AF37" : "#059669"}
           />
         </View>
       </View>
@@ -402,11 +402,11 @@ const TodayIndicator = ({ isDarkMode }) => {
     >
       <View
         style={{
-          backgroundColor: isDarkMode ? '#FFA500' : '#007AFF',
+          backgroundColor: isDarkMode ? '#D4AF37' : '#059669',
           paddingHorizontal: 10,
           paddingVertical: 10,
           borderRadius: 20,
-          shadowColor: isDarkMode ? '#FFA500' : '#007AFF',
+          shadowColor: isDarkMode ? '#D4AF37' : '#059669',
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.5,
           shadowRadius: 8,
@@ -438,11 +438,11 @@ const QuoteIconButton = ({ isDarkMode, onPress }) => {
     >
       <View
         style={{
-          backgroundColor: isDarkMode ? '#66CCFF' : '#007AFF',
+          backgroundColor: isDarkMode ? '#D4AF37' : '#059669',
           paddingHorizontal: 10,
           paddingVertical: 10,
           borderRadius: 20,
-          shadowColor: isDarkMode ? '#66CCFF' : '#007AFF',
+          shadowColor: isDarkMode ? '#D4AF37' : '#059669',
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.5,
           shadowRadius: 8,
@@ -469,8 +469,8 @@ const LocationItem = React.memo(({
   onPress
 }) => {
   const iconColor = isSelected
-    ? (isDarkMode ? "#FFA500" : "#007AFF")
-    : (isDarkMode ? "#66CCFF" : "#555");
+    ? (isDarkMode ? "#D4AF37" : "#059669")
+    : (isDarkMode ? "#D4AF37" : "#555");
 
   return (
     <TouchableOpacity
@@ -515,7 +515,7 @@ const LocationItem = React.memo(({
         <Icon
           name="checkmark-circle"
           size={22}
-          color={isDarkMode ? "#FFA500" : "#007AFF"}
+          color={isDarkMode ? "#D4AF37" : "#059669"}
           style={styles.selectedCheckmark}
         />
       )}
@@ -1455,7 +1455,7 @@ function MainApp() {
           <TouchableOpacity
             style={{
               padding: 10,
-              backgroundColor: isDarkMode ? '#FFA500' : '#007AFF',
+              backgroundColor: isDarkMode ? '#D4AF37' : '#059669',
               borderRadius: 8
             }}
             onPress={refreshPrayerTimes}
@@ -1530,7 +1530,7 @@ function MainApp() {
                 right: 0,
                 bottom: 0,
                 borderWidth: 2,
-                borderColor: isDarkMode ? '#FFA500' : '#007AFF',
+                borderColor: isDarkMode ? '#D4AF37' : '#059669',
                 borderRadius: moderateScale(15),
                 opacity: 0.3,
               }}
@@ -1596,7 +1596,7 @@ function MainApp() {
           bottom: navHeight + 10,
           backgroundColor: isDarkMode ? '#333' : '#f0f0f0',
           borderWidth: 2,
-          borderColor: isDarkMode ? '#FFA500' : '#007AFF',
+          borderColor: isDarkMode ? '#D4AF37' : '#059669',
           borderRadius: 15,
           padding: 5,
           elevation: 10,
@@ -1617,7 +1617,7 @@ function MainApp() {
             }}
             onPress={() => setIsShowingLastAvailableDay(false)}
           >
-            <Icon name="close" size={20} color={isDarkMode ? "#FFA500" : "#007AFF"} />
+            <Icon name="close" size={20} color={isDarkMode ? "#D4AF37" : "#059669"} />
           </TouchableOpacity>
           <MonthTransitionNotice
             language={language}
@@ -1654,8 +1654,8 @@ function MainApp() {
                 name="settings-outline"
                 size={28}
                 color={isDarkMode ?
-                  (isSettingsVisible ? "#FFA500" : "#66CCFF") :
-                  (isSettingsVisible ? "#007AFF" : "#555")}
+                  (isSettingsVisible ? "#D4AF37" : "#D4AF37") :
+                  (isSettingsVisible ? "#059669" : "#555")}
               />
             </View>
             <Text style={[
@@ -1682,8 +1682,8 @@ function MainApp() {
               name="calendar-outline"
               size={28}
               color={isDarkMode ?
-                (isCalendarVisible ? "#FFA500" : "#66CCFF") :
-                (isCalendarVisible ? "#007AFF" : "#555")}
+                (isCalendarVisible ? "#D4AF37" : "#D4AF37") :
+                (isCalendarVisible ? "#059669" : "#555")}
               style={styles.navIcon}
             />
             <Text style={[
@@ -1710,8 +1710,8 @@ function MainApp() {
               name="location-outline"
               size={28}
               color={isDarkMode ?
-                (isLocationModalVisible ? "#FFA500" : "#66CCFF") :
-                (isLocationModalVisible ? "#007AFF" : "#555")}
+                (isLocationModalVisible ? "#D4AF37" : "#D4AF37") :
+                (isLocationModalVisible ? "#059669" : "#555")}
               style={styles.navIcon}
             />
             <Text style={[
@@ -1738,8 +1738,8 @@ function MainApp() {
               name="compass-outline"
               size={28}
               color={isDarkMode ?
-                (isCompassVisible ? "#FFA500" : "#66CCFF") :
-                (isCompassVisible ? "#007AFF" : "#555")}
+                (isCompassVisible ? "#D4AF37" : "#D4AF37") :
+                (isCompassVisible ? "#059669" : "#555")}
               style={styles.navIcon}
             />
             <Text style={[
@@ -1829,7 +1829,7 @@ function MainApp() {
               <FontAwesome6
                 name="hands-praying"
                 size={24}
-                color={isDarkMode ? "#FFA500" : "#007AFF"}
+                color={isDarkMode ? "#D4AF37" : "#059669"}
                 style={styles.quoteIcon}
               />
               <Text style={[styles.enhancedQuoteText, isDarkMode && styles.darkEnhancedQuoteText]}>
@@ -1963,7 +1963,7 @@ function MainApp() {
               <Icon
                 name="battery-charging-outline"
                 size={moderateScale(32)}
-                color={isDarkMode ? '#FFA500' : '#007AFF'}
+                color={isDarkMode ? '#D4AF37' : '#059669'}
               />
               <Text style={[styles.modalTitle, isDarkMode && styles.darkText]}>
                 {TRANSLATIONS[language].batteryOptimization}
