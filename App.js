@@ -18,7 +18,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import moment from 'moment-hijri';
-import ProgressBar from 'react-native-progress/Bar';
 import dailyQuotes from './data/quotes';
 import QiblaFinderWebView from './QiblaFinderWebView';
 import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
@@ -35,15 +34,12 @@ import {
   getPrayerTimesForDayStatic,
 } from './hooks/useNotificationScheduler';
 import { moderateScale } from 'react-native-size-matters';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Settings from './components/Settings';
 import CalendarView from './components/Calendar';
 import SkeletonLoader from './components/SkeletonLoader';
 import { AnimationUtils } from './utils/animations';
 import { UpdateManager } from './components/UpdateManager';
 import './firebase';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MonthTransitionNotice from './components/MonthTransitionNotice';
 import { toArabicNumerals } from './utils/timeFormatters';
 import { PrayerTimesProvider, usePrayerTimes } from './components/PrayerTimesProvider';
@@ -55,10 +51,12 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import {
   PRAYER_ICONS,
   LOCATION_NAMES,
-  LOCATION_ICONS,
   PRAYER_ORDER,
-  getIconComponent,
 } from './constants/prayerConfig';
+import Countdown from './components/Countdown';
+import TodayIndicator from './components/TodayIndicator';
+import QuoteIconButton from './components/QuoteIconButton';
+import LocationItem from './components/LocationItem';
 
 
 // ----- Translations & Constants -----
@@ -233,259 +231,6 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
   } catch (err) {
     console.error('[Background] Failed to reschedule prayers:', err);
   }
-});
-
-const getCountdownLabel = (prayerKey, translations) => {
-  if (['shuruq', 'imsak', 'midnight'].includes(prayerKey)) {
-    return translations.progressBarLabelTime;
-  }
-  return translations.progressBarLabelPrayer;
-};
-
-const Countdown = ({
-  nextPrayerTime,
-  lastPrayerTime,
-  language,
-  translations,
-  isDarkMode,
-  lastPrayerKey,
-  nextPrayerKey,
-}) => {
-  const [timeRemaining, setTimeRemaining] = useState('');
-  const [progress, setProgress] = useState(0);
-
-  const [settings] = useSettings();
-  const { timeFormat, useArabicNumerals } = settings;
-  const forceUpdate = useRef(0);
-
-  useEffect(() => {
-    forceUpdate.current += 1;
-  }, [timeFormat, useArabicNumerals]);
-
-  useEffect(() => {
-    if (!nextPrayerTime || !lastPrayerTime) return;
-    const interval = setInterval(() => {
-      const now = new Date();
-      const startTime = new Date(lastPrayerTime);
-      const endTime = new Date(nextPrayerTime);
-      const totalDuration = endTime - startTime;
-      const elapsed = now - startTime;
-      const diff = endTime - now;
-
-      if (diff <= 0) {
-        setTimeRemaining(null);
-        setProgress(1);
-        clearInterval(interval);
-      } else {
-        const duration = moment.duration(diff);
-        const hours = String(Math.floor(duration.asHours())).padStart(2, '0');
-        const minutes = String(duration.minutes()).padStart(2, '0');
-        const seconds = String(duration.seconds()).padStart(2, '0');
-
-        let displayTime = `${hours}:${minutes}:${seconds}`;
-
-        if (language === 'ar' && useArabicNumerals) {
-          displayTime = toArabicNumerals(displayTime);
-        }
-
-        setTimeRemaining(displayTime);
-
-        const progressFraction = Math.min(Math.max(elapsed / totalDuration, 0), 1);
-        setProgress(progressFraction);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [nextPrayerTime, lastPrayerTime, timeFormat, useArabicNumerals, language]);
-
-  const StartIcon = getIconComponent(lastPrayerKey);
-  const EndIcon = getIconComponent(nextPrayerKey);
-
-  if (!nextPrayerTime || timeRemaining === null) {
-    return (
-      <View>
-        <Text style={[styles.countdownText, isDarkMode && styles.darkCountdownText]}>
-          {translations.allEnded}
-        </Text>
-      </View>
-    );
-  }
-
-  const countdownLabel = getCountdownLabel(nextPrayerKey, translations);
-
-  return (
-    <View style={{ alignItems: 'center' }}>
-      {/* Descriptive Label */}
-      <Text style={[styles.labelText, isDarkMode && styles.darkLabelText]}>
-        {countdownLabel}
-      </Text>
-
-      {/* Countdown Timer */}
-      <Text style={[styles.countdownText, isDarkMode && styles.darkCountdownText]}>
-        {timeRemaining}
-      </Text>
-
-      {/* Progress Bar Row with Icons */}
-      <View style={styles.progressRow}>
-        <View style={{ marginRight: 5 }}>
-          <StartIcon
-            name={PRAYER_ICONS[lastPrayerKey] || 'time-outline'}
-            size={20}
-            color={isDarkMode ? "#D4AF37" : "#059669"}
-          />
-        </View>
-        <View style={{ transform: [{ scaleX: language === 'ar' ? 1 : -1 }] }}>
-          <ProgressBar
-            progress={progress}
-            width={230}
-            color={isDarkMode ? "#D4AF37" : "#D4AF37"}
-            unfilledColor="#555"
-            borderWidth={0}
-          />
-        </View>
-        <View style={[styles.endIconContainer, isDarkMode && styles.darkEndIconContainer]}>
-          <EndIcon
-            name={PRAYER_ICONS[nextPrayerKey] || 'time-outline'}
-            size={20}
-            color={isDarkMode ? "#D4AF37" : "#059669"}
-          />
-        </View>
-      </View>
-    </View>
-  );
-};
-
-const TodayIndicator = ({ isDarkMode }) => {
-  return (
-    <View
-      style={{
-        position: 'absolute',
-        top: 15,
-        left: 15,
-        zIndex: 5,
-      }}
-    >
-      <View
-        style={{
-          backgroundColor: isDarkMode ? '#D4AF37' : '#059669',
-          paddingHorizontal: 10,
-          paddingVertical: 10,
-          borderRadius: 20,
-          shadowColor: isDarkMode ? '#D4AF37' : '#059669',
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.5,
-          shadowRadius: 8,
-          elevation: 6,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <MaterialIcons
-          name="today"
-          size={20}
-          color="#FFF"
-        />
-      </View>
-    </View>
-  );
-};
-
-const QuoteIconButton = ({ isDarkMode, onPress }) => {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={{
-        position: 'absolute',
-        top: 15,
-        right: 15,
-        zIndex: 5,
-      }}
-    >
-      <View
-        style={{
-          backgroundColor: isDarkMode ? '#D4AF37' : '#059669',
-          paddingHorizontal: 10,
-          paddingVertical: 10,
-          borderRadius: 20,
-          shadowColor: isDarkMode ? '#D4AF37' : '#059669',
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.5,
-          shadowRadius: 8,
-          elevation: 6,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <FontAwesome6
-          name="hands-praying"
-          size={17}
-          color="#FFF"
-        />
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-const LocationItem = React.memo(({
-  loc,
-  locDisplay,
-  isSelected,
-  isDarkMode,
-  onPress
-}) => {
-  const iconColor = isSelected
-    ? (isDarkMode ? "#D4AF37" : "#059669")
-    : (isDarkMode ? "#D4AF37" : "#555");
-
-  return (
-    <TouchableOpacity
-      key={loc}
-      style={[
-        styles.enhancedLocationOption,
-        isDarkMode && styles.darkEnhancedLocationOption,
-        isSelected && styles.selectedLocationOption,
-        isSelected && isDarkMode && styles.darkSelectedLocationOption
-      ]}
-      onPress={onPress}
-    >
-      <View style={[
-        styles.locationIconContainer,
-        isDarkMode ? styles.darkLocationIconContainer : styles.lightLocationIconContainer,
-        isSelected && styles.selectedLocationIconContainer
-      ]}>
-        {loc === 'hermel' ? (
-          <FontAwesome5
-            name="mountain"
-            size={18}
-            color={iconColor}
-            solid
-          />
-        ) : (
-          <MaterialCommunityIcons
-            name={LOCATION_ICONS[loc] || "map-marker"}
-            size={24}
-            color={iconColor}
-          />
-        )}
-      </View>
-      <Text style={[
-        styles.enhancedLocationText,
-        isDarkMode && styles.darkEnhancedLocationText,
-        isSelected && styles.selectedLocationText,
-        isSelected && isDarkMode && styles.darkSelectedLocationText
-      ]}>
-        {locDisplay}
-      </Text>
-      {isSelected && (
-        <Icon
-          name="checkmark-circle"
-          size={22}
-          color={isDarkMode ? "#D4AF37" : "#059669"}
-          style={styles.selectedCheckmark}
-        />
-      )}
-    </TouchableOpacity>
-  );
 });
 
 // ----- Main App Component -----
