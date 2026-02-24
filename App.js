@@ -725,17 +725,6 @@ function MainApp() {
     ]
   );
 
-  const convertToArabicNumerals = useCallback((str, lang) => {
-    if (lang !== 'ar') return str;
-
-    const arabicNumerals = {
-      '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤',
-      '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩'
-    };
-
-    return str.toString().replace(/[0-9]/g, match => arabicNumerals[match]);
-  }, []);
-
   const formatDate = useCallback((dateStr, lang) => {
     if (!dateStr) return "";
 
@@ -747,10 +736,10 @@ function MainApp() {
     const dayNum = date.getDate();
     const monthName = translations.months[date.getMonth()];
 
-    const formattedDayNum = convertToArabicNumerals(dayNum, lang);
+    const formattedDayNum = lang === 'ar' ? toArabicNumerals(String(dayNum)) : String(dayNum);
 
     return `${dayName} ${formattedDayNum} ${monthName}`;
-  }, [convertToArabicNumerals]);
+  }, []);
 
   const animateNavItem = useCallback(() => {
     AnimationUtils.bounce(navigationBarAnim);
@@ -927,13 +916,13 @@ function MainApp() {
     const monthName = TRANSLATIONS[language].hijriMonths[monthIndex];
 
     if (language === 'ar') {
-      const dayStr = convertToArabicNumerals(String(day), 'ar');
-      const yearStr = convertToArabicNumerals(String(year), 'ar');
+      const dayStr = toArabicNumerals(String(day));
+      const yearStr = toArabicNumerals(String(year));
       return `${dayStr} ${monthName} ${yearStr}`;
     } else {
       return `${day} ${monthName} ${year}`;
     }
-  }, [currentPrayer, language, convertToArabicNumerals, settings.hijriDateOffset]);
+  }, [currentPrayer, language, settings.hijriDateOffset]);
 
   const preparedPrayerData = useMemo(() => {
     if (!currentPrayer) return null;
