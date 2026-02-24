@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import moment from 'moment-hijri';
 import dailyQuotes from './data/quotes';
 import QiblaFinderWebView from './QiblaFinderWebView';
-import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
+import notifee, { AndroidImportance } from '@notifee/react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 import styles from './styles';
@@ -29,8 +29,6 @@ import useSettings from './hooks/useSettings';
 import usePrayerTimer from './hooks/usePrayerTimer';
 import {
   useNotificationScheduler,
-  schedulePrayerNotificationsRaw,
-  scheduleNightlyRefreshTrigger,
   getPrayerTimesForDayStatic,
 } from './hooks/useNotificationScheduler';
 import { moderateScale } from 'react-native-size-matters';
@@ -174,64 +172,6 @@ const TRANSLATIONS = {
     batteryOptimizationSettingDescription: "أوقف تحسين البطارية لهذا التطبيق لضمان وصول إشعارات أوقات الصلاة في وقتها"
   },
 };
-
-notifee.onBackgroundEvent(async ({ type, detail }) => {
-  if (type !== EventType.TRIGGER) return;
-
-  const { notification } = detail;
-  if (notification?.data?.type !== 'refresh') return;
-
-  console.log('[Background] Daily refresh trigger received — rescheduling prayers');
-
-  try {
-    // Load settings from AsyncStorage (no React context in background)
-    const AsyncStorageBg = require('@react-native-async-storage/async-storage').default;
-
-    const [locationRaw, enabledPrayersRaw, languageRaw, useSoundRaw] = await Promise.all([
-      AsyncStorageBg.getItem('selectedLocation'),
-      AsyncStorageBg.getItem('enabledPrayers'),
-      AsyncStorageBg.getItem('language'),
-      AsyncStorageBg.getItem('usePrayerSound'),
-    ]);
-
-    const location = locationRaw || 'beirut';
-    const language = languageRaw || 'en';
-    const usePrayerSound = useSoundRaw !== 'false'; // default true
-    const enabledPrayers = enabledPrayersRaw
-      ? JSON.parse(enabledPrayersRaw)
-      : { imsak: true, fajr: true, shuruq: true, dhuhr: true, asr: true, maghrib: true, isha: true, midnight: true };
-
-    // Load prayer data from the bundled asset (always available)
-    let prayerTimes;
-    try {
-      const updatedRaw = await AsyncStorageBg.getItem('updatedPrayerTimes');
-      prayerTimes = updatedRaw ? JSON.parse(updatedRaw) : require('./assets/prayer_times.json');
-    } catch (_) {
-      prayerTimes = require('./assets/prayer_times.json');
-    }
-
-    const locationData = prayerTimes?.[location];
-    if (!locationData) {
-      console.warn('[Background] No prayer data for location:', location);
-      return;
-    }
-
-    // Schedule the next 7 days; duplicates are skipped automatically
-    const scheduled = await schedulePrayerNotificationsRaw(
-      locationData,
-      enabledPrayers,
-      language,
-      usePrayerSound,
-      7
-    );
-    console.log(`[Background] Rescheduled ${scheduled.length} notifications`);
-
-    // Recreate tomorrow's nightly refresh trigger so the rolling window continues
-    await scheduleNightlyRefreshTrigger();
-  } catch (err) {
-    console.error('[Background] Failed to reschedule prayers:', err);
-  }
-});
 
 // ----- Main App Component -----
 import { SafeAreaProvider } from 'react-native-safe-area-context';
