@@ -35,9 +35,7 @@ import {
   getPrayerTimesForDayStatic,
 } from './hooks/useNotificationScheduler';
 import { moderateScale } from 'react-native-size-matters';
-import Feather from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import Settings from './components/Settings';
 import CalendarView from './components/Calendar';
 import SkeletonLoader from './components/SkeletonLoader';
@@ -54,6 +52,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import RatingModal from './components/RatingModal';
 import DeviceInfo from 'react-native-device-info';
 import * as IntentLauncher from 'expo-intent-launcher';
+import {
+  PRAYER_ICONS,
+  LOCATION_NAMES,
+  LOCATION_ICONS,
+  PRAYER_ORDER,
+  getIconComponent,
+} from './constants/prayerConfig';
 
 
 // ----- Translations & Constants -----
@@ -229,46 +234,6 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
     console.error('[Background] Failed to reschedule prayers:', err);
   }
 });
-
-const LOCATION_NAMES = {
-  beirut: { en: "Beirut", ar: "بيروت" },
-  tyre: { en: "Tyre", ar: "صور" },
-  saida: { en: "Saida", ar: "صيدا" },
-  baalbek: { en: "Baalbek", ar: "بعلبك" },
-  hermel: { en: "Hermel", ar: "الهرمل" },
-  tripoli: { en: "Tripoli", ar: "طرابلس" },
-  "nabatieh-bintjbeil": { en: "Nabatieh-Bint Jbeil", ar: "النبطية-بنت جبيل" },
-};
-
-const PRAYER_ICONS = {
-  imsak: 'cloudy-night',
-  fajr: 'sunrise',
-  shuruq: 'partly-sunny',
-  dhuhr: 'sunny',
-  asr: 'sunny-snowing',
-  maghrib: 'sunset',
-  isha: 'moon-outline',
-  midnight: 'moon',
-};
-
-const LOCATION_ICONS = {
-  beirut: "city",
-  tyre: "beach",
-  saida: "waves",
-  baalbek: "pillar",
-  hermel: "mountain",
-  tripoli: "lighthouse",
-  "nabatieh-bintjbeil": "home-group"
-};
-
-const getIconComponent = (prayerKey) => {
-  if (prayerKey === 'fajr' || prayerKey === 'maghrib') {
-    return Feather;
-  } else if (prayerKey === 'asr') {
-    return MaterialIcons;
-  }
-  return Ionicons;
-};
 
 const getCountdownLabel = (prayerKey, translations) => {
   if (['shuruq', 'imsak', 'midnight'].includes(prayerKey)) {
@@ -644,9 +609,8 @@ function MainApp() {
 
   const getUpcomingPrayerKeyCallback = useCallback(() => {
     if (!currentPrayer) return null;
-    const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
     const now = new Date();
-    for (let key of prayerOrder) {
+    for (let key of PRAYER_ORDER) {
       const prayerTime = parsePrayerTime(currentPrayer[key]);
       if (now < prayerTime) {
         return key;
@@ -1058,19 +1022,18 @@ function MainApp() {
   const navHeight = moderateScale(70);
   const cardContainerHeight = windowHeight - headerHeight - navHeight;
 
-  const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
-  const upcomingIndex = prayerOrder.indexOf(upcomingPrayerKey);
+  const upcomingIndex = PRAYER_ORDER.indexOf(upcomingPrayerKey);
 
   const lastPrayerKey = useMemo(() => {
     if (upcomingIndex > 0) {
-      return prayerOrder[upcomingIndex - 1];
+      return PRAYER_ORDER[upcomingIndex - 1];
     }
     return 'imsak';
   }, [upcomingIndex]);
 
   const lastPrayerTime = useMemo(() => {
     if (upcomingIndex > 0 && currentPrayer) {
-      const key = prayerOrder[upcomingIndex - 1];
+      const key = PRAYER_ORDER[upcomingIndex - 1];
       return parsePrayerTime(currentPrayer[key]);
     }
     return new Date();

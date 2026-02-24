@@ -1,32 +1,11 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Animated } from 'react-native';
-import Feather from 'react-native-vector-icons/Feather';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import styles from '../styles';
 import { AnimationUtils } from '../utils/animations';
 import { formatTimeString } from '../utils/timeFormatters';
 import useSettings from '../hooks/useSettings';
-
-const getIconComponent = (prayerKey) => {
-  if (prayerKey === 'fajr' || prayerKey === 'maghrib') {
-    return Feather;
-  } else if (prayerKey === 'asr') {
-    return MaterialIcons;
-  }
-  return Ionicons;
-};
-
-const PRAYER_ICONS = {
-  imsak: 'cloudy-night',
-  fajr: 'sunrise',           
-  shuruq: 'partly-sunny',
-  dhuhr: 'sunny',
-  asr: 'sunny-snowing',      
-  maghrib: 'sunset',          
-  isha: 'moon-outline',
-  midnight: 'moon',
-};
+import { PRAYER_ICONS, getIconComponent } from '../constants/prayerConfig';
 
 const PrayerRow = ({ 
   prayerKey, 
