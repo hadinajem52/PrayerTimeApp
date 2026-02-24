@@ -23,7 +23,7 @@ import QiblaFinderWebView from './QiblaFinderWebView';
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
-import styles from './styles';
+import styles from './styles/appStyles';
 import PrayerRow from './components/PrayerRow';
 import useSettings from './hooks/useSettings';
 import usePrayerTimer from './hooks/usePrayerTimer';

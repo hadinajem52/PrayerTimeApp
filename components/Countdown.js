@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text } from 'react-native';
 import moment from 'moment-hijri';
 import ProgressBar from 'react-native-progress/Bar';
-import styles from '../styles';
+import styles from '../styles/appStyles';
 import useSettings from '../hooks/useSettings';
 import { toArabicNumerals } from '../utils/timeFormatters';
 import { PRAYER_ICONS, getIconComponent } from '../constants/prayerConfig';
