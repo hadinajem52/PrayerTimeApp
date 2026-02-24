@@ -18,34 +18,26 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import moment from 'moment-hijri';
-import ProgressBar from 'react-native-progress/Bar';
 import dailyQuotes from './data/quotes';
 import QiblaFinderWebView from './QiblaFinderWebView';
-import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
+import notifee, { AndroidImportance } from '@notifee/react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
-import styles from './styles';
+import styles from './styles/appStyles';
 import PrayerRow from './components/PrayerRow';
 import useSettings from './hooks/useSettings';
 import usePrayerTimer from './hooks/usePrayerTimer';
 import {
   useNotificationScheduler,
-  schedulePrayerNotificationsRaw,
-  scheduleNightlyRefreshTrigger,
   getPrayerTimesForDayStatic,
 } from './hooks/useNotificationScheduler';
 import { moderateScale } from 'react-native-size-matters';
-import Feather from 'react-native-vector-icons/Feather';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import Settings from './components/Settings';
 import CalendarView from './components/Calendar';
 import SkeletonLoader from './components/SkeletonLoader';
 import { AnimationUtils } from './utils/animations';
 import { UpdateManager } from './components/UpdateManager';
 import './firebase';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MonthTransitionNotice from './components/MonthTransitionNotice';
 import { toArabicNumerals } from './utils/timeFormatters';
 import { PrayerTimesProvider, usePrayerTimes } from './components/PrayerTimesProvider';
@@ -54,474 +46,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import RatingModal from './components/RatingModal';
 import DeviceInfo from 'react-native-device-info';
 import * as IntentLauncher from 'expo-intent-launcher';
+import {
+  PRAYER_ICONS,
+  LOCATION_NAMES,
+  PRAYER_ORDER,
+} from './constants/prayerConfig';
+import Countdown from './components/Countdown';
+import TodayIndicator from './components/TodayIndicator';
+import QuoteIconButton from './components/QuoteIconButton';
+import LocationItem from './components/LocationItem';
+import { TRANSLATIONS } from './constants/translations/app';
 
-
-// ----- Translations & Constants -----
-const TRANSLATIONS = {
-  en: {
-    prayerTimes: "Prayer Times Schedule",
-    loading: "Loading...",
-    day: "Day",
-    fajr: "Morning",
-    shuruq: "Shuruq",
-    dhuhr: "Dhuhr",
-    asr: "Asr",
-    maghrib: "Maghrib",
-    isha: "Isha",
-    imsak: "Imsak",
-    upcoming: "Upcoming",
-    selectLocation: "Location",
-    dailyQuote: "Daily Quote",
-    close: "Close",
-    changeLocationMessage:
-      "Changing location will cancel notifications for the current location. Do you want to proceed?",
-    ok: "OK",
-    cancel: "Cancel",
-    allEnded: "All prayer times for today have ended",
-    progressBarLabelPrayer: "Next Prayer in:",
-    progressBarLabelTime: "Next Time in:",
-    midnight: "Midnight",
-    today: "Today",
-    months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
-    days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-    settings: "Settings",
-    calendar: "Calendar",
-    hijriMonths: [
-      "Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani",
-      "Jumada al-Awwal", "Jumada al-Thani", "Rajab", "Sha'ban",
-      "Ramadan", "Shawwal", "Dhu al-Qi'dah", "Dhu al-Hijjah"
-    ],
-    rateApp: "Rate Us",
-    rateTitle: "Rate ShiaPrayer Lebanon",
-    rateMessage: "If you enjoy using our app, would you mind taking a moment to rate it? It won't take more than a minute. Thanks for your support!",
-    rateLater: "Remind Me Later",
-    rateNo: "No, Thanks",
-    // Permission alerts
-    permissionRequired: "Permission Required",
-    alarmPermissionMessage: "To ensure you receive prayer time notifications exactly on time, please grant the permission to schedule exact alarms.",
-    openSettings: "Open Settings",
-    notificationsDisabled: "Notifications Disabled",
-    notificationPermissionMessage: "Without notification permissions, you might miss important reminders.",
-    allowNotifications: "Allow Notifications",
-    notificationUsageMessage: "This app uses notifications to remind you about prayer times. Please allow notifications.",
-    allow: "Allow",
-    deny: "Deny",
-    // Notification Sound Settings
-    notificationSound: "Notification Sound",
-    prayerSoundSetting: "Use Prayer Sound",
-    prayerSoundDescription: "Play adhan sound for notifications, or use system default sound",
-    // Battery Optimization
-    batteryOptimization: "Battery Optimization",
-    batteryOptimizationSettingDescription: "Disable Android battery optimization for this app to ensure timely prayer notifications"
-  },
-  ar: {
-    prayerTimes: "جدول مواقيت الصلاة",
-    loading: "جار التحميل...",
-    day: "اليوم",
-    fajr: "الصبح",
-    shuruq: "الشروق",
-    dhuhr: "الظهر",
-    asr: "العصر",
-    maghrib: "المغرب",
-    isha: "العشاء",
-    imsak: "الإمساك",
-    upcoming: "القادم",
-    selectLocation: "اختر المنطقة",
-    dailyQuote: "اقتباس اليوم",
-    close: "إغلاق",
-    changeLocationMessage:
-      "تغيير المنطقة سيقوم بإلغاء جميع الإشعارات الخاصة بموقعك الحالي. هل تريد المتابعة؟",
-    ok: "موافق",
-    cancel: "إلغاء",
-    allEnded: "انتهت كل مواعيد الصلاة لهذا اليوم",
-    progressBarLabelPrayer: "الصلاة القادمة في:",
-    progressBarLabelTime: "الوقت القادم في:",
-    midnight: "منتصف الليل",
-    today: "اليوم",
-    months: ["كانون ٢", "شباط", "آذار", "نيسان", "أيار", "حزيران", "تموز", "آب", "أيلول", "تشرين ١", "تشرين ٢", "كانون ١"],
-    days: ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"],
-    settings: "الإعدادات",
-    calendar: "التقويم",
-    hijriMonths: [
-      "محرم", "صفر", "ربيع ١", "ربيع ٢",
-      "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان",
-      "رمضان", "شوال", "ذو القعدة", "ذو الحجة"
-    ],
-    rateApp: "قيم التطبيق",
-    rateTitle: "قيم الصلاة الشيعية لبنان",
-    rateMessage: "إذا كنت تستمتع باستخدام تطبيقنا، هل تمانع في تقييمه؟ لن يستغرق الأمر أكثر من دقيقة. شكراً لدعمك!",
-    rateLater: "ذكرني لاحقاً",
-    rateNo: "لا، شكراً",
-    // Permission alerts
-    permissionRequired: "طلب الإذن ",
-    alarmPermissionMessage: "لضمان وصول إشعارات أوقات الصلاة في الوقت المحدد بدقة، يرجى منح الإذن لجدولة المنبهات الدقيقة.",
-    openSettings: "فتح الإعدادات",
-    notificationsDisabled: "الإشعارات معطلة",
-    notificationPermissionMessage: "بدون أذونات الإشعارات، قد تفوتك التذكيرات المهمة.",
-    allowNotifications: "السماح بالإشعارات",
-    notificationUsageMessage: "يستخدم هذا التطبيق الإشعارات لتذكيرك بأوقات الصلاة. يرجى السماح بالإشعارات.",
-    allow: "سماح",
-    deny: "رفض",
-    // Notification Sound Settings
-    notificationSound: "صوت الإشعارات",
-    prayerSoundSetting: "استخدام صوت الأذان",
-    prayerSoundDescription: "تشغيل صوت الأذان للإشعارات، أو استخدام صوت النظام الافتراضي",
-    // Battery Optimization
-    batteryOptimization: "تحسين البطارية",
-    batteryOptimizationSettingDescription: "أوقف تحسين البطارية لهذا التطبيق لضمان وصول إشعارات أوقات الصلاة في وقتها"
-  },
-};
-
-notifee.onBackgroundEvent(async ({ type, detail }) => {
-  if (type !== EventType.TRIGGER) return;
-
-  const { notification } = detail;
-  if (notification?.data?.type !== 'refresh') return;
-
-  console.log('[Background] Daily refresh trigger received — rescheduling prayers');
-
-  try {
-    // Load settings from AsyncStorage (no React context in background)
-    const AsyncStorageBg = require('@react-native-async-storage/async-storage').default;
-
-    const [locationRaw, enabledPrayersRaw, languageRaw, useSoundRaw] = await Promise.all([
-      AsyncStorageBg.getItem('selectedLocation'),
-      AsyncStorageBg.getItem('enabledPrayers'),
-      AsyncStorageBg.getItem('language'),
-      AsyncStorageBg.getItem('usePrayerSound'),
-    ]);
-
-    const location = locationRaw || 'beirut';
-    const language = languageRaw || 'en';
-    const usePrayerSound = useSoundRaw !== 'false'; // default true
-    const enabledPrayers = enabledPrayersRaw
-      ? JSON.parse(enabledPrayersRaw)
-      : { imsak: true, fajr: true, shuruq: true, dhuhr: true, asr: true, maghrib: true, isha: true, midnight: true };
-
-    // Load prayer data from the bundled asset (always available)
-    let prayerTimes;
-    try {
-      const updatedRaw = await AsyncStorageBg.getItem('updatedPrayerTimes');
-      prayerTimes = updatedRaw ? JSON.parse(updatedRaw) : require('./assets/prayer_times.json');
-    } catch (_) {
-      prayerTimes = require('./assets/prayer_times.json');
-    }
-
-    const locationData = prayerTimes?.[location];
-    if (!locationData) {
-      console.warn('[Background] No prayer data for location:', location);
-      return;
-    }
-
-    // Schedule the next 7 days; duplicates are skipped automatically
-    const scheduled = await schedulePrayerNotificationsRaw(
-      locationData,
-      enabledPrayers,
-      language,
-      usePrayerSound,
-      7
-    );
-    console.log(`[Background] Rescheduled ${scheduled.length} notifications`);
-
-    // Recreate tomorrow's nightly refresh trigger so the rolling window continues
-    await scheduleNightlyRefreshTrigger();
-  } catch (err) {
-    console.error('[Background] Failed to reschedule prayers:', err);
-  }
-});
-
-const LOCATION_NAMES = {
-  beirut: { en: "Beirut", ar: "بيروت" },
-  tyre: { en: "Tyre", ar: "صور" },
-  saida: { en: "Saida", ar: "صيدا" },
-  baalbek: { en: "Baalbek", ar: "بعلبك" },
-  hermel: { en: "Hermel", ar: "الهرمل" },
-  tripoli: { en: "Tripoli", ar: "طرابلس" },
-  "nabatieh-bintjbeil": { en: "Nabatieh-Bint Jbeil", ar: "النبطية-بنت جبيل" },
-};
-
-const PRAYER_ICONS = {
-  imsak: 'cloudy-night',
-  fajr: 'sunrise',
-  shuruq: 'partly-sunny',
-  dhuhr: 'sunny',
-  asr: 'sunny-snowing',
-  maghrib: 'sunset',
-  isha: 'moon-outline',
-  midnight: 'moon',
-};
-
-const LOCATION_ICONS = {
-  beirut: "city",
-  tyre: "beach",
-  saida: "waves",
-  baalbek: "pillar",
-  hermel: "mountain",
-  tripoli: "lighthouse",
-  "nabatieh-bintjbeil": "home-group"
-};
-
-const getIconComponent = (prayerKey) => {
-  if (prayerKey === 'fajr' || prayerKey === 'maghrib') {
-    return Feather;
-  } else if (prayerKey === 'asr') {
-    return MaterialIcons;
-  }
-  return Ionicons;
-};
-
-const getCountdownLabel = (prayerKey, translations) => {
-  if (['shuruq', 'imsak', 'midnight'].includes(prayerKey)) {
-    return translations.progressBarLabelTime;
-  }
-  return translations.progressBarLabelPrayer;
-};
-
-const Countdown = ({
-  nextPrayerTime,
-  lastPrayerTime,
-  language,
-  translations,
-  isDarkMode,
-  lastPrayerKey,
-  nextPrayerKey,
-}) => {
-  const [timeRemaining, setTimeRemaining] = useState('');
-  const [progress, setProgress] = useState(0);
-
-  const [settings] = useSettings();
-  const { timeFormat, useArabicNumerals } = settings;
-  const forceUpdate = useRef(0);
-
-  useEffect(() => {
-    forceUpdate.current += 1;
-  }, [timeFormat, useArabicNumerals]);
-
-  useEffect(() => {
-    if (!nextPrayerTime || !lastPrayerTime) return;
-    const interval = setInterval(() => {
-      const now = new Date();
-      const startTime = new Date(lastPrayerTime);
-      const endTime = new Date(nextPrayerTime);
-      const totalDuration = endTime - startTime;
-      const elapsed = now - startTime;
-      const diff = endTime - now;
-
-      if (diff <= 0) {
-        setTimeRemaining(null);
-        setProgress(1);
-        clearInterval(interval);
-      } else {
-        const duration = moment.duration(diff);
-        const hours = String(Math.floor(duration.asHours())).padStart(2, '0');
-        const minutes = String(duration.minutes()).padStart(2, '0');
-        const seconds = String(duration.seconds()).padStart(2, '0');
-
-        let displayTime = `${hours}:${minutes}:${seconds}`;
-
-        if (language === 'ar' && useArabicNumerals) {
-          displayTime = toArabicNumerals(displayTime);
-        }
-
-        setTimeRemaining(displayTime);
-
-        const progressFraction = Math.min(Math.max(elapsed / totalDuration, 0), 1);
-        setProgress(progressFraction);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [nextPrayerTime, lastPrayerTime, timeFormat, useArabicNumerals, language]);
-
-  const StartIcon = getIconComponent(lastPrayerKey);
-  const EndIcon = getIconComponent(nextPrayerKey);
-
-  if (!nextPrayerTime || timeRemaining === null) {
-    return (
-      <View>
-        <Text style={[styles.countdownText, isDarkMode && styles.darkCountdownText]}>
-          {translations.allEnded}
-        </Text>
-      </View>
-    );
-  }
-
-  const countdownLabel = getCountdownLabel(nextPrayerKey, translations);
-
-  return (
-    <View style={{ alignItems: 'center' }}>
-      {/* Descriptive Label */}
-      <Text style={[styles.labelText, isDarkMode && styles.darkLabelText]}>
-        {countdownLabel}
-      </Text>
-
-      {/* Countdown Timer */}
-      <Text style={[styles.countdownText, isDarkMode && styles.darkCountdownText]}>
-        {timeRemaining}
-      </Text>
-
-      {/* Progress Bar Row with Icons */}
-      <View style={styles.progressRow}>
-        <View style={{ marginRight: 5 }}>
-          <StartIcon
-            name={PRAYER_ICONS[lastPrayerKey] || 'time-outline'}
-            size={20}
-            color={isDarkMode ? "#D4AF37" : "#059669"}
-          />
-        </View>
-        <View style={{ transform: [{ scaleX: language === 'ar' ? 1 : -1 }] }}>
-          <ProgressBar
-            progress={progress}
-            width={230}
-            color={isDarkMode ? "#D4AF37" : "#D4AF37"}
-            unfilledColor="#555"
-            borderWidth={0}
-          />
-        </View>
-        <View style={[styles.endIconContainer, isDarkMode && styles.darkEndIconContainer]}>
-          <EndIcon
-            name={PRAYER_ICONS[nextPrayerKey] || 'time-outline'}
-            size={20}
-            color={isDarkMode ? "#D4AF37" : "#059669"}
-          />
-        </View>
-      </View>
-    </View>
-  );
-};
-
-const TodayIndicator = ({ isDarkMode }) => {
-  return (
-    <View
-      style={{
-        position: 'absolute',
-        top: 15,
-        left: 15,
-        zIndex: 5,
-      }}
-    >
-      <View
-        style={{
-          backgroundColor: isDarkMode ? '#D4AF37' : '#059669',
-          paddingHorizontal: 10,
-          paddingVertical: 10,
-          borderRadius: 20,
-          shadowColor: isDarkMode ? '#D4AF37' : '#059669',
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.5,
-          shadowRadius: 8,
-          elevation: 6,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <MaterialIcons
-          name="today"
-          size={20}
-          color="#FFF"
-        />
-      </View>
-    </View>
-  );
-};
-
-const QuoteIconButton = ({ isDarkMode, onPress }) => {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={{
-        position: 'absolute',
-        top: 15,
-        right: 15,
-        zIndex: 5,
-      }}
-    >
-      <View
-        style={{
-          backgroundColor: isDarkMode ? '#D4AF37' : '#059669',
-          paddingHorizontal: 10,
-          paddingVertical: 10,
-          borderRadius: 20,
-          shadowColor: isDarkMode ? '#D4AF37' : '#059669',
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.5,
-          shadowRadius: 8,
-          elevation: 6,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <FontAwesome6
-          name="hands-praying"
-          size={17}
-          color="#FFF"
-        />
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-const LocationItem = React.memo(({
-  loc,
-  locDisplay,
-  isSelected,
-  isDarkMode,
-  onPress
-}) => {
-  const iconColor = isSelected
-    ? (isDarkMode ? "#D4AF37" : "#059669")
-    : (isDarkMode ? "#D4AF37" : "#555");
-
-  return (
-    <TouchableOpacity
-      key={loc}
-      style={[
-        styles.enhancedLocationOption,
-        isDarkMode && styles.darkEnhancedLocationOption,
-        isSelected && styles.selectedLocationOption,
-        isSelected && isDarkMode && styles.darkSelectedLocationOption
-      ]}
-      onPress={onPress}
-    >
-      <View style={[
-        styles.locationIconContainer,
-        isDarkMode ? styles.darkLocationIconContainer : styles.lightLocationIconContainer,
-        isSelected && styles.selectedLocationIconContainer
-      ]}>
-        {loc === 'hermel' ? (
-          <FontAwesome5
-            name="mountain"
-            size={18}
-            color={iconColor}
-            solid
-          />
-        ) : (
-          <MaterialCommunityIcons
-            name={LOCATION_ICONS[loc] || "map-marker"}
-            size={24}
-            color={iconColor}
-          />
-        )}
-      </View>
-      <Text style={[
-        styles.enhancedLocationText,
-        isDarkMode && styles.darkEnhancedLocationText,
-        isSelected && styles.selectedLocationText,
-        isSelected && isDarkMode && styles.darkSelectedLocationText
-      ]}>
-        {locDisplay}
-      </Text>
-      {isSelected && (
-        <Icon
-          name="checkmark-circle"
-          size={22}
-          color={isDarkMode ? "#D4AF37" : "#059669"}
-          style={styles.selectedCheckmark}
-        />
-      )}
-    </TouchableOpacity>
-  );
-});
 
 // ----- Main App Component -----
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -644,9 +179,8 @@ function MainApp() {
 
   const getUpcomingPrayerKeyCallback = useCallback(() => {
     if (!currentPrayer) return null;
-    const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
     const now = new Date();
-    for (let key of prayerOrder) {
+    for (let key of PRAYER_ORDER) {
       const prayerTime = parsePrayerTime(currentPrayer[key]);
       if (now < prayerTime) {
         return key;
@@ -761,17 +295,6 @@ function MainApp() {
     ]
   );
 
-  const convertToArabicNumerals = useCallback((str, lang) => {
-    if (lang !== 'ar') return str;
-
-    const arabicNumerals = {
-      '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤',
-      '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩'
-    };
-
-    return str.toString().replace(/[0-9]/g, match => arabicNumerals[match]);
-  }, []);
-
   const formatDate = useCallback((dateStr, lang) => {
     if (!dateStr) return "";
 
@@ -783,10 +306,10 @@ function MainApp() {
     const dayNum = date.getDate();
     const monthName = translations.months[date.getMonth()];
 
-    const formattedDayNum = convertToArabicNumerals(dayNum, lang);
+    const formattedDayNum = lang === 'ar' ? toArabicNumerals(String(dayNum)) : String(dayNum);
 
     return `${dayName} ${formattedDayNum} ${monthName}`;
-  }, [convertToArabicNumerals]);
+  }, []);
 
   const animateNavItem = useCallback(() => {
     AnimationUtils.bounce(navigationBarAnim);
@@ -963,13 +486,13 @@ function MainApp() {
     const monthName = TRANSLATIONS[language].hijriMonths[monthIndex];
 
     if (language === 'ar') {
-      const dayStr = convertToArabicNumerals(String(day), 'ar');
-      const yearStr = convertToArabicNumerals(String(year), 'ar');
+      const dayStr = toArabicNumerals(String(day));
+      const yearStr = toArabicNumerals(String(year));
       return `${dayStr} ${monthName} ${yearStr}`;
     } else {
       return `${day} ${monthName} ${year}`;
     }
-  }, [currentPrayer, language, convertToArabicNumerals, settings.hijriDateOffset]);
+  }, [currentPrayer, language, settings.hijriDateOffset]);
 
   const preparedPrayerData = useMemo(() => {
     if (!currentPrayer) return null;
@@ -1058,19 +581,18 @@ function MainApp() {
   const navHeight = moderateScale(70);
   const cardContainerHeight = windowHeight - headerHeight - navHeight;
 
-  const prayerOrder = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
-  const upcomingIndex = prayerOrder.indexOf(upcomingPrayerKey);
+  const upcomingIndex = PRAYER_ORDER.indexOf(upcomingPrayerKey);
 
   const lastPrayerKey = useMemo(() => {
     if (upcomingIndex > 0) {
-      return prayerOrder[upcomingIndex - 1];
+      return PRAYER_ORDER[upcomingIndex - 1];
     }
     return 'imsak';
   }, [upcomingIndex]);
 
   const lastPrayerTime = useMemo(() => {
     if (upcomingIndex > 0 && currentPrayer) {
-      const key = prayerOrder[upcomingIndex - 1];
+      const key = PRAYER_ORDER[upcomingIndex - 1];
       return parsePrayerTime(currentPrayer[key]);
     }
     return new Date();
