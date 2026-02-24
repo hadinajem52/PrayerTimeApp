@@ -166,7 +166,7 @@ class PrayerTimeUpdateWorker(
                 output.write(jsonContent.toByteArray(StandardCharsets.UTF_8))
             }
             Log.d(TAG, "Successfully saved updated prayer times")
-            notifyWidgets()
+            // Note: notifyWidgets() is called by doWork() after performUpdate() returns
         } catch (e: Exception) {
             Log.e(TAG, "Error saving updated data", e)
         }
@@ -208,7 +208,7 @@ class PrayerTimeUpdateWorker(
                 Log.d(TAG, "New prayer time data available: $remoteLastUpdated vs local: $localLastUpdated")
                 saveJsonLocally(jsonResponse)
                 
-                // Save the new data to file
+                // Save the new data to updated file as well
                 val file = File(applicationContext.filesDir, "updated_prayer_times.json") 
                 file.writeText(jsonResponse)
                 
@@ -216,13 +216,11 @@ class PrayerTimeUpdateWorker(
                 val prefs = applicationContext.getSharedPreferences("PrayerAppPrefs", Context.MODE_PRIVATE)
                 prefs.edit().putBoolean("HAS_UPDATED_PRAYER_DATA", true).apply()
                 
-                // Show notification
-                showUpdateNotification()
-                
+                // Return true — doWork() will call showUpdateNotification() and notifyWidgets()
                 return true
             } else {
                 Log.d(TAG, "Prayer time data is already up to date")
-                return true
+                return false  // No update — doWork() should not fire notification
             }
         } else {
             Log.e(TAG, "HTTP error: $responseCode")

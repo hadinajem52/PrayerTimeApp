@@ -2,8 +2,6 @@ package com.hnjm123.ShiaPrayerLeb
 
 import android.app.Application
 import android.content.res.Configuration
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
@@ -14,14 +12,9 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.load
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
-import com.hnjm123.ShiaPrayerLeb.workers.PrayerTimeUpdateWorker
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
-import java.util.concurrent.TimeUnit
 import android.util.Log
-import androidx.work.Constraints
-import androidx.work.NetworkType
-import java.util.Calendar
 
 class MainApplication : Application(), ReactApplication {
 
@@ -61,79 +54,12 @@ class MainApplication : Application(), ReactApplication {
     @Suppress("UNUSED_VARIABLE")
     val keepSound = R.raw.prayersound // Make sure this line stays
     
-    // Schedule prayer time updates
-    schedulePrayerTimeUpdates()
-  }
+    // Cancel any legacy periodic WorkManager job (migrated to AlarmManager)
+    WorkManager.getInstance(this).cancelUniqueWork("prayer_time_update")
 
-  private fun schedulePrayerTimeUpdates() {
-    Log.d("PrayerApp", "Starting to schedule prayer time updates")
-
-  // Version the scheduling spec so we only reschedule when logic/time changes
-  val CURRENT_SCHEDULE_VERSION = 2 // increment when changing target time or constraints
-  val prefs = getSharedPreferences("PrayerAppPrefs", MODE_PRIVATE)
-  val storedVersion = prefs.getInt("PRAYER_UPDATE_SCHEDULE_VERSION", 0)
-  if (storedVersion == CURRENT_SCHEDULE_VERSION) {
-    Log.d("PrayerApp", "Prayer time update work already scheduled with current version; skipping re-schedule.")
-    return
-  } else {
-    Log.d("PrayerApp", "Scheduling update worker (schedule version change: stored=$storedVersion -> new=$CURRENT_SCHEDULE_VERSION)")
-  }
-    
-  // Calculate delay until next 12:30 AM
-    val calendar = Calendar.getInstance()
-    val now = calendar.timeInMillis
-    
-    // Log current time
-    val currentTime = Calendar.getInstance()
-    Log.d("PrayerApp", "Current time: ${currentTime.time}")
-    
-  // Set target time to 12:30 AM
-    calendar.set(Calendar.HOUR_OF_DAY, 0)
-  calendar.set(Calendar.MINUTE, 30)
-    calendar.set(Calendar.SECOND, 0)
-    calendar.set(Calendar.MILLISECOND, 0)
-    
-  // If current time is after today's 12:30 AM, schedule for tomorrow
-    if (now > calendar.timeInMillis) {
-        calendar.add(Calendar.DAY_OF_YEAR, 1)
-    Log.d("PrayerApp", "Scheduling for tomorrow at 12:30 AM: ${calendar.time}")
-    } else {
-    Log.d("PrayerApp", "Scheduling for today at 12:30 AM: ${calendar.time}")
-    }
-    
-    // Calculate initial delay in milliseconds
-    val initialDelay = calendar.timeInMillis - now
-    val initialDelayHours = initialDelay / (1000 * 60 * 60)
-    val initialDelayMinutes = (initialDelay / (1000 * 60)) % 60
-    Log.d("PrayerApp", "Initial delay: $initialDelay ms (approximately $initialDelayHours hours and $initialDelayMinutes minutes)")
-    
-    // Set network and charging constraints
-    val constraints = Constraints.Builder()
-        .setRequiredNetworkType(NetworkType.CONNECTED)
-        .build()
-    Log.d("PrayerApp", "Network constraint set: requires network connection")
-    
-    try {
-        val updateWorkRequest = PeriodicWorkRequestBuilder<PrayerTimeUpdateWorker>(
-            24, TimeUnit.HOURS  // Run once every 24 hours
-        )
-        .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
-        .setConstraints(constraints)
-        .build()
-        
-    val workManager = WorkManager.getInstance(this)
-    workManager.enqueueUniquePeriodicWork(
-      "prayer_time_update",
-      ExistingPeriodicWorkPolicy.REPLACE, // Replace only because schedule version changed (we gated above)
-      updateWorkRequest
-    )
-    Log.d("PrayerApp", "Prayer time update work scheduled (12:30 AM daily) with ID: ${updateWorkRequest.id}")
-
-    // Persist schedule version so we don't reschedule every launch
-    prefs.edit().putInt("PRAYER_UPDATE_SCHEDULE_VERSION", CURRENT_SCHEDULE_VERSION).apply()
-    } catch (e: Exception) {
-        Log.e("PrayerApp", "Failed to schedule prayer time updates", e)
-    }
+    // Schedule the daily 12:30 AM alarm (clock-anchored — no drift)
+    PrayerUpdateAlarmReceiver.scheduleNextAlarm(this)
+    Log.d("PrayerApp", "Prayer time update alarm scheduled via AlarmManager")
   }
 
   override fun onConfigurationChanged(newConfig: Configuration) {

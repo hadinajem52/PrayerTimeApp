@@ -110,6 +110,8 @@ function MainApp() {
   const {
     cancelAllNotifications,
     scheduleRollingNotifications,
+    scheduleLocalNotification,
+    cancelLocalNotification,
     isLoading: notificationsLoading,
     isDataAvailable,
   } = useNotificationScheduler(language, settings.usePrayerSound ?? true);
