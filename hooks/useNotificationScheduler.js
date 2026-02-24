@@ -3,6 +3,12 @@ import notifee, { TriggerType, AndroidImportance } from '@notifee/react-native';
 import moment from 'moment-hijri';
 import { usePrayerTimes } from '../components/PrayerTimesProvider';
 import { TRANSLATIONS } from '../constants/translations/notifications';
+import {
+  NOTIF_CHANNEL_SOUND,
+  NOTIF_CHANNEL_DEFAULT,
+  NOTIF_REFRESH_ID,
+  NOTIF_PRAYER_ID_PREFIX,
+} from '../constants/notificationConfig';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure helpers – no hooks, safe to call from onBackgroundEvent
@@ -74,9 +80,7 @@ export async function schedulePrayerNotificationsRaw(
 ) {
   if (!locationData || !enabledPrayers) return [];
 
-  const channelId = usePrayerSound
-    ? 'prayer-channel-sound-v2'
-    : 'prayer-channel-default-v2';
+  const channelId = usePrayerSound ? NOTIF_CHANNEL_SOUND : NOTIF_CHANNEL_DEFAULT;
 
   // Snapshot existing scheduled IDs upfront to skip duplicates
   const existing = await notifee.getTriggerNotifications();
@@ -98,7 +102,7 @@ export async function schedulePrayerNotificationsRaw(
     for (const prayer of prayerKeys) {
       if (!enabledPrayers[prayer] || !dayData[prayer]) continue;
 
-      const notifId = `prayer_${dateStr}_${prayer}`;
+      const notifId = `${NOTIF_PRAYER_ID_PREFIX}${dateStr}_${prayer}`;
       if (existingIds.has(notifId)) continue;
 
       const prayerTime = parsePrayerTimeStatic(dayData[prayer], targetDate);
@@ -159,7 +163,7 @@ export async function schedulePrayerNotificationsRaw(
 export async function scheduleNightlyRefreshTrigger() {
   // Always cancel and re-create so the timestamp stays current
   try {
-    await notifee.cancelTriggerNotification('daily-refresh');
+    await notifee.cancelTriggerNotification(NOTIF_REFRESH_ID);
   } catch (_) { }
 
   const midnight = new Date();
@@ -176,18 +180,18 @@ export async function scheduleNightlyRefreshTrigger() {
     },
   };
 
-  // This notification will be invisible to the user (low importance, no sound,
+  // This notification will be invisible to the user (MIN importance, no sound,
   // no badge) but will wake the background service to run onBackgroundEvent.
   await notifee.createTriggerNotification(
     {
-      id: 'daily-refresh',
-      title: '', // empty — Android won't display it if importance is LOW
+      id: NOTIF_REFRESH_ID,
+      title: '',
       body: '',
       data: { type: 'refresh' },
       android: {
-        channelId: 'prayer-channel-default-v2',
+        channelId: NOTIF_CHANNEL_DEFAULT,
         smallIcon: 'ic_launcher',
-        importance: AndroidImportance.LOW,
+        importance: AndroidImportance.MIN,
         silent: true,
         asForegroundService: false,
         pressAction: { id: 'default' },
@@ -224,7 +228,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
   const scheduleLocalNotification = useCallback(async (id, prayerKey, prayerTime) => {
     try {
       setIsOperationInProgress(true);
-      const standardizedId = `prayer_${moment(prayerTime).format('YYYYMMDD')}_${prayerKey}`;
+      const standardizedId = `${NOTIF_PRAYER_ID_PREFIX}${moment(prayerTime).format('YYYYMMDD')}_${prayerKey}`;
       const existing = await notifee.getTriggerNotifications();
       if (existing.some(n => n.notification.id === standardizedId)) {
         return standardizedId;
@@ -233,7 +237,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
 
       const prayerName = translateNotification(language, prayerKey);
       const isPrayer = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].includes(prayerKey);
-      const channelId = usePrayerSound ? 'prayer-channel-sound-v2' : 'prayer-channel-default-v2';
+      const channelId = usePrayerSound ? NOTIF_CHANNEL_SOUND : NOTIF_CHANNEL_DEFAULT;
 
       const trigger = {
         type: TriggerType.TIMESTAMP,
@@ -342,39 +346,12 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
     }
   }, [scheduleNotificationsForUpcomingPeriod]);
 
-  // ── Daily refresh setup (kept for compatibility, delegates to above) ──────
-
-  const setupDailyRefresh = useCallback(async (location, enabledPrayers) => {
-    try {
-      setIsOperationInProgress(true);
-      // Schedule the day-after-tomorrow and beyond (today+tomorrow already covered)
-      const locationData = prayerTimes?.[location];
-      if (!locationData) return;
-      const dayAfterTomorrow = new Date();
-      dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
-      await schedulePrayerNotificationsRaw(
-        locationData,
-        enabledPrayers,
-        language,
-        usePrayerSound,
-        5, // days 2-6 from today
-        dayAfterTomorrow
-      );
-      await scheduleNightlyRefreshTrigger();
-    } catch (error) {
-      console.error('[Notification] Error in setupDailyRefresh:', error);
-      throw error;
-    } finally {
-      setIsOperationInProgress(false);
-    }
-  }, [prayerTimes, language, usePrayerSound]);
-
   // ── Test ──────────────────────────────────────────────────────────────────
 
   const triggerTestNotification = useCallback(async () => {
     try {
       setIsOperationInProgress(true);
-      const channelId = usePrayerSound ? 'prayer-channel-sound-v2' : 'prayer-channel-default-v2';
+      const channelId = usePrayerSound ? NOTIF_CHANNEL_SOUND : NOTIF_CHANNEL_DEFAULT;
       await notifee.displayNotification({
         title: translateNotification(language, 'prayerTime'),
         body: translateNotification(language, 'prayerApproaching', {
@@ -399,7 +376,6 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
     cancelLocalNotification,
     cancelAllNotifications,
     scheduleRollingNotifications,
-    setupDailyRefresh,
     triggerTestNotification,
     isLoading,
     isOperationInProgress,

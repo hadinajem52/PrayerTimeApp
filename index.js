@@ -4,6 +4,7 @@ import {
   schedulePrayerNotificationsRaw,
   scheduleNightlyRefreshTrigger,
 } from './hooks/useNotificationScheduler';
+import { BG_STORAGE_KEYS } from './constants/notificationConfig';
 
 import App from './App';
 
@@ -20,10 +21,10 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
     const AsyncStorageBg = require('@react-native-async-storage/async-storage').default;
 
     const [locationRaw, enabledPrayersRaw, languageRaw, useSoundRaw] = await Promise.all([
-      AsyncStorageBg.getItem('selectedLocation'),
-      AsyncStorageBg.getItem('enabledPrayers'),
-      AsyncStorageBg.getItem('language'),
-      AsyncStorageBg.getItem('usePrayerSound'),
+      AsyncStorageBg.getItem(BG_STORAGE_KEYS.SELECTED_LOCATION),
+      AsyncStorageBg.getItem(BG_STORAGE_KEYS.ENABLED_PRAYERS),
+      AsyncStorageBg.getItem(BG_STORAGE_KEYS.LANGUAGE),
+      AsyncStorageBg.getItem(BG_STORAGE_KEYS.USE_PRAYER_SOUND),
     ]);
 
     const location = locationRaw || 'beirut';
@@ -57,11 +58,12 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
       7
     );
     console.log(`[Background] Rescheduled ${scheduled.length} notifications`);
-
-    // Recreate tomorrow's nightly refresh trigger so the rolling window continues
-    await scheduleNightlyRefreshTrigger();
   } catch (err) {
     console.error('[Background] Failed to reschedule prayers:', err);
+  } finally {
+    // Always recreate the nightly refresh trigger — even if scheduling threw,
+    // so a transient error never permanently breaks the rolling window.
+    await scheduleNightlyRefreshTrigger();
   }
 });
 

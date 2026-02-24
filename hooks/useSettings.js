@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BG_STORAGE_KEYS } from '../constants/notificationConfig';
 
 // Singleton pattern to ensure all components share the same settings state
 let currentSettings = null;
@@ -39,10 +40,10 @@ const notifyListeners = (newSettings) => {
 const mirrorBgKeys = (s) => {
   if (!s) return;
   AsyncStorage.multiSet([
-    ['selectedLocation', s.selectedLocation || 'beirut'],
-    ['enabledPrayers', JSON.stringify(s.enabledPrayers || {})],
-    ['language', s.language || 'en'],
-    ['usePrayerSound', String(s.usePrayerSound !== false)],
+    [BG_STORAGE_KEYS.SELECTED_LOCATION, s.selectedLocation || 'beirut'],
+    [BG_STORAGE_KEYS.ENABLED_PRAYERS,   JSON.stringify(s.enabledPrayers || {})],
+    [BG_STORAGE_KEYS.LANGUAGE,          s.language || 'en'],
+    [BG_STORAGE_KEYS.USE_PRAYER_SOUND,  String(s.usePrayerSound !== false)],
   ]).catch(e => console.warn('[Settings] Failed to mirror bg keys:', e));
 };
 
