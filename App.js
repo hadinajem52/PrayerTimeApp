@@ -56,6 +56,12 @@ import TodayIndicator from './components/TodayIndicator';
 import QuoteIconButton from './components/QuoteIconButton';
 import LocationItem from './components/LocationItem';
 import { TRANSLATIONS } from './constants/translations/app';
+import {
+  NOTIF_CHANNEL_SOUND,
+  NOTIF_CHANNEL_DEFAULT,
+  NOTIF_MIGRATED_V2_KEY,
+  NOTIF_PRAYER_ID_PREFIX,
+} from './constants/notificationConfig';
 
 
 // ----- Main App Component -----
@@ -96,21 +102,16 @@ function MainApp() {
   const [isLoading, setIsLoading] = useState(true);
   const [timeRemaining, setTimeRemaining] = useState('');
   const [isShowingLastAvailableDay, setIsShowingLastAvailableDay] = useState(false);
-  const [notificationsScheduled, setNotificationsScheduled] = useState(false);
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
 
   const [isBatteryModalVisible, setIsBatteryModalVisible] = useState(false);
   const [isBatteryOptimizationEnabled, setIsBatteryOptimizationEnabled] = useState(true);
 
   const {
-    scheduleLocalNotification,
-    scheduleNotificationsForUpcomingPeriod,
-    cancelLocalNotification,
     cancelAllNotifications,
     scheduleRollingNotifications,
-    setupDailyRefresh,
     isLoading: notificationsLoading,
-    isDataAvailable
+    isDataAvailable,
   } = useNotificationScheduler(language, settings.usePrayerSound ?? true);
 
   const animation = useRef(new Animated.Value(0)).current;
@@ -124,6 +125,10 @@ function MainApp() {
   const appState = useRef(AppState.currentState);
   // Prevent duplicate scheduling by effects right after manual reschedule on location change
   const justChangedLocationRef = useRef(false);
+  // Mirror of upcomingNotificationIds so the debounced scheduling callback can
+  // read the latest IDs without them becoming an effect dependency (which would
+  // cause an infinite reschedule loop after each successful scheduling pass).
+  const pendingNotifIdsRef = useRef([]);
 
   const locationData = useMemo(() => {
     return (prayerTimes && prayerTimes[selectedLocation]) || [];
@@ -360,24 +365,16 @@ function MainApp() {
                 await cancelAllNotifications(upcomingNotificationIds);
                 setUpcomingNotificationIds([]);
               }
-              // Reset scheduling flags and clear any stored notification mapping
-              setNotificationsScheduled(false);
+              // Reset and clear any stored notification mapping
               setSettings((prev) => ({ ...prev, scheduledNotifications: {} }));
               setSettings((prev) => ({ ...prev, selectedLocation: newLocation }));
 
               // Proactively schedule notifications for the new location
               try {
-                await scheduleRollingNotifications(newLocation, enabledPrayers);
-                // Mark as scheduled to avoid duplicate effect-based scheduling
-                setNotificationsScheduled(true);
-              } catch (e) {
-                console.error('Failed to schedule rolling notifications after location change:', e);
-              }
-              try {
-                const ids = await scheduleNotificationsForUpcomingPeriod(newLocation, enabledPrayers);
+                const ids = await scheduleRollingNotifications(newLocation, enabledPrayers);
                 if (Array.isArray(ids)) setUpcomingNotificationIds(ids);
               } catch (e) {
-                console.error('Failed to schedule upcoming notifications after location change:', e);
+                console.error('Failed to schedule rolling notifications after location change:', e);
               }
               // Signal the next effect pass to skip re-scheduling once
               justChangedLocationRef.current = true;
@@ -403,21 +400,14 @@ function MainApp() {
           console.warn('Error during notification cleanup on quick location change:', e);
         }
 
-        setNotificationsScheduled(false);
         setSettings((prev) => ({ ...prev, scheduledNotifications: {} }));
         setSettings((prev) => ({ ...prev, selectedLocation: newLocation }));
 
         try {
-          await scheduleRollingNotifications(newLocation, enabledPrayers);
-          setNotificationsScheduled(true);
-        } catch (e) {
-          console.error('Failed to schedule rolling notifications on quick location change:', e);
-        }
-        try {
-          const ids = await scheduleNotificationsForUpcomingPeriod(newLocation, enabledPrayers);
+          const ids = await scheduleRollingNotifications(newLocation, enabledPrayers);
           if (Array.isArray(ids)) setUpcomingNotificationIds(ids);
         } catch (e) {
-          console.error('Failed to schedule upcoming notifications on quick location change:', e);
+          console.error('Failed to schedule rolling notifications on quick location change:', e);
         }
 
         justChangedLocationRef.current = true;
@@ -433,9 +423,7 @@ function MainApp() {
     cancelAllNotifications,
     setSettings,
     setUpcomingNotificationIds,
-    setNotificationsScheduled,
     scheduleRollingNotifications,
-    scheduleNotificationsForUpcomingPeriod,
     enabledPrayers,
   ]);
 
@@ -637,7 +625,7 @@ function MainApp() {
     async function createChannels() {
       // Channel with custom adhan sound
       await notifee.createChannel({
-        id: 'prayer-channel-sound-v2',
+        id: NOTIF_CHANNEL_SOUND,
         name: 'Prayer Notifications (Adhan)',
         importance: AndroidImportance.MAX,
         sound: 'prayersound',
@@ -646,7 +634,7 @@ function MainApp() {
 
       // Channel with default system sound
       await notifee.createChannel({
-        id: 'prayer-channel-default-v2',
+        id: NOTIF_CHANNEL_DEFAULT,
         name: 'Prayer Notifications (Default)',
         importance: AndroidImportance.MAX,
         vibration: true,
@@ -663,7 +651,7 @@ function MainApp() {
     const migrateNotificationsToV2 = async () => {
       if (!isSettingsLoaded || !selectedLocation || !enabledPrayers) return;
       try {
-        const migrated = await AsyncStorage.getItem('notif_migrated_v2');
+        const migrated = await AsyncStorage.getItem(NOTIF_MIGRATED_V2_KEY);
         if (migrated === 'true') return;
 
         const triggers = await notifee.getTriggerNotifications();
@@ -685,7 +673,7 @@ function MainApp() {
         console.log('[Migration] Rescheduling notifications on v2 channels');
         await scheduleRollingNotifications(selectedLocation, enabledPrayers);
 
-        await AsyncStorage.setItem('notif_migrated_v2', 'true');
+        await AsyncStorage.setItem(NOTIF_MIGRATED_V2_KEY, 'true');
         console.log('[Migration] Completed notification channel migration to v2');
       } catch (e) {
         console.error('[Migration] Failed migrating notifications to v2:', e);
@@ -730,30 +718,45 @@ function MainApp() {
     requestOSNotificationPermission();
   }, [requestOSNotificationPermission]);
 
+  // Keep the ref in sync so the debounced callback always sees current IDs.
+  useEffect(() => { pendingNotifIdsRef.current = upcomingNotificationIds; }, [upcomingNotificationIds]);
+
+  // ── Unified, debounced scheduling effect ─────────────────────────────────
+  // Single source of truth for all reactive auto-scheduling.  Waits for both
+  // settings AND prayer data to be ready before attempting anything.
+  // The 500 ms debounce coalesces rapid prayer-toggle changes into a single
+  // scheduling pass, preventing overlapping async operations.
   useEffect(() => {
-    if (isSettingsLoaded && selectedLocation) {
-      // Skip one cycle right after manual rescheduling on location change
-      if (justChangedLocationRef.current) {
-        justChangedLocationRef.current = false;
-        return;
-      }
-      if (upcomingNotificationIds.length > 0) {
-        cancelAllNotifications(upcomingNotificationIds);
-        setUpcomingNotificationIds([]);
-      }
-      scheduleNotificationsForUpcomingPeriod(selectedLocation, enabledPrayers)
-        .then((ids) => {
-          console.log("Scheduled upcoming notifications:", ids);
-          setUpcomingNotificationIds(ids);
-        })
-        .catch((err) => console.error("Error scheduling upcoming notifications:", err));
+    if (!isSettingsLoaded || !isDataAvailable || !selectedLocation) return;
+
+    // Skip one cycle right after a manual reschedule triggered by location change
+    if (justChangedLocationRef.current) {
+      justChangedLocationRef.current = false;
+      return;
     }
+
+    const timer = setTimeout(async () => {
+      try {
+        const staleIds = pendingNotifIdsRef.current;
+        if (staleIds.length > 0) {
+          await cancelAllNotifications(staleIds);
+          setUpcomingNotificationIds([]);
+        }
+        const ids = await scheduleRollingNotifications(selectedLocation, enabledPrayers);
+        if (Array.isArray(ids)) setUpcomingNotificationIds(ids);
+      } catch (err) {
+        console.error('[Notification] Error scheduling notifications:', err);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [
     isSettingsLoaded,
+    isDataAvailable,
     selectedLocation,
     enabledPrayers,
     cancelAllNotifications,
-    scheduleNotificationsForUpcomingPeriod
+    scheduleRollingNotifications,
   ]);
 
   const refreshCurrentPrayerData = useCallback(() => {
@@ -848,15 +851,8 @@ function MainApp() {
     };
   }, [scheduleRollingNotifications, settings, refreshCurrentPrayerData, isDataAvailable]);
 
-  useEffect(() => {
-    if (isDataAvailable && !notificationsScheduled) {
-      scheduleRollingNotifications(selectedLocation, enabledPrayers)
-        .then(() => {
-          setNotificationsScheduled(true);
-        })
-        .catch(error => console.error('Failed to schedule notifications:', error));
-    }
-  }, [isDataAvailable, notificationsScheduled, scheduleRollingNotifications, selectedLocation, enabledPrayers]);
+  // Effect B (previously a separate one-shot scheduling effect gated on
+  // notificationsScheduled) has been merged into the unified debounced effect above.
 
   useEffect(() => {
     if (locationData.length > 0) {
@@ -906,7 +902,7 @@ function MainApp() {
         const triggers = await notifee.getTriggerNotifications();
         const prayerIds = triggers
           .map(tn => String(tn.notification?.id))
-          .filter(id => id && id.startsWith('prayer_'));
+          .filter(id => id && id.startsWith(NOTIF_PRAYER_ID_PREFIX));
 
         if (prayerIds.length > 0) {
           await cancelAllNotifications(prayerIds);
