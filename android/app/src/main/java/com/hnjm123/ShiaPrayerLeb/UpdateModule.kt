@@ -18,12 +18,12 @@ import android.content.Context
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableNativeMap
 import com.facebook.react.bridge.WritableMap
-import com.google.gson.Gson
 import org.json.JSONObject
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -31,6 +31,10 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+
+    // Module-scoped coroutine scope; cancelled when the module is invalidated
+    private val moduleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun getName(): String {
         return "UpdateModule"
     }
@@ -156,7 +160,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
 
     @ReactMethod
     fun downloadLatestPrayerTimesFromGitHub(promise: Promise) {
-        GlobalScope.launch(Dispatchers.IO) {
+        moduleScope.launch {
             try {
                 // Replace with your actual GitHub username and repository
                 val url = URL("https://raw.githubusercontent.com/hadinajem52/PrayerTimeApp/refs/heads/main/assets/prayer_times.json")
