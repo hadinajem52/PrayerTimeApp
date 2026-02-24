@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import styles from '../styles';
+import styles from '../styles/prayerStyles';
 import { AnimationUtils } from '../utils/animations';
 import { formatTimeString } from '../utils/timeFormatters';
 import useSettings from '../hooks/useSettings';

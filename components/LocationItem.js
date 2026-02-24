@@ -3,7 +3,7 @@ import { TouchableOpacity, View, Text } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import styles from '../styles';
+import styles from '../styles/appStyles';
 import { LOCATION_ICONS } from '../constants/prayerConfig';
 
 const LocationItem = React.memo(({
