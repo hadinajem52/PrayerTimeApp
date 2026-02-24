@@ -1,0 +1,26 @@
+export const TRANSLATIONS = {
+  en: {
+    title: "Preparing New Month's Data",
+    description: "We're currently preparing prayer times for the new month. The latest available prayer times are being shown while we update our data.",
+    currentMonth: "Current Month:",
+    nextMonth: "Coming Month:",
+    expectedUpdate: "Update expected soon",
+    stayTuned: "Stay tuned!",
+    updateButton: "Update Prayer Times",
+    updating: "Updating...",
+    testButton: "Show Month Transition Notice",
+    restartNote: "Please close and reopen the app after updating.",
+  },
+  ar: {
+    title: "جاري إعداد بيانات الشهر الجديد",
+    description: "نحن نقوم حاليًا بإعداد أوقات الصلاة للشهر الجديد. يتم عرض آخر أوقات صلاة متاحة بينما نقوم بتحديث بياناتنا.",
+    currentMonth: "الشهر الحالي:",
+    nextMonth: "الشهر القادم:",
+    expectedUpdate: "التحديث متوقع قريبًا",
+    stayTuned: "ترقبوا!",
+    updateButton: "تحديث أوقات الصلاة",
+    updating: "جاري التحديث...",
+    testButton: "عرض إشعار انتقال الشهر",
+    restartNote: "يرجى إغلاق التطبيق وإعادة فتحه بعد التحديث.",
+  },
+};
