@@ -2,39 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import notifee, { TriggerType, AndroidImportance } from '@notifee/react-native';
 import moment from 'moment-hijri';
 import { usePrayerTimes } from '../components/PrayerTimesProvider';
-
-const TRANSLATIONS = {
-  en: {
-    prayerTime: "Prayer Time",
-    timeApproaching: "It's {time} time",
-    prayerApproaching: "{prayer} prayer time",
-    dailyRefresh: "Prayer Schedule Updated",
-    dailyRefreshBody: "Your prayer notifications have been refreshed for today",
-    fajr: "Morning Prayer",
-    dhuhr: "Dhuhr Prayer",
-    asr: "Asr Prayer",
-    maghrib: "Maghrib Prayer",
-    isha: "Isha Prayer",
-    shuruq: "Sunrise",
-    imsak: "Imsak",
-    midnight: "Midnight"
-  },
-  ar: {
-    prayerTime: "وقت الصلاة",
-    timeApproaching: "حان وقت {time}",
-    prayerApproaching: "حان وقت صلاة {prayer}",
-    dailyRefresh: "تم تحديث جدول الصلاة",
-    dailyRefreshBody: "تم تحديث إشعارات الصلاة الخاصة بك لهذا اليوم",
-    fajr: "الصبح",
-    dhuhr: "الظهر",
-    asr: "العصر",
-    maghrib: "المغرب",
-    isha: "العشاء",
-    shuruq: "الشروق",
-    imsak: "الإمساك",
-    midnight: "منتصف الليل"
-  }
-};
+import { TRANSLATIONS } from '../constants/translations/notifications';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure helpers – no hooks, safe to call from onBackgroundEvent

@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { moderateScale } from 'react-native-size-matters';
 import moment from 'moment-hijri';
 import { usePrayerTimes } from './PrayerTimesProvider'; 
+import { TRANSLATIONS } from '../constants/translations/calendar';
 
 const MONTHS = {
   en: [
@@ -24,21 +25,6 @@ const MONTHS = {
     "كانون ٢", "شباط", "آذار", "نيسان", "أيار", "حزيران",
     "تموز", "آب", "أيلول", "تشرين ١", "تشرين ٢", "كانون ١"
   ]
-};
-
-const TRANSLATIONS = {
-  en: {
-    calendar: "Calendar",
-    back: "Back",
-    today: "Today",
-    selected: "Selected",
-  },
-  ar: {
-    calendar: "التقويم",
-    back: "رجوع",
-    today: "اليوم",
-    selected: "محدد",
-  },
 };
 
 const CalendarView = ({ 
