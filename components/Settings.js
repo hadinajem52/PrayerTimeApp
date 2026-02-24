@@ -5,9 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Switch,
   StatusBar,
-  ActivityIndicator,
   Alert,
   Platform
 } from 'react-native';
@@ -16,13 +14,17 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { moderateScale } from 'react-native-size-matters';
 import useSettings from '../hooks/useSettings';
 import { checkForPrayerTimeUpdates } from './UpdateManager'; 
-import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import RatingModal from './RatingModal';
 import notifee from '@notifee/react-native';
 import DeviceInfo from 'react-native-device-info';
 import * as IntentLauncher from 'expo-intent-launcher';
 import WidgetManager from '../utils/WidgetManager';
 import { TRANSLATIONS } from '../constants/translations/settings';
+import AppearanceSection from './settings/AppearanceSection';
+import NotificationsSection from './settings/NotificationsSection';
+import HijriDateSection from './settings/HijriDateSection';
+import UpdatesSection from './settings/UpdatesSection';
+import FeedbackSection from './settings/FeedbackSection';
 
 const Settings = ({ 
   language, 
@@ -45,7 +47,7 @@ const Settings = ({
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
   const [alarmPermissionGranted, setAlarmPermissionGranted] = useState(false);
   const [isBatteryOptimizationEnabled, setIsBatteryOptimizationEnabled] = useState(true);
-  const { isOperationInProgress } = useNotificationScheduler(language, true);
+  const appVersion = `${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()})`;
 
   const renderHijriOffsetText = () => {
     if (hijriDateOffset === 0) {
@@ -193,405 +195,64 @@ const Settings = ({
       </Text>
       
       <ScrollView style={styles.scrollView}>
-        {/* Main Title: Notifications */}
-        <Text
-          style={[
-            styles.mainTitle,
-            isDarkMode && styles.darkMainTitle,
-            language === 'ar' && styles.rtlTitle,
-          ]}
-        >
-          {translations.notifications}
-        </Text>
-        {/* Notification Sound Section */}
-        <View style={[styles.section, isDarkMode && styles.darkSection]}>
-          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-            {translations.notificationSound}
-          </Text>
-          
-          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
-            <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
-              {translations.prayerSoundSetting}
-            </Text>
-            <Switch
-              value={usePrayerSound}
-              onValueChange={updateUsePrayerSound}
-              trackColor={{ false: "#767577", true: isDarkMode ? "#D4AF37" : "#059669" }}
-              thumbColor={usePrayerSound ? (isDarkMode ? "#D4AF37" : "#059669") : "#f4f3f4"}
-            />
-          </View>
-          
-          <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
-            {translations.prayerSoundDescription}
-          </Text>
-        </View>
+        <NotificationsSection
+          settings={settings}
+          translations={translations}
+          isDarkMode={isDarkMode}
+          language={language}
+          styles={styles}
+          usePrayerSound={usePrayerSound}
+          updateUsePrayerSound={updateUsePrayerSound}
+          alarmPermissionGranted={alarmPermissionGranted}
+          onRequestAlarmPermission={handleRequestAlarmPermission}
+          isBatteryOptimizationEnabled={isBatteryOptimizationEnabled}
+          onDisableBatteryOptimization={handleDisableBatteryOptimization}
+        />
 
-        {/* Alarm Permission Section */}
-        {Platform.OS === 'android' && (
-          <View style={[styles.section, isDarkMode && styles.darkSection]}>
-            <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-              {translations.alarmPermission}
-            </Text>
-            
-            <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
-                  {translations.alarmPermissionSetting}
-                </Text>
-                {alarmPermissionGranted && (
-                  <Text style={[styles.permissionStatus, styles.grantedStatus]}>
-                    ✓ Granted
-                  </Text>
-                )}
-              </View>
-              
-              {!alarmPermissionGranted && (
-                <TouchableOpacity
-                  style={[
-                    styles.permissionButton,
-                    isDarkMode && styles.darkPermissionButton
-                  ]}
-                  onPress={handleRequestAlarmPermission}
-                >
-                  <Icon 
-                    name="alarm-outline" 
-                    size={18} 
-                    color={isDarkMode ? "#D4AF37" : "#059669"} 
-                  />
-                  <Text style={[
-                    styles.permissionButtonText,
-                    isDarkMode && styles.darkPermissionButtonText
-                  ]}>
-                    Grant
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            
-            <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
-              {translations.alarmPermissionSettingDescription}
-            </Text>
-          </View>
-        )}
+        <AppearanceSection
+          settings={settings}
+          translations={translations}
+          isDarkMode={isDarkMode}
+          language={language}
+          styles={styles}
+          toggleDarkMode={toggleDarkMode}
+          toggleLanguage={toggleLanguage}
+        />
 
-        {/* Battery Optimization Section (Android) inside Notifications */}
-        {Platform.OS === 'android' && (
-          <View style={[styles.section, isDarkMode && styles.darkSection]}>
-            <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-              {translations.batteryOptimization}
-            </Text>
+        <HijriDateSection
+          settings={settings}
+          translations={translations}
+          isDarkMode={isDarkMode}
+          language={language}
+          styles={styles}
+          hijriDateOffset={hijriDateOffset}
+          updateHijriOffset={updateHijriOffset}
+          renderHijriOffsetText={renderHijriOffsetText}
+          useArabicNumerals={useArabicNumerals}
+          updateUseArabicNumerals={updateUseArabicNumerals}
+          timeFormat={timeFormat}
+          toggleTimeFormat={toggleTimeFormat}
+        />
 
-            <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
-                  {translations.batteryOptimizationSetting}
-                </Text>
-                {!isBatteryOptimizationEnabled && (
-                  <Text style={[styles.permissionStatus, styles.disabledStatus]}>
-                    ✓ {translations.batteryOptimizationDisabled}
-                  </Text>
-                )}
-              </View>
+        <UpdatesSection
+          settings={settings}
+          translations={translations}
+          isDarkMode={isDarkMode}
+          language={language}
+          styles={styles}
+          isUpdating={isUpdating}
+          onUpdatePrayerTimes={handleUpdatePrayerTimes}
+        />
 
-              {isBatteryOptimizationEnabled && (
-                <TouchableOpacity
-                  style={[
-                    styles.permissionButton,
-                    isDarkMode && styles.darkPermissionButton
-                  ]}
-                  onPress={handleDisableBatteryOptimization}
-                >
-                  <Icon 
-                    name="battery-charging-outline" 
-                    size={18} 
-                    color={isDarkMode ? "#D4AF37" : "#059669"} 
-                  />
-                  <Text style={[
-                    styles.permissionButtonText,
-                    isDarkMode && styles.darkPermissionButtonText
-                  ]}>
-                    {translations.openSettings}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
-              {translations.batteryOptimizationSettingDescription}
-            </Text>
-          </View>
-        )}
-
-        {/* Main Title: General */}
-        <Text
-          style={[
-            styles.mainTitle,
-            isDarkMode && styles.darkMainTitle,
-            language === 'ar' && styles.rtlTitle,
-          ]}
-        >
-          {translations.general}
-        </Text>
-        {/* Appearance Section */}
-        <View style={[styles.section, isDarkMode && styles.darkSection]}>
-          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-            {translations.appearance}
-          </Text>
-          
-          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
-            <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
-              {translations.darkMode}
-            </Text>
-            <Switch
-              value={isDarkMode}
-              onValueChange={toggleDarkMode}
-              trackColor={{ false: "#767577", true: "#143d66" }}
-              thumbColor={isDarkMode ? "#D4AF37" : "#059669"}
-              ios_backgroundColor="#3e3e3e"
-            />
-          </View>
-        </View>
-        
-        {/* Hijri Date Adjustment Section */}
-        <View style={[styles.section, isDarkMode && styles.darkSection]}>
-          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-            {translations.hijriDate}
-          </Text>
-          
-          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
-            <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
-              {translations.hijriAdjustment}
-            </Text>
-            <View style={styles.adjustmentContainer}>
-              <TouchableOpacity
-                style={[styles.adjustButton, isDarkMode && styles.darkAdjustButton]}
-                onPress={() => updateHijriOffset(hijriDateOffset - 1)}
-              >
-                <Icon 
-                  name="remove-outline" 
-                  size={22} 
-                  color={isDarkMode ? "#D4AF37" : "#059669"} 
-                />
-              </TouchableOpacity>
-              
-              <Text style={[styles.offsetValue, isDarkMode && styles.darkOffsetValue]}>
-                {renderHijriOffsetText()}
-              </Text>
-              
-              <TouchableOpacity
-                style={[styles.adjustButton, isDarkMode && styles.darkAdjustButton]}
-                onPress={() => updateHijriOffset(hijriDateOffset + 1)}
-              >
-                <Icon 
-                  name="add-outline" 
-                  size={22} 
-                  color={isDarkMode ? "#D4AF37" : "#059669"} 
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
-            {translations.hijriAdjustmentDescription}
-          </Text>
-        </View>
-        
-        {/* Language Section */}
-        <View style={[styles.section, isDarkMode && styles.darkSection]}>
-          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-            {translations.language}
-          </Text>
-          
-          <TouchableOpacity
-            style={[
-              styles.languageOption,
-              language === 'en' && styles.selectedOption,
-              isDarkMode && styles.darkLanguageOption,
-              language === 'en' && isDarkMode && styles.darkSelectedOption
-            ]}
-            onPress={() => language !== 'en' && toggleLanguage()}
-          >
-            <Text style={[
-              styles.languageText,
-              isDarkMode && styles.darkLanguageText,
-              language === 'en' && styles.selectedLanguageText,
-              language === 'en' && isDarkMode && styles.darkSelectedLanguageText
-            ]}>
-              {translations.english}
-            </Text>
-            {language === 'en' && (
-              <Icon 
-                name="checkmark" 
-                size={20} 
-                color={isDarkMode ? "#D4AF37" : "#059669"} 
-              />
-            )}
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[
-              styles.languageOption,
-              language === 'ar' && styles.selectedOption,
-              isDarkMode && styles.darkLanguageOption,
-              language === 'ar' && isDarkMode && styles.darkSelectedOption
-            ]}
-            onPress={() => language !== 'ar' && toggleLanguage()}
-          >
-            <Text style={[
-              styles.languageText,
-              isDarkMode && styles.darkLanguageText,
-              language === 'ar' && styles.selectedLanguageText,
-              language === 'ar' && isDarkMode && styles.darkSelectedLanguageText
-            ]}>
-              {translations.arabic}
-            </Text>
-            {language === 'ar' && (
-              <Icon 
-                name="checkmark" 
-                size={20} 
-                color={isDarkMode ? "#D4AF37" : "#059669"} 
-              />
-            )}
-          </TouchableOpacity>
-
-          {language === 'ar' && (
-            <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
-              <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
-                {translations.useArabicNumerals}
-              </Text>
-              <Switch
-                value={useArabicNumerals}
-                onValueChange={updateUseArabicNumerals}
-                trackColor={{ false: "#767577", true: isDarkMode ? "#D4AF37" : "#059669" }}
-                thumbColor={useArabicNumerals ? (isDarkMode ? "#D4AF37" : "#059669") : "#f4f3f4"}
-              />
-            </View>
-          )}
-        </View>
-
-        {/* Time Format Section */}
-        <View style={[styles.section, isDarkMode && styles.darkSection]}>
-          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-            {translations.timeFormatSetting}
-          </Text>
-          
-          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
-            <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
-              {timeFormat === '24h' ? translations.hour24 : translations.hour12}
-            </Text>
-            <Switch
-              value={timeFormat === '12h'}
-              onValueChange={toggleTimeFormat}
-              trackColor={{ false: "#767577", true: isDarkMode ? "#D4AF37" : "#059669" }}
-              thumbColor={isDarkMode ? "#D4AF37" : "#f4f3f4"}
-            />
-          </View>
-          
-          <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
-            {translations.timeFormatDescription}
-          </Text>
-        </View>
-
-        
-
-        
-
-        {/* Main Title: Updates */}
-        <Text
-          style={[
-            styles.mainTitle,
-            isDarkMode && styles.darkMainTitle,
-            language === 'ar' && styles.rtlTitle,
-          ]}
-        >
-          {translations.updates}
-        </Text>
-        {/* Prayer Time Updates Section */}
-        <View style={[styles.section, isDarkMode && styles.darkSection]}>
-          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-            {translations.updatePrayerTimes}
-          </Text>
-          
-          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
-
-            
-            <TouchableOpacity
-              style={[
-                styles.updateButton,
-                isDarkMode && styles.darkUpdateButton,
-                isUpdating && styles.disabledButton
-              ]}
-              onPress={handleUpdatePrayerTimes}
-              disabled={isUpdating}
-            >
-              {isUpdating ? (
-                <ActivityIndicator 
-                  size="small"
-                  color={isDarkMode ? "#222" : "#fff"} 
-                />
-              ) : (
-                <Icon
-                  name="refresh"
-                  size={18}
-                  color={isDarkMode ? "#222" : "#fff"}
-                />
-              )}
-              <Text style={[
-                styles.updateButtonText,
-                isDarkMode && styles.darkUpdateButtonText
-              ]}>
-                {isUpdating ? translations.updating : translations.updatePrayerTimes}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          
-          <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
-            {translations.updateDescription}
-          </Text>
-        </View>
-
-        {/* Main Title: Feedback */}
-        <Text
-          style={[
-            styles.mainTitle,
-            isDarkMode && styles.darkMainTitle,
-            language === 'ar' && styles.rtlTitle,
-          ]}
-        >
-          {translations.feedback}
-        </Text>
-        {/* Rate App Section */}
-        <View style={[styles.section, isDarkMode && styles.darkSection]}>
-          <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
-            {translations.rateApp}
-          </Text>
-          
-          <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
-            <Text style={[styles.settingLabel, isDarkMode && styles.darkSettingLabel]}>
-              {translations.rateDescription}
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.rateButton,
-                isDarkMode && styles.darkRateButton
-              ]}
-              onPress={handleRateApp}
-            >
-              <Icon 
-                name="star-outline" 
-                size={22} 
-                color={isDarkMode ? "#D4AF37" : "#059669"} 
-              />
-              <Text style={[
-                styles.rateButtonText,
-                isDarkMode && styles.darkRateButtonText
-              ]}>
-                {translations.rateApp}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-        </View>
+        <FeedbackSection
+          settings={settings}
+          translations={translations}
+          isDarkMode={isDarkMode}
+          language={language}
+          styles={styles}
+          onRateApp={handleRateApp}
+          appVersion={appVersion}
+        />
       </ScrollView>
 
       {/* Rating Modal */}
@@ -901,6 +562,15 @@ const styles = StyleSheet.create({
   },
   disabledStatus: {
     color: '#888',
+  },
+  appVersionText: {
+    fontSize: moderateScale(12),
+    color: '#888',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  darkAppVersionText: {
+    color: '#aaa',
   },
 });
 
