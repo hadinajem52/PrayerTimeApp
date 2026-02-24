@@ -80,7 +80,7 @@ const MonthTransitionNotice = ({ language, isDarkMode, onUpdatePrayerTimes}) => 
           <FontAwesome5 
             name="sun" 
             size={40} 
-            color={isDarkMode ? "#FFA500" : "#FFA500"} 
+            color={isDarkMode ? "#D4AF37" : "#D4AF37"} 
             solid
           />
         </View>
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   testButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#059669',
     paddingHorizontal: moderateScale(20),
     paddingVertical: moderateScale(12),
     borderRadius: moderateScale(8),
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   darkTestButton: {
-    backgroundColor: '#FFA500',
+    backgroundColor: '#D4AF37',
   },
   testButtonText: {
     color: '#FFFFFF',
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   
   // Update button styles
   updateButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#059669',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   darkUpdateButton: {
-    backgroundColor: '#FFA500',
+    backgroundColor: '#D4AF37',
   },
   disabledButton: {
     opacity: 0.6,
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   darkTitle: {
-    color: '#FFA500',
+    color: '#D4AF37',
   },
   animationContainer: {
     height: moderateScale(100),
@@ -344,11 +344,11 @@ const styles = StyleSheet.create({
   },
   monthValue: {
     fontSize: moderateScale(15),
-    color: '#007AFF',
+    color: '#059669',
     fontWeight: 'bold',
   },
   darkMonthValue: {
-    color: '#66CCFF',
+    color: '#D4AF37',
   },
   progressContainer: {
     flexDirection: 'row',
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     width: moderateScale(10),
     height: moderateScale(10),
     borderRadius: moderateScale(5),
-    backgroundColor: '#007AFF',
+    backgroundColor: '#059669',
     marginHorizontal: moderateScale(5),
   },
   updateText: {
@@ -373,12 +373,12 @@ const styles = StyleSheet.create({
   },
   stayTuned: {
     fontSize: moderateScale(16),
-    color: '#007AFF',
+    color: '#059669',
     fontWeight: 'bold',
     marginBottom: moderateScale(10),
   },
   darkStayTuned: {
-    color: '#66CCFF',
+    color: '#D4AF37',
   },
   restartNote: {
     marginTop: moderateScale(10),

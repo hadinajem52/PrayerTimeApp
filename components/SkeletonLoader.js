@@ -26,9 +26,9 @@ const SkeletonLoader = ({ isDarkMode }) => {
   const baseColor = isDarkMode ? '#2A2A2A' : '#E1E9EE';
   const highlightColor = isDarkMode ? '#3D3D3D' : '#F5F5F5';
   const cardBgColor = isDarkMode ? '#333' : '#FFF';
-  const navBgColor = isDarkMode ? '#222' : '#EAEFF2';
-  const accentColor = isDarkMode ? '#66CCFF33' : '#007AFF33'; 
-  const activeColor = isDarkMode ? '#FFA50033' : '#007AFF33';  
+  const navBgColor = isDarkMode ? '#222' : '#F8FAFC';
+  const accentColor = isDarkMode ? '#D4AF3733' : '#05966933'; 
+  const activeColor = isDarkMode ? '#D4AF3733' : '#05966933';  
 
   const ShimmerEffect = () => (
     <Animated.View
@@ -135,7 +135,7 @@ const SkeletonLoader = ({ isDarkMode }) => {
   return (
     <View style={[
       styles.container, 
-      { backgroundColor: isDarkMode ? '#222' : '#EAEFF2' }
+      { backgroundColor: isDarkMode ? '#222' : '#F8FAFC' }
     ]}>
       <HeaderSkeleton />
       <View style={styles.cardContainer}>

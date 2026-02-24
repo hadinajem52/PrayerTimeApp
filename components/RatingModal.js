@@ -150,7 +150,7 @@ const RatingModal = ({
               <Icon
                 name="star"
                 size={30}
-                color={isDarkMode ? "#FFA500" : "#007AFF"}
+                color={isDarkMode ? "#D4AF37" : "#059669"}
               />
             </View>
             <Text style={[
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   darkModalContainer: {
-    backgroundColor: '#222',
+    backgroundColor: '#0F172A',
   },
   rtlContainer: {
     direction: 'rtl',
@@ -322,13 +322,13 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: 'rgba(5, 150, 105, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
   },
   darkIconContainer: {
-    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
   },
   title: {
     fontSize: moderateScale(20),
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#059669',
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     minWidth: 200,
   },
   darkPrimaryButton: {
-    backgroundColor: '#FFA500',
+    backgroundColor: '#D4AF37',
   },
   primaryButtonText: {
     color: '#FFF',
@@ -410,20 +410,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+    backgroundColor: 'rgba(5, 150, 105, 0.05)',
     marginHorizontal: 4,
   },
   darkSecondaryButton: {
-    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
   },
   secondaryButtonText: {
-    color: '#007AFF',
+    color: '#059669',
     fontSize: moderateScale(14),
     fontWeight: '500',
     textAlign: 'center',
   },
   darkSecondaryButtonText: {
-    color: '#FFA500',
+    color: '#D4AF37',
   },
   thankYouContainer: {
     alignItems: 'center',

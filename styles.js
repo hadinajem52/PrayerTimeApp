@@ -10,7 +10,7 @@ const loadingStateStyles = {
     backgroundColor: '#E1E9EE',
   },
   darkSkeletonBackground: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: '#1E293B',
   },
   shimmerOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -23,26 +23,26 @@ const loadingStateStyles = {
     opacity: 0.6,
   },
   skeletonAccent: {
-    backgroundColor: '#007AFF33', 
+    backgroundColor: '#05966933', 
   },
   darkSkeletonAccent: {
-    backgroundColor: '#66CCFF33',
+    backgroundColor: '#D4AF3733',
   },
 };
 
 export default StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#EAEFF2',
+    backgroundColor: '#F8FAFC',
   },
   darkContainer: {
-    backgroundColor: '#222',
+    backgroundColor: '#0F172A',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#EAEFF2',
+    backgroundColor: '#F8FAFC',
   },
   header: {
     fontSize: moderateScale(12),
@@ -67,17 +67,17 @@ export default StyleSheet.create({
     marginBottom: moderateScale(20),
   },
   darkCard: {
-    backgroundColor: '#333',
+    backgroundColor: '#1E293B',
   },
   date: {
     fontSize: moderateScale(22),
     fontWeight: '600',
     marginBottom: moderateScale(5),
     textAlign: 'center',
-    color: '#007AFF',
+    color: '#059669',
   },
   darkDate: {
-    color: '#66CCFF',
+    color: '#D4AF37',
   },
   dateRow: {
     flexDirection: 'row',
@@ -98,11 +98,11 @@ export default StyleSheet.create({
   locationLabel: {
     fontSize: moderateScale(18),
     fontWeight: '500',
-    color: '#007AFF',
+    color: '#059669',
     marginLeft: moderateScale(5),
   },
   darkLocationLabel: {
-    color: '#FFA500',
+    color: '#D4AF37',
   },
   prayerContainer: {
     paddingBottom: moderateScale(20),
@@ -122,11 +122,11 @@ export default StyleSheet.create({
     position: 'relative',
   },
   upcomingPrayerLight: {
-    backgroundColor: '#E0F7FA',
-    borderColor: '#007AFF',
+    backgroundColor: '#ECFDF5',
+    borderColor: '#059669',
     borderWidth: 1,
     borderRadius: moderateScale(10),
-    shadowColor: '#007AFF',
+    shadowColor: '#059669',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: moderateScale(5),
@@ -135,11 +135,11 @@ export default StyleSheet.create({
     paddingHorizontal: moderateScale(18),
   },
   upcomingPrayerDark: {
-    backgroundColor: '#333',
-    borderColor: '#FFA500',
+    backgroundColor: '#1E293B',
+    borderColor: '#D4AF37',
     borderWidth: 1,
     borderRadius: moderateScale(10),
-    shadowColor: '#FFA500',
+    shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: moderateScale(5),
@@ -193,7 +193,7 @@ export default StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-evenly',
     alignItems: 'center',
-    backgroundColor: '#EAEFF2',
+    backgroundColor: '#F8FAFC',
     borderTopLeftRadius: moderateScale(25),
     borderTopRightRadius: moderateScale(25),
     shadowColor: '#000',
@@ -205,7 +205,7 @@ export default StyleSheet.create({
     paddingTop: moderateScale(5),
   },
   darkNavigation: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: '#1E293B',
     shadowColor: '#000',
     shadowOpacity: 0.3,
   },
@@ -223,7 +223,7 @@ export default StyleSheet.create({
     alignItems: 'center',
   },
   darkModalContent: {
-    backgroundColor: '#444',
+    backgroundColor: '#1E293B',
   },
   modalTitle: {
     fontSize: moderateScale(20),
@@ -242,14 +242,14 @@ export default StyleSheet.create({
   },
   locationOptionText: {
     fontSize: moderateScale(18),
-    color: '#007AFF',
+    color: '#059669',
   },
   darkLocationOptionText: {
-    color: '#66CCFF',
+    color: '#D4AF37',
   },
   closeButton: {
     marginTop: moderateScale(20),
-    backgroundColor: '#007AFF',
+    backgroundColor: '#059669',
     borderRadius: moderateScale(5),
     paddingVertical: moderateScale(5),
     paddingHorizontal: moderateScale(15),
@@ -269,30 +269,30 @@ export default StyleSheet.create({
   },
   quoteModalText: {
     fontSize: moderateScale(16),
-    color: '#007AFF',
+    color: '#059669',
     textAlign: 'center',
     marginVertical: moderateScale(10),
   },
   darkQuoteModalText: {
-    color: '#66CCFF',
+    color: '#D4AF37',
   },
   countdownText: {
     textAlign: 'center',
     fontSize: moderateScale(18),
-    color: '#007AFF',
+    color: '#059669',
     marginVertical: moderateScale(10),
   },
   darkCountdownText: {
-    color: '#66CCFF',
+    color: '#D4AF37',
   },
   countdownText: {
     textAlign: 'center',
     fontSize: moderateScale(18),
-    color: '#007AFF',
+    color: '#059669',
     marginVertical: moderateScale(10),
   },
   darkCountdownText: {
-    color: '#66CCFF',
+    color: '#D4AF37',
   },
   labelText: {
     fontSize: moderateScale(12),
@@ -310,28 +310,28 @@ export default StyleSheet.create({
     marginBottom: moderateScale(20),
   },
 endIconContainer: {
-  shadowColor: "#007AFF",
+  shadowColor: "#059669",
   shadowOffset: { width: 0, height: 0 },
   shadowOpacity: 0.9,
   shadowRadius: 15,
   borderRadius: 15,
   padding: 7,
-  backgroundColor: 'rgba(0, 122, 255, 0.1)',
+  backgroundColor: 'rgba(5, 150, 105, 0.1)',
   marginLeft: 8,
 },
 darkEndIconContainer: {
-  shadowColor: "#FFA500",
-  backgroundColor: 'rgba(255, 165, 0, 0.1)',
+  shadowColor: "#D4AF37",
+  backgroundColor: 'rgba(212, 175, 55, 0.1)',
 },  
   todayCardGlow: {
-    shadowColor: '#007AFF',
+    shadowColor: '#059669',
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: 10,
     shadowOpacity: 0.5,
     elevation: 40,
   },
   darkTodayCardGlow: {
-    shadowColor: '#FFA500',
+    shadowColor: '#D4AF37',
   },
   animatedPrayerRow: {
     backfaceVisibility: 'hidden',
@@ -352,10 +352,10 @@ darkEndIconContainer: {
     backfaceVisibility: 'hidden',
   },
   activeHighlight: {
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: 'rgba(5, 150, 105, 0.1)',
   },
   darkActiveHighlight: {
-    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
   },
   upcomingTransition: {
     transitionProperty: 'all',
@@ -376,7 +376,7 @@ darkEndIconContainer: {
   },
   darkEnhancedModalContent: {
     backgroundColor: '#333333',
-    borderColor: '#444',
+    borderColor: '#334155',
     borderWidth: 1,
   },
   modalHeader: {
@@ -391,22 +391,22 @@ darkEndIconContainer: {
   enhancedModalTitle: {
     fontSize: moderateScale(20),
     fontWeight: '600',
-    color: '#007AFF',
+    color: '#059669',
   },
   darkEnhancedModalTitle: {
-    color: '#66CCFF',
+    color: '#D4AF37',
     borderBottomColor: '#444',
   },
   roundedCloseButton: {
     width: moderateScale(36),
     height: moderateScale(36),
     borderRadius: moderateScale(18),
-    backgroundColor: '#007AFF',
+    backgroundColor: '#059669',
     justifyContent: 'center',
     alignItems: 'center',
   },
   darkRoundedCloseButton: {
-    backgroundColor: '#66CCFF',
+    backgroundColor: '#D4AF37',
   },
   locationListContainer: {
     maxHeight: '80%',
@@ -424,10 +424,10 @@ darkEndIconContainer: {
     borderBottomColor: '#444',
   },
   selectedLocationOption: {
-    backgroundColor: 'rgba(0, 122, 255, 0.08)',
+    backgroundColor: 'rgba(5, 150, 105, 0.08)',
   },
   darkSelectedLocationOption: {
-    backgroundColor: 'rgba(255, 165, 0, 0.08)',
+    backgroundColor: 'rgba(212, 175, 55, 0.08)',
   },
   locationIconContainer: {
     width: moderateScale(40),
@@ -438,13 +438,13 @@ darkEndIconContainer: {
     marginRight: moderateScale(15),
   },
   lightLocationIconContainer: {
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: 'rgba(5, 150, 105, 0.1)',
   },
   darkLocationIconContainer: {
-    backgroundColor: 'rgba(102, 204, 255, 0.1)',
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
   },
   selectedLocationIconContainer: {
-    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    backgroundColor: 'rgba(5, 150, 105, 0.15)',
   },
   enhancedLocationText: {
     fontSize: moderateScale(18),
@@ -457,10 +457,10 @@ darkEndIconContainer: {
   },
   selectedLocationText: {
     fontWeight: '600',
-    color: '#007AFF',
+    color: '#059669',
   },
   darkSelectedLocationText: {
-    color: '#FFA500',
+    color: '#D4AF37',
   },
   selectedCheckmark: {
     marginLeft: moderateScale(10),
@@ -485,7 +485,7 @@ darkEndIconContainer: {
     color: '#EEE',
   },
   quoteActionButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#059669',
     paddingVertical: moderateScale(12),
     paddingHorizontal: moderateScale(20),
     borderRadius: moderateScale(25),
@@ -500,7 +500,7 @@ darkEndIconContainer: {
     elevation: 3,
   },
   darkQuoteActionButton: {
-    backgroundColor: '#66CCFF',
+    backgroundColor: '#D4AF37',
   },
   quoteActionButtonText: {
     color: 'white',
@@ -520,11 +520,11 @@ darkEndIconContainer: {
     paddingHorizontal: moderateScale(5),
   },
   navItemActive: {
-    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    backgroundColor: 'rgba(5, 150, 105, 0.15)',
     borderRadius: moderateScale(20),
   },
   darkNavItemActive: {
-    backgroundColor: 'rgba(255, 165, 0, 0.15)',
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
   },
   navIconContainer: {
     alignItems: 'center',
@@ -544,14 +544,14 @@ darkEndIconContainer: {
     width: '100%',
   },
   navLabelActive: {
-    color: '#007AFF',
+    color: '#059669',
     fontWeight: '600',
   },
   darkNavLabel: {
     color: '#AAA',
   },
   darkNavLabelActive: {
-    color: '#FFA500',
+    color: '#D4AF37',
   },
   
   // Alarm Permission Modal Styles
@@ -569,9 +569,9 @@ darkEndIconContainer: {
     elevation: 12,
   },
   darkModalContainer: {
-    backgroundColor: '#333',
+    backgroundColor: '#1E293B',
     borderWidth: 1,
-    borderColor: '#444',
+    borderColor: '#334155',
   },
   modalHeader: {
     alignItems: 'center',
@@ -627,13 +627,13 @@ darkEndIconContainer: {
     borderColor: '#666',
   },
   confirmButton: {
-    backgroundColor: '#007AFF',
-    shadowColor: '#007AFF',
+    backgroundColor: '#059669',
+    shadowColor: '#059669',
     shadowOpacity: 0.25,
   },
   darkConfirmButton: {
-    backgroundColor: '#FFA500',
-    shadowColor: '#FFA500',
+    backgroundColor: '#D4AF37',
+    shadowColor: '#D4AF37',
   },
   cancelButtonText: {
     color: '#6C757D',

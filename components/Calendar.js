@@ -147,7 +147,7 @@ const CalendarView = ({
           <Icon 
             name={language === 'ar' ? "arrow-forward" : "arrow-back"} 
             size={24} 
-            color={isDarkMode ? "#FFA500" : "#007AFF"} 
+            color={isDarkMode ? "#D4AF37" : "#059669"} 
           />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, isDarkMode && styles.darkHeaderTitle]}>
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   darkMonthYearHeader: {
-    backgroundColor: '#333',
+    backgroundColor: '#1E293B',
   },
   monthYearText: {
     fontSize: moderateScale(18),
@@ -310,26 +310,26 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   todayCell: {
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: 'rgba(5, 150, 105, 0.1)',
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: '#059669',
   },
   darkTodayCell: {
-    backgroundColor: 'rgba(255, 165, 0, 0.2)',
-    borderColor: '#FFA500',
+    backgroundColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: '#D4AF37',
   },
   todayText: {
-    color: '#007AFF',
+    color: '#059669',
     fontWeight: 'bold',
   },
   selectedCell: {
-    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    backgroundColor: 'rgba(5, 150, 105, 0.2)',
   },
   darkSelectedCell: {
-    backgroundColor: 'rgba(102, 204, 255, 0.2)',
+    backgroundColor: 'rgba(212, 175, 55, 0.2)',
   },
   selectedDayText: {
-    color: '#007AFF',
+    color: '#059669',
     fontWeight: 'bold',
   },
   disabledCell: {
@@ -358,19 +358,19 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   todayDot: {
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: 'rgba(5, 150, 105, 0.1)',
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: '#059669',
   },
   darkTodayDot: {
-    backgroundColor: 'rgba(255, 165, 0, 0.2)',
-    borderColor: '#FFA500',
+    backgroundColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: '#D4AF37',
   },
   selectedDot: {
-    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    backgroundColor: 'rgba(5, 150, 105, 0.2)',
   },
   darkSelectedDot: {
-    backgroundColor: 'rgba(102, 204, 255, 0.2)',
+    backgroundColor: 'rgba(212, 175, 55, 0.2)',
   },
   disabledDot: {
     backgroundColor: '#ccc',
