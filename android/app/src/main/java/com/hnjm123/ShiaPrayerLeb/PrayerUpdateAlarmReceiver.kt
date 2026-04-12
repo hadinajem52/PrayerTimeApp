@@ -16,26 +16,21 @@ import java.util.Calendar
 class PrayerUpdateAlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        when (intent.action) {
-            ACTION_UPDATE,
-            Intent.ACTION_BOOT_COMPLETED,
-            Intent.ACTION_MY_PACKAGE_REPLACED -> {
-                Log.d(TAG, "Alarm triggered (action=${intent.action}); enqueueing update worker")
-
-                if (intent.action == ACTION_UPDATE) {
-                    // Enqueue the actual update work
-                    val work = OneTimeWorkRequestBuilder<PrayerTimeUpdateWorker>().build()
-                    WorkManager.getInstance(context).enqueueUniqueWork(
-                        "alarm_prayer_time_update",
-                        ExistingWorkPolicy.REPLACE,
-                        work
-                    )
-                }
-
-                // Always reschedule the next alarm (also handles boot / reinstall)
-                scheduleNextAlarm(context)
-            }
+        if (intent.action != ACTION_UPDATE) {
+            return
         }
+
+        Log.d(TAG, "Alarm triggered; enqueueing update worker")
+
+        val work = OneTimeWorkRequestBuilder<PrayerTimeUpdateWorker>().build()
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "alarm_prayer_time_update",
+            ExistingWorkPolicy.REPLACE,
+            work
+        )
+
+        // Always reschedule the next alarm after the current one fires.
+        scheduleNextAlarm(context)
     }
 
     companion object {

@@ -149,29 +149,26 @@ export const checkForPrayerTimeUpdates = async (customLanguage = null) => {
   try {
     if (!NativeModules.UpdateModule) {
       console.error('UpdateModule is not available!');
-      return false;
+      return 'error';
     }
-    
+
     console.log('Calling forceUpdateCheck...');
     const result = await NativeModules.UpdateModule.forceUpdateCheck();
     console.log('forceUpdateCheck result:', result);
-    
+
     if (result.status === "updated") {
       await AsyncStorage.setItem('PRAYER_DATA_UPDATED', 'true');
-      
       if (global.fetchPrayerData && typeof global.fetchPrayerData === 'function') {
-        global.fetchPrayerData();
-      } else {
-        const DevSettings = require('react-native').DevSettings;
-        if (DevSettings && DevSettings.reload) {
-          DevSettings.reload();
-        }
+        await global.fetchPrayerData();
       }
-      return true;
+      return 'updated';
     }
-    return false;
+    if (result.status === "offline") {
+      return 'offline';
+    }
+    return 'no_update';
   } catch (error) {
     console.error("Error in checkForPrayerTimeUpdates:", error);
-    return false;
+    return 'error';
   }
 };

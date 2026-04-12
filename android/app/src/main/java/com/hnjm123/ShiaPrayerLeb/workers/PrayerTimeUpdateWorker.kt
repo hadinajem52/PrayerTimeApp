@@ -19,6 +19,7 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -29,6 +30,11 @@ class PrayerTimeUpdateWorker(
     context: Context,
     params: WorkerParameters
 ) : CoroutineWorker(context, params) {
+
+    private enum class UpdateCheckResult {
+        UPDATED,
+        NO_UPDATE,
+    }
 
     companion object {
         private const val TAG = "PrayerTimeUpdater"
@@ -127,17 +133,20 @@ class PrayerTimeUpdateWorker(
         Log.d("PrayerApp", "PrayerTimeUpdateWorker started at ${Calendar.getInstance().time}")
         
         try {
-            // Your existing update code
             val updateResult = performUpdate()
-            
-            if (updateResult) {
-                Log.d("PrayerApp", "Prayer time update completed successfully")
-                showUpdateNotification()
-                notifyWidgets()
-                return@withContext Result.success()
-            } else {
-                Log.w("PrayerApp", "Prayer time update did not find new data")
-                return@withContext Result.success() // Still mark as success even if no update needed
+
+            when (updateResult) {
+                UpdateCheckResult.UPDATED -> {
+                    Log.d("PrayerApp", "Prayer time update completed successfully")
+                    showUpdateNotification()
+                    notifyWidgets()
+                    return@withContext Result.success()
+                }
+
+                UpdateCheckResult.NO_UPDATE -> {
+                    Log.d("PrayerApp", "Prayer time data is already up to date")
+                    return@withContext Result.success()
+                }
             }
         } catch (e: Exception) {
             Log.e("PrayerApp", "Prayer time update failed", e)
@@ -172,17 +181,22 @@ class PrayerTimeUpdateWorker(
         }
     }
 
-    private suspend fun performUpdate(): Boolean {
+    private fun performUpdate(): UpdateCheckResult {
         // Get local last_updated value
         val localLastUpdated = getLocalLastUpdated()
         
         // Connect to the URL and get the remote data
         val connection = URL(JSON_URL).openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
         connection.connectTimeout = 15000
         connection.readTimeout = 15000
-        
-        val responseCode = connection.responseCode
-        if (responseCode == HttpURLConnection.HTTP_OK) {
+
+        try {
+            val responseCode = connection.responseCode
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                throw IOException("HTTP error while fetching prayer times: $responseCode")
+            }
+
             val reader = BufferedReader(InputStreamReader(connection.inputStream))
             val response = StringBuilder()
             var line: String?
@@ -190,19 +204,18 @@ class PrayerTimeUpdateWorker(
                 response.append(line)
             }
             reader.close()
-            
+
             // Parse the JSON
             val jsonResponse = response.toString()
             val jsonObject = JSONObject(jsonResponse)
-            
+
             // Check if the data is actually updated
             val remoteLastUpdated = jsonObject.optString("last_updated", "")
-            
+
             if (remoteLastUpdated.isEmpty()) {
-                Log.e(TAG, "Remote data doesn't contain last_updated field")
-                return false
+                throw IOException("Remote prayer times data is missing last_updated")
             }
-            
+
             // If remote data is newer, save it locally
             if (remoteLastUpdated != localLastUpdated) {
                 Log.d(TAG, "New prayer time data available: $remoteLastUpdated vs local: $localLastUpdated")
@@ -215,16 +228,13 @@ class PrayerTimeUpdateWorker(
                 // Mark that we have updated data
                 val prefs = applicationContext.getSharedPreferences("PrayerAppPrefs", Context.MODE_PRIVATE)
                 prefs.edit().putBoolean("HAS_UPDATED_PRAYER_DATA", true).apply()
-                
-                // Return true — doWork() will call showUpdateNotification() and notifyWidgets()
-                return true
-            } else {
-                Log.d(TAG, "Prayer time data is already up to date")
-                return false  // No update — doWork() should not fire notification
+
+                return UpdateCheckResult.UPDATED
             }
-        } else {
-            Log.e(TAG, "HTTP error: $responseCode")
-            return false
+
+            return UpdateCheckResult.NO_UPDATE
+        } finally {
+            connection.disconnect()
         }
     }
 

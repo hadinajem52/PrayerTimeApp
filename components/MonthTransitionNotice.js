@@ -23,14 +23,20 @@ const MonthTransitionNotice = ({ language, isDarkMode, onUpdatePrayerTimes}) => 
   const handleUpdatePrayerTimes = async () => {
     setIsUpdating(true);
     try {
-      await checkForPrayerTimeUpdates();
-
-      setTimeout(() => {
-        setIsUpdating(false);
+      const status = await checkForPrayerTimeUpdates();
+      setIsUpdating(false);
+      if (status === 'updated') {
+        Alert.alert(t.updateSuccessTitle, t.updateSuccessMessage);
         if (onUpdatePrayerTimes) {
           onUpdatePrayerTimes();
         }
-      }, 1500);
+      } else if (status === 'no_update') {
+        Alert.alert(t.alreadyUpToDateTitle, t.alreadyUpToDateMessage);
+      } else if (status === 'offline') {
+        Alert.alert(t.updateOfflineTitle, t.updateOfflineMessage);
+      } else {
+        Alert.alert(t.updateErrorTitle, t.updateErrorMessage);
+      }
     } catch (error) {
       setIsUpdating(false);
       Alert.alert("Update Failed", error.message || "Could not update prayer times. Please try again later.");
@@ -134,9 +140,6 @@ const MonthTransitionNotice = ({ language, isDarkMode, onUpdatePrayerTimes}) => 
           {isUpdating ? t.updating : t.updateButton}
         </Text>
       </TouchableOpacity>
-      <Text style={[styles.restartNote, isDarkMode && styles.darkRestartNote]}>
-        {t.restartNote}
-      </Text>
     </View>
   );
 };

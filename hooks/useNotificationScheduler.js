@@ -6,8 +6,10 @@ import { TRANSLATIONS } from '../constants/translations/notifications';
 import {
   NOTIF_CHANNEL_SOUND,
   NOTIF_CHANNEL_DEFAULT,
+  NOTIF_CHANNEL_BACKGROUND,
   NOTIF_REFRESH_ID,
   NOTIF_PRAYER_ID_PREFIX,
+  NOTIF_ROLLING_WINDOW_DAYS,
 } from '../constants/notificationConfig';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,7 +77,7 @@ export async function schedulePrayerNotificationsRaw(
   enabledPrayers,
   language,
   usePrayerSound,
-  days = 7,
+  days = NOTIF_ROLLING_WINDOW_DAYS,
   startDate = new Date()
 ) {
   if (!locationData || !enabledPrayers) return [];
@@ -154,8 +156,8 @@ export async function schedulePrayerNotificationsRaw(
 
 /**
  * Create (or recreate) the nightly midnight trigger that keeps the rolling
- * window alive.  This is a VISIBLE silent notification that wakes up the
- * background event handler so it can re-schedule.
+ * window alive. This uses a dedicated low-priority channel so it can wake the
+ * background handler without surfacing a user-facing prayer notification.
  *
  * The notification carries data.type = 'refresh' so onBackgroundEvent knows
  * what to do with it.
@@ -176,7 +178,6 @@ export async function scheduleNightlyRefreshTrigger() {
     alarmManager: {
       allowWhileIdle: true,
       exact: true,
-      alarmClock: true,
     },
   };
 
@@ -189,7 +190,7 @@ export async function scheduleNightlyRefreshTrigger() {
       body: '',
       data: { type: 'refresh' },
       android: {
-        channelId: NOTIF_CHANNEL_DEFAULT,
+        channelId: NOTIF_CHANNEL_BACKGROUND,
         smallIcon: 'ic_launcher',
         importance: AndroidImportance.MIN,
         silent: true,
@@ -307,7 +308,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
 
   // ── Period scheduling (uses hook-accessible prayerTimes) ─────────────────
 
-  const scheduleNotificationsForUpcomingPeriod = useCallback(async (location, enabledPrayers, days = 7) => {
+  const scheduleNotificationsForUpcomingPeriod = useCallback(async (location, enabledPrayers, days = NOTIF_ROLLING_WINDOW_DAYS) => {
     try {
       setIsOperationInProgress(true);
       const locationData = prayerTimes?.[location];
@@ -331,7 +332,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
     }
   }, [prayerTimes, language, usePrayerSound]);
 
-  // ── Rolling scheduling (7 days + nightly refresh trigger) ────────────────
+  // ── Rolling scheduling (window + nightly refresh trigger) ─────────────────
 
   const scheduleRollingNotifications = useCallback(async (location, enabledPrayers) => {
     try {

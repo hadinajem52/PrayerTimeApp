@@ -45,6 +45,7 @@
       <intent-filter>
         <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
     <action android:name="android.intent.action.BOOT_COMPLETED"/>
+    <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
     <action android:name="android.intent.action.TIMEZONE_CHANGED"/>
     <action android:name="android.intent.action.TIME_SET"/>
     <action android:name="android.intent.action.DATE_CHANGED"/>
@@ -62,10 +63,16 @@
         android:resource="@xml/prayer_widget_small_info" />
     </receiver>
 
-    <!-- Daily prayer time update alarm receiver -->
+    <!-- Internal alarm target for the daily prayer time update -->
     <receiver android:name=".PrayerUpdateAlarmReceiver" android:exported="false">
       <intent-filter>
         <action android:name="com.hnjm123.ShiaPrayerLeb.action.PRAYER_TIME_UPDATE"/>
+      </intent-filter>
+    </receiver>
+
+    <!-- Reschedule the daily update alarm after reboot or app replacement -->
+    <receiver android:name=".PrayerUpdateRescheduleReceiver" android:exported="true">
+      <intent-filter>
         <action android:name="android.intent.action.BOOT_COMPLETED"/>
         <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
       </intent-filter>
