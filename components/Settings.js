@@ -68,11 +68,17 @@ const Settings = ({
   const handleUpdatePrayerTimes = async () => {
     setIsUpdating(true);
     try {
-      await checkForPrayerTimeUpdates();
-
-      setTimeout(() => {
-        setIsUpdating(false);
-      }, 1500);
+      const status = await checkForPrayerTimeUpdates();
+      setIsUpdating(false);
+      if (status === 'updated') {
+        Alert.alert(translations.updateSuccessTitle, translations.updateSuccessMessage);
+      } else if (status === 'no_update') {
+        Alert.alert(translations.alreadyUpToDateTitle, translations.alreadyUpToDateMessage);
+      } else if (status === 'offline') {
+        Alert.alert(translations.updateOfflineTitle, translations.updateOfflineMessage);
+      } else {
+        Alert.alert(translations.updateErrorTitle, translations.updateErrorMessage);
+      }
     } catch (error) {
       setIsUpdating(false);
       Alert.alert("Update Failed", error.message || "Could not update prayer times. Please try again later.");

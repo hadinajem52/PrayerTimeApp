@@ -30,7 +30,15 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
     private static final String DARK_MODE_PREF = "DARK_MODE"; // optional
 
     private static final String ACTION_UPDATE_NOW = "com.hnjm123.ShiaPrayerLeb.action.UPDATE_NOW";
+    private static final String ACTION_UPDATE_NOW_SMALL = "com.hnjm123.ShiaPrayerLeb.action.UPDATE_NOW_SMALL";
     private static final int REQ_CODE_UPDATE = 10042;
+    private static final int REQ_CODE_UPDATE_FALLBACK = REQ_CODE_UPDATE + 1;
+    private static final int REQ_CODE_UPDATE_SMALL = REQ_CODE_UPDATE + 2;
+    private static final int REQ_CODE_UPDATE_FALLBACK_SMALL = REQ_CODE_UPDATE + 3;
+    private static final int REQ_CODE_UPDATE_RETRY = REQ_CODE_UPDATE + 4;
+    private static final int REQ_CODE_UPDATE_RETRY_SMALL = REQ_CODE_UPDATE + 5;
+    private static final long WIDGET_BOUNDARY_GRACE_MILLIS = 750L;
+    private static final long WIDGET_UPDATE_RETRY_DELAY_MILLIS = 15_000L;
 
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
@@ -121,6 +129,7 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
         if (AppWidgetManager.ACTION_APPWIDGET_UPDATE.equals(action)
                 || ACTION_UPDATE_NOW.equals(action)
                 || Intent.ACTION_BOOT_COMPLETED.equals(action)
+                || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)
                 || Intent.ACTION_TIMEZONE_CHANGED.equals(action)
                 || Intent.ACTION_TIME_CHANGED.equals(action)
                 || Intent.ACTION_DATE_CHANGED.equals(action)) {
@@ -197,22 +206,20 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
             String[] prayerNames = {"\u0627\u0644\u0635\u0628\u062d", "\u0627\u0644\u0634\u0631\u0648\u0642", "\u0627\u0644\u0638\u0647\u0631", "\u0627\u0644\u0639\u0635\u0631", "\u0627\u0644\u0645\u063a\u0631\u0628", "\u0627\u0644\u0639\u0634\u0627\u0621"};
             
             Calendar now = Calendar.getInstance();
-            int currentHour = now.get(Calendar.HOUR_OF_DAY);
-            int currentMinute = now.get(Calendar.MINUTE);
-            int currentSecond = now.get(Calendar.SECOND);
-            int currentTimeInSeconds = currentHour * 3600 + currentMinute * 60 + currentSecond;
+            long currentTimeInMillis = getTimeOfDayMillis(now);
+            long effectiveCurrentTimeInMillis = currentTimeInMillis + WIDGET_BOUNDARY_GRACE_MILLIS;
 
             for (int i = 0; i < prayerOrder.length; i++) {
                 String prayerTimeStr = todayPrayers.optString(prayerOrder[i], null);
                 if (prayerTimeStr == null || prayerTimeStr.trim().isEmpty()) continue;
-                int prayerTimeInSeconds = parseTimeToSeconds(prayerTimeStr);
+                long prayerTimeInMillis = parseTimeToMillis(prayerTimeStr);
                 
-                if (prayerTimeInSeconds > currentTimeInSeconds) {
+                if (prayerTimeInMillis > effectiveCurrentTimeInMillis) {
                     String formattedTime = formatTime(prayerTimeStr, s.timeFormat24h, s.arabicNumerals);
-                    long millisUntil = (prayerTimeInSeconds - currentTimeInSeconds) * 1000L;
+                    long millisUntil = Math.max(0L, prayerTimeInMillis - currentTimeInMillis);
                     // determine previous prayer time to compute total window
                     int prevIndex = i - 1;
-                    int prevSecs;
+                    long prevPrayerTimeInMillis;
                     if (prevIndex >= 0) {
                         String prevStr = todayPrayers.optString(prayerOrder[prevIndex], null);
                         // if missing, fallback to earlier available
@@ -225,19 +232,19 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
                             int yIndex = (todayIndex - 1 + cityData.length()) % cityData.length();
                             JSONObject yPrayers = cityData.getJSONObject(yIndex);
                             String yIsha = yPrayers.optString("isha", yPrayers.optString("maghrib", "18:00"));
-                            prevSecs = parseTimeToSeconds(yIsha) - 24*3600; // yesterday seconds baseline
+                            prevPrayerTimeInMillis = parseTimeToMillis(yIsha) - 24L * 3600L * 1000L;
                         } else {
-                            prevSecs = parseTimeToSeconds(prevStr);
+                            prevPrayerTimeInMillis = parseTimeToMillis(prevStr);
                         }
                     } else {
                         // previous is yesterday isha
                         int yIndex = (todayIndex - 1 + cityData.length()) % cityData.length();
                         JSONObject yPrayers = cityData.getJSONObject(yIndex);
                         String yIsha = yPrayers.optString("isha", yPrayers.optString("maghrib", "18:00"));
-                        prevSecs = parseTimeToSeconds(yIsha) - 24*3600; // map to negative seconds to represent yesterday
+                        prevPrayerTimeInMillis = parseTimeToMillis(yIsha) - 24L * 3600L * 1000L;
                     }
 
-                    long totalWindowMillis = (long) (prayerTimeInSeconds - prevSecs) * 1000L;
+                    long totalWindowMillis = prayerTimeInMillis - prevPrayerTimeInMillis;
                     return new NextPrayerInfo(prayerNames[i], formattedTime, displayCity(s.selectedLocation), millisUntil, totalWindowMillis);
                 }
             }
@@ -248,14 +255,14 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
             String fajrTime = tomorrowPrayers.optString("fajr", "05:30");
             String formattedTime = formatTime(fajrTime, s.timeFormat24h, s.arabicNumerals);
 
-            int fajrSecs = parseTimeToSeconds(fajrTime);
-            int secondsLeftToday = (24 * 3600) - currentTimeInSeconds;
-            long millisUntil = (secondsLeftToday + fajrSecs) * 1000L;
+            long fajrTimeInMillis = parseTimeToMillis(fajrTime);
+            long millisLeftToday = (24L * 3600L * 1000L) - currentTimeInMillis;
+            long millisUntil = millisLeftToday + fajrTimeInMillis;
             // previous is today's isha (or maghrib if missing)
             String ishaToday = todayPrayers.optString("isha", todayPrayers.optString("maghrib", "18:00"));
-            int ishaSecs = parseTimeToSeconds(ishaToday);
+            long ishaTimeInMillis = parseTimeToMillis(ishaToday);
             // window from today's isha to tomorrow fajr crosses midnight
-            long totalWindowMillis = (long) ((24*3600 - ishaSecs) + fajrSecs) * 1000L;
+            long totalWindowMillis = ((24L * 3600L * 1000L) - ishaTimeInMillis) + fajrTimeInMillis;
             return new NextPrayerInfo("\u0627\u0644\u0635\u0628\u062d (\u063a\u062f\u0627\u064b)", formattedTime, displayCity(s.selectedLocation), millisUntil, totalWindowMillis);
 
         } catch (Exception e) {
@@ -427,6 +434,17 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
         }
     }
 
+    private static long parseTimeToMillis(String timeStr) {
+        return parseTimeToSeconds(timeStr) * 1000L;
+    }
+
+    private static long getTimeOfDayMillis(Calendar calendar) {
+        return calendar.get(Calendar.HOUR_OF_DAY) * 3600_000L
+                + calendar.get(Calendar.MINUTE) * 60_000L
+                + calendar.get(Calendar.SECOND) * 1000L
+                + calendar.get(Calendar.MILLISECOND);
+    }
+
     private static String formatTime(String timeStr, boolean is24h, boolean arabicNumerals) {
         try {
             String[] parts = timeStr.split(":");
@@ -522,32 +540,44 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
             AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
             if (am == null) return;
 
-            // Use exact alarm where possible so widget switches exactly at prayer time
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi);
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi);
-            } else {
-                am.set(AlarmManager.RTC_WAKEUP, triggerAt, pi);
-            }
+            scheduleAlarm(am, triggerAt, pi);
 
             // Also trigger small widget provider directly to ensure it updates even if large path is skipped
             try {
                 Intent smallIntent = new Intent(context, PrayerWidgetSmallProvider.class)
-                        .setAction("com.hnjm123.ShiaPrayerLeb.action.UPDATE_NOW_SMALL");
+                        .setAction(ACTION_UPDATE_NOW_SMALL);
                 PendingIntent piSmall = PendingIntent.getBroadcast(
                         context,
-                        REQ_CODE_UPDATE + 2,
+                        REQ_CODE_UPDATE_SMALL,
                         smallIntent,
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                 );
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, piSmall);
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                    am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, piSmall);
-                } else {
-                    am.set(AlarmManager.RTC_WAKEUP, triggerAt, piSmall);
-                }
+                scheduleAlarm(am, triggerAt, piSmall);
+            } catch (Exception ignored) {}
+
+            long retryAt = triggerAt + WIDGET_UPDATE_RETRY_DELAY_MILLIS;
+            scheduleAlarm(
+                    am,
+                    retryAt,
+                    PendingIntent.getBroadcast(
+                            context,
+                            REQ_CODE_UPDATE_RETRY,
+                            new Intent(context, PrayerWidgetProvider.class).setAction(ACTION_UPDATE_NOW),
+                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                    )
+            );
+
+            try {
+                scheduleAlarm(
+                        am,
+                        retryAt,
+                        PendingIntent.getBroadcast(
+                                context,
+                                REQ_CODE_UPDATE_RETRY_SMALL,
+                                new Intent(context, PrayerWidgetSmallProvider.class).setAction(ACTION_UPDATE_NOW_SMALL),
+                                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                        )
+                );
             } catch (Exception ignored) {}
 
             // Safety fallback: schedule a secondary inexact update 30 minutes later
@@ -555,7 +585,7 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
             if (fallbackAt < triggerAt - 2 * 60 * 1000L || fallbackAt > triggerAt + 2 * 60 * 1000L) { // only if sufficiently different
                 PendingIntent fallbackPi = PendingIntent.getBroadcast(
                         context,
-                        REQ_CODE_UPDATE + 1,
+                        REQ_CODE_UPDATE_FALLBACK,
                         new Intent(context, PrayerWidgetProvider.class).setAction(ACTION_UPDATE_NOW),
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                 );
@@ -565,14 +595,29 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
                 try {
                     PendingIntent fallbackPiSmall = PendingIntent.getBroadcast(
                             context,
-                            REQ_CODE_UPDATE + 3,
-                            new Intent(context, PrayerWidgetSmallProvider.class).setAction("com.hnjm123.ShiaPrayerLeb.action.UPDATE_NOW_SMALL"),
+                            REQ_CODE_UPDATE_FALLBACK_SMALL,
+                            new Intent(context, PrayerWidgetSmallProvider.class).setAction(ACTION_UPDATE_NOW_SMALL),
                             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                     );
                     am.set(AlarmManager.RTC_WAKEUP, fallbackAt, fallbackPiSmall);
                 } catch (Exception ignored) {}
             }
         } catch (Exception ignored) {}
+    }
+
+    private static void scheduleAlarm(AlarmManager alarmManager, long triggerAt, PendingIntent pendingIntent) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
+            return;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
+        } else {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
+        }
     }
 
     public static void cancelScheduledUpdate(Context context) {
@@ -591,28 +636,43 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
                 // cancel fallback
                 PendingIntent fallbackPi = PendingIntent.getBroadcast(
                         context,
-                        REQ_CODE_UPDATE + 1,
+                        REQ_CODE_UPDATE_FALLBACK,
                         new Intent(context, PrayerWidgetProvider.class).setAction(ACTION_UPDATE_NOW),
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                 );
                 am.cancel(fallbackPi);
 
+                PendingIntent retryPi = PendingIntent.getBroadcast(
+                        context,
+                        REQ_CODE_UPDATE_RETRY,
+                        new Intent(context, PrayerWidgetProvider.class).setAction(ACTION_UPDATE_NOW),
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                am.cancel(retryPi);
+
                 // cancel small provider alarms
                 try {
                     PendingIntent piSmall = PendingIntent.getBroadcast(
                             context,
-                            REQ_CODE_UPDATE + 2,
-                            new Intent(context, PrayerWidgetSmallProvider.class).setAction("com.hnjm123.ShiaPrayerLeb.action.UPDATE_NOW_SMALL"),
+                            REQ_CODE_UPDATE_SMALL,
+                            new Intent(context, PrayerWidgetSmallProvider.class).setAction(ACTION_UPDATE_NOW_SMALL),
                             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                     );
                     am.cancel(piSmall);
                     PendingIntent fallbackPiSmall = PendingIntent.getBroadcast(
                             context,
-                            REQ_CODE_UPDATE + 3,
-                            new Intent(context, PrayerWidgetSmallProvider.class).setAction("com.hnjm123.ShiaPrayerLeb.action.UPDATE_NOW_SMALL"),
+                            REQ_CODE_UPDATE_FALLBACK_SMALL,
+                            new Intent(context, PrayerWidgetSmallProvider.class).setAction(ACTION_UPDATE_NOW_SMALL),
                             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                     );
                     am.cancel(fallbackPiSmall);
+                    PendingIntent retryPiSmall = PendingIntent.getBroadcast(
+                            context,
+                            REQ_CODE_UPDATE_RETRY_SMALL,
+                            new Intent(context, PrayerWidgetSmallProvider.class).setAction(ACTION_UPDATE_NOW_SMALL),
+                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                    );
+                    am.cancel(retryPiSmall);
                 } catch (Exception ignored) {}
             }
         } catch (Exception ignored) {}
@@ -638,13 +698,14 @@ public class PrayerWidgetProvider extends AppWidgetProvider {
             String[] order = {"fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha"};
 
             Calendar now = Calendar.getInstance();
-            int nowSec = now.get(Calendar.HOUR_OF_DAY) * 3600 + now.get(Calendar.MINUTE) * 60 + now.get(Calendar.SECOND);
+            long nowMillisOfDay = getTimeOfDayMillis(now);
+            long effectiveNowMillis = nowMillisOfDay + WIDGET_BOUNDARY_GRACE_MILLIS;
 
             for (String key : order) {
                 String time = todayPrayers.optString(key, null);
                 if (time == null) continue;
                 int secs = parseTimeToSeconds(time);
-                if (secs > nowSec) {
+                if (parseTimeToMillis(time) > effectiveNowMillis) {
                     Calendar trg = (Calendar) now.clone();
                     trg.set(Calendar.SECOND, secs % 60);
                     trg.set(Calendar.MILLISECOND, 0);

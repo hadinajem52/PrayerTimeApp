@@ -41,48 +41,78 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
     
     @ReactMethod
     fun forceUpdateCheck(promise: Promise) {
-        try {
-            // First check if device is online
-            val connectivityManager = reactApplicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val networkCapabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-            val isOnline = networkCapabilities != null && 
-                (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || 
-                 networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR))
-            
-            // Create a single result map that we'll populate based on conditions
+        // Check connectivity synchronously before launching coroutine
+        val connectivityManager = reactApplicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkCapabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+        val isOnline = networkCapabilities != null &&
+            (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+             networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR))
+
+        if (!isOnline) {
             val result = WritableNativeMap()
-            
-            if (!isOnline) {
-                // Return a specific status code for offline
-                result.putString("status", "offline")
-                result.putString("message", "Device is offline")
-                promise.resolve(result)
-                return
-            }
-            
-            // Create a one-time work request
-            val updateWork = OneTimeWorkRequestBuilder<PrayerTimeUpdateWorker>()
-                .build()
-            
-            // Enqueue the work with a unique name
-            WorkManager.getInstance(reactApplicationContext)
-                .enqueueUniqueWork(
-                    "manual_prayer_time_update",
-                    ExistingWorkPolicy.REPLACE,
-                    updateWork
-                )
-            
-            Log.d("PrayerApp", "Manual update check initiated, ID: ${updateWork.id}")
-            
-            // Since WorkManager runs asynchronously, we can't know immediately if it updated the data
-            // For simplicity, we'll return "updated" status - the worker will show notifications if needed
-            result.putString("status", "updated")
-            result.putString("message", "Prayer times check initiated")
+            result.putString("status", "offline")
+            result.putString("message", "Device is offline")
             promise.resolve(result)
-            
-        } catch (e: Exception) {
-            Log.e("PrayerApp", "Error during update check", e)
-            promise.reject("ERROR", "Failed to check for prayer time updates", e)
+            return
+        }
+
+        moduleScope.launch {
+            try {
+                val jsonUrl = URL("https://raw.githubusercontent.com/hadinajem52/PrayerTimeApp/refs/heads/main/assets/prayer_times.json")
+                val connection = jsonUrl.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 15000
+                connection.readTimeout = 15000
+
+                val responseCode = connection.responseCode
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    promise.reject("HTTP_ERROR", "Server returned error: $responseCode")
+                    return@launch
+                }
+
+                val reader = BufferedReader(InputStreamReader(connection.inputStream))
+                val response = StringBuilder()
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    response.append(line)
+                }
+                reader.close()
+
+                val jsonData = response.toString()
+                val remoteLastUpdated = try {
+                    JSONObject(jsonData).optString("last_updated", "")
+                } catch (e: Exception) { "" }
+
+                val localFile = File(reactApplicationContext.filesDir, "updated_prayer_times.json")
+                val localLastUpdated = if (localFile.exists()) {
+                    try { JSONObject(localFile.readText()).optString("last_updated", "") }
+                    catch (e: Exception) { "" }
+                } else ""
+
+                val result = WritableNativeMap()
+
+                if (remoteLastUpdated.isNotEmpty() && remoteLastUpdated != localLastUpdated) {
+                    localFile.writeText(jsonData)
+                    // Also update the worker's canonical file so the next scheduled
+                    // check doesn't see a stale timestamp and fire a redundant notification
+                    File(reactApplicationContext.filesDir, "prayer_times.json").writeText(jsonData)
+                    val prefs = reactApplicationContext.getSharedPreferences("PrayerAppPrefs", Context.MODE_PRIVATE)
+                    prefs.edit().putBoolean("HAS_UPDATED_PRAYER_DATA", true).apply()
+                    notifyWidgets()
+                    Log.d("PrayerApp", "Prayer times updated: $remoteLastUpdated")
+                    result.putString("status", "updated")
+                    result.putString("message", "Prayer times updated successfully")
+                } else {
+                    Log.d("PrayerApp", "Prayer times already up to date: $localLastUpdated")
+                    result.putString("status", "no_update")
+                    result.putString("message", "Prayer times are already up to date")
+                }
+
+                promise.resolve(result)
+            } catch (e: Exception) {
+                Log.e("PrayerApp", "Error during update check", e)
+                promise.reject("ERROR", "Failed to check for prayer time updates", e)
+            }
         }
     }
     
@@ -112,9 +142,9 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
     @ReactMethod
     fun saveUpdatedPrayerTimes(jsonData: String, promise: Promise) {
         try {
-            // Save to internal storage
-            val file = File(reactApplicationContext.filesDir, "updated_prayer_times.json")
-            file.writeText(jsonData)
+            // Save to both files so the worker, widgets, and JS all read the same data.
+            File(reactApplicationContext.filesDir, "updated_prayer_times.json").writeText(jsonData)
+            File(reactApplicationContext.filesDir, "prayer_times.json").writeText(jsonData)
             
             // Save last updated timestamp to SharedPreferences
             val sharedPrefs = reactApplicationContext.getSharedPreferences("PrayerAppPrefs", Context.MODE_PRIVATE)
@@ -183,9 +213,9 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                     inputStream.close()
                     val jsonData = stringBuilder.toString()
                     
-                    // Save to file
-                    val file = File(reactApplicationContext.filesDir, "updated_prayer_times.json")
-                    file.writeText(jsonData)
+                    // Save to both files so all update paths stay in sync
+                    File(reactApplicationContext.filesDir, "updated_prayer_times.json").writeText(jsonData)
+                    File(reactApplicationContext.filesDir, "prayer_times.json").writeText(jsonData)
                     
                     // Set update flag
                     val prefs = reactApplicationContext.getSharedPreferences("PrayerAppPrefs", Context.MODE_PRIVATE)

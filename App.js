@@ -59,6 +59,7 @@ import { TRANSLATIONS } from './constants/translations/app';
 import {
   NOTIF_CHANNEL_SOUND,
   NOTIF_CHANNEL_DEFAULT,
+  NOTIF_CHANNEL_BACKGROUND,
   NOTIF_MIGRATED_V2_KEY,
   NOTIF_PRAYER_ID_PREFIX,
 } from './constants/notificationConfig';
@@ -641,6 +642,15 @@ function MainApp() {
         importance: AndroidImportance.MAX,
         vibration: true,
         sound: 'default',
+      });
+
+      // Low-priority channel used only to keep the rolling schedule alive.
+      await notifee.createChannel({
+        id: NOTIF_CHANNEL_BACKGROUND,
+        name: 'Prayer Background Refresh',
+        importance: AndroidImportance.MIN,
+        vibration: false,
+        badge: false,
       });
 
       console.log('Notification channels created');

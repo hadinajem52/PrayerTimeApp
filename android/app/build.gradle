@@ -27,8 +27,8 @@ android {
         applicationId 'com.hnjm123.ShiaPrayerLeb'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion 
-    versionCode 66
-    versionName "3.0"
+    versionCode 69
+    versionName "3.3"
     }
      lint {
         disable 'ExpiredTargetSdkVersion'
@@ -69,8 +69,9 @@ android {
     
     packagingOptions {
         jniLibs {
-            // AGP 8.5.1+ automatically aligns uncompressed native libraries for 16 KB page size support
-            useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
+            // Must be false so AGP 8.5.1+ automatically aligns native libs to 16 KB page size boundaries.
+            // Required by Google Play for apps targeting Android 15+ (from Nov 2025).
+            useLegacyPackaging false
         }
     }
     

@@ -1,0 +1,23 @@
+package com.hnjm123.ShiaPrayerLeb
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.util.Log
+
+class PrayerUpdateRescheduleReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        when (intent.action) {
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_MY_PACKAGE_REPLACED -> {
+                Log.d(TAG, "Received ${intent.action}; rescheduling prayer update alarm")
+                PrayerUpdateAlarmReceiver.scheduleNextAlarm(context)
+            }
+        }
+    }
+
+    companion object {
+        private const val TAG = "PrayerAlarm"
+    }
+}

@@ -3,16 +3,62 @@ import notifee, { EventType } from '@notifee/react-native';
 import {
   schedulePrayerNotificationsRaw,
   scheduleNightlyRefreshTrigger,
+  getPrayerTimesForDayStatic,
 } from './hooks/useNotificationScheduler';
-import { BG_STORAGE_KEYS } from './constants/notificationConfig';
+import {
+  BG_PRAYER_TIMES_KEY,
+  BG_STORAGE_KEYS,
+  NOTIF_REFRESH_ID,
+  NOTIF_ROLLING_WINDOW_DAYS,
+} from './constants/notificationConfig';
 
 import App from './App';
 
+function hasPrayerDataCoverage(locationData, days = NOTIF_ROLLING_WINDOW_DAYS, startDate = new Date()) {
+  if (!Array.isArray(locationData) || locationData.length === 0) return false;
+
+  for (let i = 0; i < days; i++) {
+    const targetDate = new Date(startDate);
+    targetDate.setDate(targetDate.getDate() + i);
+
+    if (!getPrayerTimesForDayStatic(locationData, targetDate)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function loadLatestPrayerTimes(AsyncStorageBg) {
+  const { NativeModules } = require('react-native');
+
+  try {
+    const updatedRaw = await NativeModules.UpdateModule?.getUpdatedPrayerTimes?.();
+    if (updatedRaw) {
+      await AsyncStorageBg.setItem(BG_PRAYER_TIMES_KEY, updatedRaw);
+      return JSON.parse(updatedRaw);
+    }
+  } catch (error) {
+    console.warn('[Background] Failed to read native prayer times file:', error);
+  }
+
+  try {
+    const cachedRaw = await AsyncStorageBg.getItem(BG_PRAYER_TIMES_KEY);
+    if (cachedRaw) {
+      return JSON.parse(cachedRaw);
+    }
+  } catch (error) {
+    console.warn('[Background] Failed to read cached prayer times:', error);
+  }
+
+  return require('./assets/prayer_times.json');
+}
+
 notifee.onBackgroundEvent(async ({ type, detail }) => {
-  if (type !== EventType.TRIGGER) return;
+  if (type !== EventType.DELIVERED) return;
 
   const { notification } = detail;
-  if (notification?.data?.type !== 'refresh') return;
+  if (notification?.id !== NOTIF_REFRESH_ID && notification?.data?.type !== 'refresh') return;
 
   console.log('[Background] Daily refresh trigger received — rescheduling prayers');
 
@@ -34,13 +80,25 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
       ? JSON.parse(enabledPrayersRaw)
       : { imsak: true, fajr: true, shuruq: true, dhuhr: true, asr: true, maghrib: true, isha: true, midnight: true };
 
-    // Load prayer data from the bundled asset (always available)
-    let prayerTimes;
     try {
-      const updatedRaw = await AsyncStorageBg.getItem('updatedPrayerTimes');
-      prayerTimes = updatedRaw ? JSON.parse(updatedRaw) : require('./assets/prayer_times.json');
+      await notifee.cancelDisplayedNotification(notification.id);
     } catch (_) {
-      prayerTimes = require('./assets/prayer_times.json');
+      // The refresh notification may already be gone.
+    }
+
+    let prayerTimes = await loadLatestPrayerTimes(AsyncStorageBg);
+
+    if (!hasPrayerDataCoverage(prayerTimes?.[location])) {
+      const { NativeModules } = require('react-native');
+
+      try {
+        const updateResult = await NativeModules.UpdateModule?.forceUpdateCheck?.();
+        if (updateResult?.status === 'updated' || updateResult?.status === 'no_update') {
+          prayerTimes = await loadLatestPrayerTimes(AsyncStorageBg);
+        }
+      } catch (error) {
+        console.warn('[Background] Failed to refresh prayer times before scheduling:', error);
+      }
     }
 
     const locationData = prayerTimes?.[location];
@@ -55,7 +113,7 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
       enabledPrayers,
       language,
       usePrayerSound,
-      7
+      NOTIF_ROLLING_WINDOW_DAYS
     );
     console.log(`[Background] Rescheduled ${scheduled.length} notifications`);
   } catch (err) {
