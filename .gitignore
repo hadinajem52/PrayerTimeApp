@@ -17,7 +17,15 @@ android/build/
 android/app/build/
 android/local.properties
 android/captures/
+android/app/release/
+android/.cxx/
+android/app/.cxx/
 *.iml
+*.hprof
+
+# Android build artifacts
+*.apk
+*.aab
 
 # Native
 *.orig.*
@@ -31,18 +39,26 @@ keystore.properties
 
 # Metro
 .metro-health-check*
+.expo-shared/
+.eas/
 
 # debug
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
 
-# macOS
+# macOS / Windows
 .DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 *.pem
 
 # local env files
-.env*.local
+.env
+.env.*
+!.env.example
 
 # typescript
 *.tsbuildinfo
@@ -54,3 +70,19 @@ android/app/google-services.json
 
 
 
+
+# IDE / editors
+.idea/
+.vscode/*
+!.vscode/tasks.json
+*.swp
+
+# Python (extract_prayer_times.py)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / misc temp
+*.tmp
+.cache/
