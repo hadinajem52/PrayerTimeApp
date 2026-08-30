@@ -12,6 +12,7 @@ import {
   NOTIF_ROLLING_WINDOW_DAYS,
 } from './constants/notificationConfig';
 import { DEFAULT_ADHAN_VOICE, isKnownAdhanVoice } from './constants/adhanConfig';
+import { showCountdownNotification } from './utils/countdownNotification';
 
 import App from './App';
 
@@ -59,6 +60,34 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
   if (type !== EventType.DELIVERED) return;
 
   const { notification } = detail;
+
+  // The countdown's silent trigger fires the instant a prayer arrives: swap the
+  // ongoing notification over to the next prayer and arm the following one.
+  if (notification?.data?.type === 'countdown-refresh') {
+    try {
+      await notifee.cancelDisplayedNotification(notification.id);
+    } catch (_) { }
+    try {
+      const AsyncStorageBg = require('@react-native-async-storage/async-storage').default;
+      const [showRaw, locationRaw, languageRaw] = await Promise.all([
+        AsyncStorageBg.getItem(BG_STORAGE_KEYS.SHOW_COUNTDOWN),
+        AsyncStorageBg.getItem(BG_STORAGE_KEYS.SELECTED_LOCATION),
+        AsyncStorageBg.getItem(BG_STORAGE_KEYS.LANGUAGE),
+      ]);
+      if (showRaw !== 'true') return; // turned off since the trigger was armed
+
+      const prayerTimes = await loadLatestPrayerTimes(AsyncStorageBg);
+      const locationData = prayerTimes?.[locationRaw || 'beirut'];
+      if (!locationData) return;
+
+      const next = await showCountdownNotification(locationData, languageRaw || 'en');
+      console.log('[Background] Countdown advanced to', next?.key);
+    } catch (err) {
+      console.error('[Background] Failed to advance countdown:', err);
+    }
+    return;
+  }
+
   if (notification?.id !== NOTIF_REFRESH_ID && notification?.data?.type !== 'refresh') return;
 
   console.log('[Background] Daily refresh trigger received — rescheduling prayers');
@@ -124,6 +153,17 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
       NOTIF_ROLLING_WINDOW_DAYS
     );
     console.log(`[Background] Rescheduled ${scheduled.length} notifications`);
+
+    // Re-anchor the countdown too - its own trigger can be lost to a reboot or
+    // a force-stop, and this runs every night regardless.
+    try {
+      const showCountdownRaw = await AsyncStorageBg.getItem(BG_STORAGE_KEYS.SHOW_COUNTDOWN);
+      if (showCountdownRaw === 'true') {
+        await showCountdownNotification(locationData, language);
+      }
+    } catch (error) {
+      console.warn('[Background] Failed to refresh countdown notification:', error);
+    }
   } catch (err) {
     console.error('[Background] Failed to reschedule prayers:', err);
   } finally {

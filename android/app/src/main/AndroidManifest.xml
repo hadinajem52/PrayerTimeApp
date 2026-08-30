@@ -43,6 +43,21 @@
       </intent-filter>
     </activity>
     <receiver android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationPublisher" android:exported="false"/>
+
+    <!-- Android clears an app's AlarmManager alarms when the package is replaced,
+         but notifee's restore receiver only listens for BOOT_COMPLETED. Without
+         this, every Play Store update silently stops prayer notifications until
+         the user next opens the app. Its onReceive ignores the intent action and
+         just restores every trigger, so pointing MY_PACKAGE_REPLACED at it is
+         enough - no extra code needed. -->
+    <receiver
+      android:name="app.notifee.core.RebootBroadcastReceiver"
+      android:exported="false"
+      tools:node="merge">
+      <intent-filter>
+        <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+      </intent-filter>
+    </receiver>
     
     <!-- Prayer Widget Provider -->
   <receiver android:name=".PrayerWidgetProvider" android:exported="true">

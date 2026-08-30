@@ -10,9 +10,15 @@
 export const NOTIF_CHANNEL_SOUND_LEGACY = 'prayer-channel-sound-v2';
 export const NOTIF_CHANNEL_DEFAULT = 'prayer-channel-default-v2';
 export const NOTIF_CHANNEL_BACKGROUND = 'prayer-channel-background-v1';
+// Silent, MIN-importance channel for the persistent next-prayer countdown.
+export const NOTIF_CHANNEL_COUNTDOWN = 'prayer-countdown-v1';
 
-// ── Special trigger notification ID ─────────────────────────────────────────
+// ── Special trigger notification IDs ────────────────────────────────────────
 export const NOTIF_REFRESH_ID = 'daily-refresh';
+// The ongoing countdown, plus the silent trigger that advances it to the next
+// prayer the moment the current one arrives.
+export const NOTIF_COUNTDOWN_ID = 'prayer-countdown';
+export const NOTIF_COUNTDOWN_REFRESH_ID = 'prayer-countdown-refresh';
 
 // ── Prefix used for individual prayer trigger IDs (prayer_YYYYMMDD_key) ─────
 export const NOTIF_PRAYER_ID_PREFIX = 'prayer_';
@@ -33,6 +39,7 @@ export const BG_STORAGE_KEYS = {
   USE_PRAYER_SOUND:  'usePrayerSound',
   ADHAN_VOICE:       'adhanVoice',
   ADHAN_FULL:        'adhanFullVersion',
+  SHOW_COUNTDOWN:    'showCountdownNotification',
 };
 
 export const BG_PRAYER_TIMES_KEY = 'updatedPrayerTimes';

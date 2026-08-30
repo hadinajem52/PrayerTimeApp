@@ -63,6 +63,10 @@ import {
 } from './constants/notificationConfig';
 import { DEFAULT_ADHAN_VOICE, adhanChannelId } from './constants/adhanConfig';
 import {
+  showCountdownNotification,
+  hideCountdownNotification,
+} from './utils/countdownNotification';
+import {
   ensureAdhanChannel,
   ensureDefaultSoundChannel,
   ensureBackgroundChannel,
@@ -896,6 +900,27 @@ function MainApp() {
     };
   }, [refreshPrayerTimes]);
 
+  // Persistent next-prayer countdown. Android ticks the digits itself from the
+  // notification's timestamp, so this only needs to run when what it is counting
+  // down to could have changed - not once a second.
+  useEffect(() => {
+    const syncCountdownNotification = async () => {
+      if (!isSettingsLoaded) return;
+      try {
+        if (settings.showCountdownNotification !== true) {
+          await hideCountdownNotification();
+          return;
+        }
+        if (!locationData || locationData.length === 0) return;
+        const next = await showCountdownNotification(locationData, language);
+        console.log('[Countdown] Counting down to', next?.key);
+      } catch (e) {
+        console.error('[Countdown] Failed to sync countdown notification:', e);
+      }
+    };
+    syncCountdownNotification();
+  }, [settings.showCountdownNotification, isSettingsLoaded, locationData, language]);
+
   // Apply notification sound preference immediately by rescheduling upcoming notifications
   useEffect(() => {
     const seq = ++soundChangeSeqRef.current;
@@ -1489,6 +1514,8 @@ function MainApp() {
           updateAdhanVoice={(value) => setSettings(prev => ({ ...prev, adhanVoice: value }))}
           adhanFullVersion={settings.adhanFullVersion === true}
           updateAdhanFullVersion={(value) => setSettings(prev => ({ ...prev, adhanFullVersion: value }))}
+          showCountdownNotification={settings.showCountdownNotification === true}
+          updateShowCountdownNotification={(value) => setSettings(prev => ({ ...prev, showCountdownNotification: value }))}
         />
       </Modal>
 

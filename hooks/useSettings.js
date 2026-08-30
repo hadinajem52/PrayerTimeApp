@@ -29,6 +29,7 @@ const initialSettings = {
   usePrayerSound: true, // true for prayer sound, false for OS default sound
   adhanVoice: DEFAULT_ADHAN_VOICE,
   adhanFullVersion: DEFAULT_ADHAN_FULL, // false = shortened recitation
+  showCountdownNotification: false, // persistent next-prayer countdown, opt-in
 };
 
 // Helper function to notify all listeners when settings change
@@ -49,6 +50,7 @@ const mirrorBgKeys = (s) => {
     [BG_STORAGE_KEYS.USE_PRAYER_SOUND,  String(s.usePrayerSound !== false)],
     [BG_STORAGE_KEYS.ADHAN_VOICE,       s.adhanVoice || DEFAULT_ADHAN_VOICE],
     [BG_STORAGE_KEYS.ADHAN_FULL,        String(s.adhanFullVersion === true)],
+    [BG_STORAGE_KEYS.SHOW_COUNTDOWN,    String(s.showCountdownNotification === true)],
   ]).catch(e => console.warn('[Settings] Failed to mirror bg keys:', e));
 };
 

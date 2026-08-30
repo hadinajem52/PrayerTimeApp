@@ -16,6 +16,8 @@ const NotificationsSection = ({
   updateAdhanVoice,
   adhanFullVersion,
   updateAdhanFullVersion,
+  showCountdownNotification,
+  updateShowCountdownNotification,
   alarmPermissionGranted,
   onRequestAlarmPermission,
   isBatteryOptimizationEnabled,
@@ -122,6 +124,34 @@ const NotificationsSection = ({
             </Text>
           </>
         )}
+      </View>
+
+      <View style={[styles.section, isDarkMode && styles.darkSection]}>
+        <Text style={[styles.sectionTitle, isDarkMode && styles.darkSectionTitle]}>
+          {translations.countdownNotification}
+        </Text>
+
+        <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+          <Text
+            style={[
+              styles.settingLabel,
+              isDarkMode && styles.darkSettingLabel,
+              isRTL && styles.rtlText,
+            ]}
+          >
+            {translations.countdownNotificationSetting}
+          </Text>
+          <Switch
+            value={showCountdownNotification}
+            onValueChange={updateShowCountdownNotification}
+            trackColor={switchTrack}
+            thumbColor={thumb(showCountdownNotification)}
+          />
+        </View>
+
+        <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
+          {translations.countdownNotificationDescription}
+        </Text>
       </View>
 
       <AdhanPicker

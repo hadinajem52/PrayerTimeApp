@@ -56,6 +56,9 @@ export const TRANSLATIONS = {
     pausePreview: "Pause preview",
     previewFullHint: "Previewing the full adhan",
     previewCuttedHint: "Previewing the shortened adhan",
+    countdownNotification: "Prayer Countdown",
+    countdownNotificationSetting: "Show Countdown in Notifications",
+    countdownNotificationDescription: "Keep a permanent notification showing the time remaining until the next prayer",
   },
   ar: {
     settings: "الإعدادات",
@@ -114,5 +117,8 @@ export const TRANSLATIONS = {
     pausePreview: "إيقاف",
     previewFullHint: "استماع إلى الأذان الكامل",
     previewCuttedHint: "استماع إلى الأذان المختصر",
+    countdownNotification: "العد التنازلي للصلاة",
+    countdownNotificationSetting: "إظهار العد التنازلي في الإشعارات",
+    countdownNotificationDescription: "إبقاء إشعار دائم يعرض الوقت المتبقي حتى الصلاة القادمة",
   },
 };

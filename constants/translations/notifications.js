@@ -13,6 +13,7 @@ export const TRANSLATIONS = {
     shuruq: "Sunrise",
     imsak: "Imsak",
     midnight: "Midnight",
+    countdownBody: "Time remaining until the next prayer",
   },
   ar: {
     prayerTime: "وقت الصلاة",
@@ -28,5 +29,6 @@ export const TRANSLATIONS = {
     shuruq: "الشروق",
     imsak: "الإمساك",
     midnight: "منتصف الليل",
+    countdownBody: "الوقت المتبقي حتى الصلاة القادمة",
   },
 };

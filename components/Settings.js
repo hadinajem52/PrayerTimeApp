@@ -41,7 +41,9 @@ const Settings = ({
   adhanVoice,
   updateAdhanVoice,
   adhanFullVersion,
-  updateAdhanFullVersion
+  updateAdhanFullVersion,
+  showCountdownNotification,
+  updateShowCountdownNotification
 }) => {
   const translations = TRANSLATIONS[language];
   const [settings, setSettings] = useSettings();
@@ -216,6 +218,8 @@ const Settings = ({
           updateAdhanVoice={updateAdhanVoice}
           adhanFullVersion={adhanFullVersion}
           updateAdhanFullVersion={updateAdhanFullVersion}
+          showCountdownNotification={showCountdownNotification}
+          updateShowCountdownNotification={updateShowCountdownNotification}
           alarmPermissionGranted={alarmPermissionGranted}
           onRequestAlarmPermission={handleRequestAlarmPermission}
           isBatteryOptimizationEnabled={isBatteryOptimizationEnabled}

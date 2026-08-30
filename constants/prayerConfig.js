@@ -4,6 +4,12 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 
 export const PRAYER_ORDER = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
 
+// What the persistent countdown notification counts down to: the five prayers
+// only. Imsak, shuruq and midnight are time markers rather than prayers - the
+// same distinction Countdown.js already makes when it picks between the
+// "prayer" and "time" progress-bar labels.
+export const COUNTDOWN_PRAYER_ORDER = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+
 export const PRAYER_ICONS = {
   imsak: 'cloudy-night',
   fajr: 'sunrise',
