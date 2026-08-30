@@ -23,6 +23,30 @@ buildscript {
     }
 }
 
+// ─── Local debug builds: narrow the ABI set ──────────────────────────────────
+// The per-ABI `configureCMakeDebug[<abi>]` tasks that the new architecture adds
+// to :app, :expo-modules-core, :react-native-gesture-handler and
+// :react-native-screens account for ~90% of a no-op debug build (33s of 36s),
+// and they scale linearly with the number of ABIs.
+//
+// Debug builds only need the ABI of the device or emulator you actually run on,
+// so they default to arm64-v8a (physical devices) + x86_64 (emulators). Release
+// and bundle tasks are explicitly excluded and still produce all four, so what
+// ships is unchanged. Override with:
+//     ./gradlew assembleDebug -PdebugArchitectures=arm64-v8a
+def requestedTasks = gradle.startParameter.taskNames.join(" ").toLowerCase()
+def buildsForRelease = requestedTasks.contains("release") || requestedTasks.contains("bundle")
+
+if (!requestedTasks.isEmpty() && !buildsForRelease) {
+    def shippedAbis = findProperty("reactNativeArchitectures")
+    def debugAbis = (findProperty("debugArchitectures") ?: "arm64-v8a,x86_64").toString()
+    allprojects {
+        project.ext.set("reactNativeArchitectures", debugAbis)
+    }
+    logger.lifecycle("Debug build: limiting ABIs to ${debugAbis} " +
+                     "(release/bundle still builds all of ${shippedAbis})")
+}
+
 apply plugin: "com.facebook.react.rootproject"
 
 allprojects {
