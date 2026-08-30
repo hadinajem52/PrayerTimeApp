@@ -8,7 +8,15 @@
   <uses-permission android:name="android.permission.CAMERA"/>
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+  <!-- Prayer notifications have to fire at the exact prayer time, so this app is
+       in the alarm-clock class that USE_EXACT_ALARM is intended for. It is granted
+       automatically on Android 13+ and cannot be revoked, which is what makes the
+       adhan reliable there.
+       SCHEDULE_EXACT_ALARM stays for Android 12 only (API 31-32), where
+       USE_EXACT_ALARM does not exist; capping it avoids asking newer devices for a
+       permission they no longer need. -->
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32"/>
+  <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
