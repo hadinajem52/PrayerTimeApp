@@ -4,13 +4,15 @@ import moment from 'moment-hijri';
 import { usePrayerTimes } from '../components/PrayerTimesProvider';
 import { TRANSLATIONS } from '../constants/translations/notifications';
 import {
-  NOTIF_CHANNEL_SOUND,
-  NOTIF_CHANNEL_DEFAULT,
   NOTIF_CHANNEL_BACKGROUND,
   NOTIF_REFRESH_ID,
   NOTIF_PRAYER_ID_PREFIX,
   NOTIF_ROLLING_WINDOW_DAYS,
 } from '../constants/notificationConfig';
+import {
+  resolveNotificationChannel,
+  ensureBackgroundChannel,
+} from '../utils/notificationChannels';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure helpers – no hooks, safe to call from onBackgroundEvent
@@ -67,7 +69,7 @@ export function getPrayerTimesForDayStatic(locationData, date = new Date()) {
  * @param {object[]} locationData   - Array of daily prayer objects for a location
  * @param {object}   enabledPrayers - { fajr: true, dhuhr: false, … }
  * @param {string}   language       - 'en' | 'ar'
- * @param {boolean}  usePrayerSound - Channel selection flag
+ * @param {object}   soundConfig    - { usePrayerSound, adhanVoice, adhanFullVersion }
  * @param {number}   days           - How many days to schedule (default 7)
  * @param {Date}     startDate      - Starting date (default today)
  * @returns {string[]} Array of scheduled notification IDs
@@ -76,13 +78,13 @@ export async function schedulePrayerNotificationsRaw(
   locationData,
   enabledPrayers,
   language,
-  usePrayerSound,
+  soundConfig,
   days = NOTIF_ROLLING_WINDOW_DAYS,
   startDate = new Date()
 ) {
   if (!locationData || !enabledPrayers) return [];
 
-  const channelId = usePrayerSound ? NOTIF_CHANNEL_SOUND : NOTIF_CHANNEL_DEFAULT;
+  const channelId = await resolveNotificationChannel(soundConfig, language);
 
   // Snapshot existing scheduled IDs upfront to skip duplicates
   const existing = await notifee.getTriggerNotifications();
@@ -163,6 +165,8 @@ export async function schedulePrayerNotificationsRaw(
  * what to do with it.
  */
 export async function scheduleNightlyRefreshTrigger() {
+  await ensureBackgroundChannel();
+
   // Always cancel and re-create so the timestamp stays current
   try {
     await notifee.cancelTriggerNotification(NOTIF_REFRESH_ID);
@@ -208,7 +212,8 @@ export async function scheduleNightlyRefreshTrigger() {
 // React hook – wraps the pure helpers and exposes the same API as before
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const useNotificationScheduler = (language, usePrayerSound = true) => {
+export const useNotificationScheduler = (language, soundConfig = {}) => {
+  const { usePrayerSound = true, adhanVoice, adhanFullVersion = false } = soundConfig;
   const [isLoading, setIsLoading] = useState(true);
   const [isOperationInProgress, setIsOperationInProgress] = useState(false);
   const [isDataAvailable, setIsDataAvailable] = useState(false);
@@ -238,7 +243,10 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
 
       const prayerName = translateNotification(language, prayerKey);
       const isPrayer = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].includes(prayerKey);
-      const channelId = usePrayerSound ? NOTIF_CHANNEL_SOUND : NOTIF_CHANNEL_DEFAULT;
+      const channelId = await resolveNotificationChannel(
+        { usePrayerSound, adhanVoice, adhanFullVersion },
+        language
+      );
 
       const trigger = {
         type: TriggerType.TIMESTAMP,
@@ -271,7 +279,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
     } finally {
       setIsOperationInProgress(false);
     }
-  }, [language, usePrayerSound]);
+  }, [language, usePrayerSound, adhanVoice, adhanFullVersion]);
 
   // ── Cancel helpers ────────────────────────────────────────────────────────
 
@@ -320,7 +328,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
         locationData,
         enabledPrayers,
         language,
-        usePrayerSound,
+        { usePrayerSound, adhanVoice, adhanFullVersion },
         days
       );
       return ids;
@@ -330,7 +338,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
     } finally {
       setIsOperationInProgress(false);
     }
-  }, [prayerTimes, language, usePrayerSound]);
+  }, [prayerTimes, language, usePrayerSound, adhanVoice, adhanFullVersion]);
 
   // ── Rolling scheduling (window + nightly refresh trigger) ─────────────────
 
@@ -352,7 +360,10 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
   const triggerTestNotification = useCallback(async () => {
     try {
       setIsOperationInProgress(true);
-      const channelId = usePrayerSound ? NOTIF_CHANNEL_SOUND : NOTIF_CHANNEL_DEFAULT;
+      const channelId = await resolveNotificationChannel(
+        { usePrayerSound, adhanVoice, adhanFullVersion },
+        language
+      );
       await notifee.displayNotification({
         title: translateNotification(language, 'prayerTime'),
         body: translateNotification(language, 'prayerApproaching', {
@@ -369,7 +380,7 @@ export const useNotificationScheduler = (language, usePrayerSound = true) => {
     } finally {
       setIsOperationInProgress(false);
     }
-  }, [usePrayerSound, language]);
+  }, [usePrayerSound, adhanVoice, adhanFullVersion, language]);
 
   return {
     scheduleLocalNotification,

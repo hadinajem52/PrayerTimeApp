@@ -305,4 +305,104 @@ export default StyleSheet.create({
   darkAppVersionText: {
     color: '#aaa',
   },
+
+  // ── Adhan voice picker ──────────────────────────────────────────────────
+  adhanDropdown: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  darkAdhanDropdown: {
+    borderTopColor: '#333',
+  },
+  adhanDropdownRTL: {
+    flexDirection: 'row-reverse',
+  },
+  adhanDropdownLabels: {
+    flex: 1,
+    marginRight: 8,
+  },
+  adhanDropdownValue: {
+    fontSize: moderateScale(13),
+    color: '#059669',
+    marginTop: 2,
+  },
+  darkAdhanDropdownValue: {
+    color: '#D4AF37',
+  },
+  adhanModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  adhanModalContent: {
+    width: '100%',
+    maxHeight: '75%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  darkAdhanModalContent: {
+    backgroundColor: '#0F172A',
+  },
+  adhanModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  darkAdhanModalHeader: {
+    borderBottomColor: '#333',
+  },
+  adhanModalTitle: {
+    flex: 1,
+    fontSize: moderateScale(16),
+    fontWeight: '600',
+    color: '#333',
+  },
+  darkAdhanModalTitle: {
+    color: '#fff',
+  },
+  adhanOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  darkAdhanOption: {
+    borderTopColor: '#333',
+  },
+  adhanOptionRTL: {
+    flexDirection: 'row-reverse',
+  },
+  adhanOptionText: {
+    flex: 1,
+    fontSize: moderateScale(15),
+    color: '#333',
+    marginHorizontal: 12,
+    lineHeight: moderateScale(21),
+  },
+  darkAdhanOptionText: {
+    color: '#fff',
+  },
+  adhanPlayButton: {
+    width: moderateScale(34),
+    height: moderateScale(34),
+    borderRadius: moderateScale(17),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(128, 128, 128, 0.35)',
+  },
 });

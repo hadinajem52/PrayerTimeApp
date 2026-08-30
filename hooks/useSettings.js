@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BG_STORAGE_KEYS } from '../constants/notificationConfig';
+import { DEFAULT_ADHAN_VOICE, DEFAULT_ADHAN_FULL } from '../constants/adhanConfig';
 
 // Singleton pattern to ensure all components share the same settings state
 let currentSettings = null;
@@ -26,6 +27,8 @@ const initialSettings = {
   timeFormat: '12h',
   useArabicNumerals: true,
   usePrayerSound: true, // true for prayer sound, false for OS default sound
+  adhanVoice: DEFAULT_ADHAN_VOICE,
+  adhanFullVersion: DEFAULT_ADHAN_FULL, // false = shortened recitation
 };
 
 // Helper function to notify all listeners when settings change
@@ -34,8 +37,8 @@ const notifyListeners = (newSettings) => {
 };
 
 /**
- * Mirror the four keys that onBackgroundEvent needs as flat AsyncStorage
- * entries so they can be read without React context.
+ * Mirror the keys that onBackgroundEvent needs as flat AsyncStorage entries so
+ * they can be read without React context.
  */
 const mirrorBgKeys = (s) => {
   if (!s) return;
@@ -44,6 +47,8 @@ const mirrorBgKeys = (s) => {
     [BG_STORAGE_KEYS.ENABLED_PRAYERS,   JSON.stringify(s.enabledPrayers || {})],
     [BG_STORAGE_KEYS.LANGUAGE,          s.language || 'en'],
     [BG_STORAGE_KEYS.USE_PRAYER_SOUND,  String(s.usePrayerSound !== false)],
+    [BG_STORAGE_KEYS.ADHAN_VOICE,       s.adhanVoice || DEFAULT_ADHAN_VOICE],
+    [BG_STORAGE_KEYS.ADHAN_FULL,        String(s.adhanFullVersion === true)],
   ]).catch(e => console.warn('[Settings] Failed to mirror bg keys:', e));
 };
 

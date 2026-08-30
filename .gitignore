@@ -86,3 +86,11 @@ venv/
 # OS / misc temp
 *.tmp
 .cache/
+
+# Adhan master recordings (~69 MB). Not needed to build - the shipped Ogg/Opus
+# files in android/app/src/main/res/raw are generated from these by
+# scripts/optimize-adhans.py and ARE tracked. Keep the masters backed up
+# outside git.
+audio-sources/
+
+/.opencode

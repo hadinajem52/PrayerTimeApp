@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import moment from 'moment-hijri';
 import dailyQuotes from './data/quotes';
 import QiblaFinderWebView from './QiblaFinderWebView';
-import notifee, { AndroidImportance } from '@notifee/react-native';
+import notifee from '@notifee/react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 import styles from './styles/appStyles';
@@ -57,12 +57,17 @@ import QuoteIconButton from './components/QuoteIconButton';
 import LocationItem from './components/LocationItem';
 import { TRANSLATIONS } from './constants/translations/app';
 import {
-  NOTIF_CHANNEL_SOUND,
-  NOTIF_CHANNEL_DEFAULT,
-  NOTIF_CHANNEL_BACKGROUND,
-  NOTIF_MIGRATED_V2_KEY,
+  NOTIF_CHANNEL_SOUND_LEGACY,
+  NOTIF_MIGRATED_V3_KEY,
   NOTIF_PRAYER_ID_PREFIX,
 } from './constants/notificationConfig';
+import { DEFAULT_ADHAN_VOICE, adhanChannelId } from './constants/adhanConfig';
+import {
+  ensureAdhanChannel,
+  ensureDefaultSoundChannel,
+  ensureBackgroundChannel,
+  pruneUnusedAdhanChannels,
+} from './utils/notificationChannels';
 
 
 // ----- Main App Component -----
@@ -115,12 +120,19 @@ function MainApp() {
     cancelLocalNotification,
     isLoading: notificationsLoading,
     isDataAvailable,
-  } = useNotificationScheduler(language, settings.usePrayerSound ?? true);
+  } = useNotificationScheduler(language, {
+    usePrayerSound: settings.usePrayerSound ?? true,
+    adhanVoice: settings.adhanVoice || DEFAULT_ADHAN_VOICE,
+    adhanFullVersion: settings.adhanFullVersion === true,
+  });
 
   const animation = useRef(new Animated.Value(0)).current;
   const cardScaleAnim = useRef(new Animated.Value(1)).current;
   const locationChangeAnim = useRef(new Animated.Value(1)).current;
   const navigationBarAnim = useRef(new Animated.Value(1)).current;
+  // Guards the async sound-change reschedule: a run that has been superseded by
+  // a newer selection must not prune channels or publish stale results.
+  const soundChangeSeqRef = useRef(0);
   const settingsButtonAnim = useRef(new Animated.Value(1)).current;
   const calendarButtonAnim = useRef(new Animated.Value(1)).current;
   const locationButtonAnim = useRef(new Animated.Value(1)).current;
@@ -624,76 +636,57 @@ function MainApp() {
     requestPermissions();
   }, [language]);
 
+  // A channel's sound is frozen at creation, so each adhan needs its own
+  // channel. Only the selected one is ever created. Stale channels are pruned
+  // by the reschedule effect below, once nothing is scheduled on them any more.
   useEffect(() => {
     async function createChannels() {
-      // Channel with custom adhan sound
-      await notifee.createChannel({
-        id: NOTIF_CHANNEL_SOUND,
-        name: 'Prayer Notifications (Adhan)',
-        importance: AndroidImportance.MAX,
-        sound: 'prayersound',
-        vibration: true,
-      });
+      if (!isSettingsLoaded) return;
+      try {
+        await ensureDefaultSoundChannel();
+        await ensureBackgroundChannel();
 
-      // Channel with default system sound
-      await notifee.createChannel({
-        id: NOTIF_CHANNEL_DEFAULT,
-        name: 'Prayer Notifications (Default)',
-        importance: AndroidImportance.MAX,
-        vibration: true,
-        sound: 'default',
-      });
+        const activeId = await ensureAdhanChannel(
+          settings.adhanVoice || DEFAULT_ADHAN_VOICE,
+          settings.adhanFullVersion === true,
+          language
+        );
 
-      // Low-priority channel used only to keep the rolling schedule alive.
-      await notifee.createChannel({
-        id: NOTIF_CHANNEL_BACKGROUND,
-        name: 'Prayer Background Refresh',
-        importance: AndroidImportance.MIN,
-        vibration: false,
-        badge: false,
-      });
-
-      console.log('Notification channels created');
+        console.log('Notification channels ready ->', activeId);
+      } catch (e) {
+        console.error('Failed creating notification channels:', e);
+      }
     }
     createChannels();
-  }, []);
+  }, [isSettingsLoaded, settings.adhanVoice, settings.adhanFullVersion, language]);
 
-  // One-time migration: move scheduled notifications to v2 channels
+  // One-time migration: the v2 install shared a single adhan channel whose sound
+  // still points at the removed `prayersound` resource. Deleting it is all this
+  // needs to do - the reschedule effect below already cancels every prayer
+  // notification and reschedules it onto the per-voice channels on each mount,
+  // and it serialises itself, so duplicating that here would only race with it.
   useEffect(() => {
-    const migrateNotificationsToV2 = async () => {
-      if (!isSettingsLoaded || !selectedLocation || !enabledPrayers) return;
+    const migrateNotificationsToV3 = async () => {
+      if (!isSettingsLoaded) return;
       try {
-        const migrated = await AsyncStorage.getItem(NOTIF_MIGRATED_V2_KEY);
+        const migrated = await AsyncStorage.getItem(NOTIF_MIGRATED_V3_KEY);
         if (migrated === 'true') return;
 
-        const triggers = await notifee.getTriggerNotifications();
-        const idsToCancel = triggers
-          .filter(tn => {
-            const ch = tn.notification?.android?.channelId;
-            // Cancel anything not explicitly on a v2 channel
-            return !ch || !String(ch).endsWith('-v2');
-          })
-          .map(tn => String(tn.notification.id))
-          .filter(Boolean);
-
-        if (idsToCancel.length > 0) {
-          console.log('[Migration] Cancelling', idsToCancel.length, 'old notifications');
-          await cancelAllNotifications(idsToCancel);
+        try {
+          await notifee.deleteChannel(NOTIF_CHANNEL_SOUND_LEGACY);
+        } catch (_) {
+          // Channel may never have existed (fresh install).
         }
 
-        // Reschedule upcoming notifications on v2 channels
-        console.log('[Migration] Rescheduling notifications on v2 channels');
-        await scheduleRollingNotifications(selectedLocation, enabledPrayers);
-
-        await AsyncStorage.setItem(NOTIF_MIGRATED_V2_KEY, 'true');
-        console.log('[Migration] Completed notification channel migration to v2');
+        await AsyncStorage.setItem(NOTIF_MIGRATED_V3_KEY, 'true');
+        console.log('[Migration] Removed legacy adhan channel (v2 -> v3)');
       } catch (e) {
-        console.error('[Migration] Failed migrating notifications to v2:', e);
+        console.error('[Migration] Failed migrating notification channels to v3:', e);
       }
     };
 
-    migrateNotificationsToV2();
-  }, [isSettingsLoaded, selectedLocation, enabledPrayers, cancelAllNotifications, scheduleRollingNotifications]);
+    migrateNotificationsToV3();
+  }, [isSettingsLoaded]);
 
   const requestOSNotificationPermission = useCallback(async () => {
     if (Platform.OS === 'android' && Platform.Version >= 33) {
@@ -905,10 +898,18 @@ function MainApp() {
 
   // Apply notification sound preference immediately by rescheduling upcoming notifications
   useEffect(() => {
+    const seq = ++soundChangeSeqRef.current;
+    const isStale = () => seq !== soundChangeSeqRef.current;
+
     const rescheduleForSoundChange = async () => {
       try {
         if (!isSettingsLoaded || !selectedLocation || !enabledPrayers || !isDataAvailable) return;
-        console.log('[Notification Sound] Preference changed ->', settings.usePrayerSound ? 'Adhan' : 'Default');
+        console.log(
+          '[Notification Sound] Preference changed ->',
+          settings.usePrayerSound
+            ? `${settings.adhanVoice || DEFAULT_ADHAN_VOICE} (${settings.adhanFullVersion ? 'full' : 'cutted'})`
+            : 'Default'
+        );
 
         // Cancel only prayer trigger notifications (keep other app triggers intact)
         const triggers = await notifee.getTriggerNotifications();
@@ -920,15 +921,33 @@ function MainApp() {
           await cancelAllNotifications(prayerIds);
         }
 
+        // A newer selection landed while we were cancelling - let that run win
+        // rather than rescheduling onto a channel the user has moved off.
+        if (isStale()) return;
+
         // Reschedule with the new channel selection
         const ids = await scheduleRollingNotifications(selectedLocation, enabledPrayers);
+        if (isStale()) return;
         if (Array.isArray(ids)) setUpcomingNotificationIds(ids);
+
+        // Only now is it safe to drop the channels we just moved off of - and
+        // only if nothing newer is in flight, or we could delete the channel
+        // that run just scheduled onto.
+        if (settings.usePrayerSound) {
+          await pruneUnusedAdhanChannels(
+            adhanChannelId(
+              settings.adhanVoice || DEFAULT_ADHAN_VOICE,
+              settings.adhanFullVersion === true
+            )
+          );
+        }
       } catch (e) {
         console.error('[Notification Sound] Failed to re-schedule after sound change:', e);
       }
     };
     rescheduleForSoundChange();
-  }, [settings.usePrayerSound, isSettingsLoaded, selectedLocation, enabledPrayers, isDataAvailable, cancelAllNotifications, scheduleRollingNotifications]);
+  }, [settings.usePrayerSound, settings.adhanVoice, settings.adhanFullVersion, isSettingsLoaded,
+      selectedLocation, enabledPrayers, isDataAvailable, cancelAllNotifications, scheduleRollingNotifications]);
 
   // Rating functionality
   const checkAndShowRating = useCallback(async () => {
@@ -1466,6 +1485,10 @@ function MainApp() {
           updateUseArabicNumerals={(value) => setSettings(prev => ({ ...prev, useArabicNumerals: value }))}
           usePrayerSound={settings.usePrayerSound ?? true}
           updateUsePrayerSound={(value) => setSettings(prev => ({ ...prev, usePrayerSound: value }))}
+          adhanVoice={settings.adhanVoice || DEFAULT_ADHAN_VOICE}
+          updateAdhanVoice={(value) => setSettings(prev => ({ ...prev, adhanVoice: value }))}
+          adhanFullVersion={settings.adhanFullVersion === true}
+          updateAdhanFullVersion={(value) => setSettings(prev => ({ ...prev, adhanFullVersion: value }))}
         />
       </Modal>
 

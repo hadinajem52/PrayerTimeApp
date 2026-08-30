@@ -11,6 +11,7 @@ import {
   NOTIF_REFRESH_ID,
   NOTIF_ROLLING_WINDOW_DAYS,
 } from './constants/notificationConfig';
+import { DEFAULT_ADHAN_VOICE, isKnownAdhanVoice } from './constants/adhanConfig';
 
 import App from './App';
 
@@ -66,16 +67,23 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
     // Load settings from AsyncStorage (no React context in background)
     const AsyncStorageBg = require('@react-native-async-storage/async-storage').default;
 
-    const [locationRaw, enabledPrayersRaw, languageRaw, useSoundRaw] = await Promise.all([
-      AsyncStorageBg.getItem(BG_STORAGE_KEYS.SELECTED_LOCATION),
-      AsyncStorageBg.getItem(BG_STORAGE_KEYS.ENABLED_PRAYERS),
-      AsyncStorageBg.getItem(BG_STORAGE_KEYS.LANGUAGE),
-      AsyncStorageBg.getItem(BG_STORAGE_KEYS.USE_PRAYER_SOUND),
-    ]);
+    const [locationRaw, enabledPrayersRaw, languageRaw, useSoundRaw, adhanVoiceRaw, adhanFullRaw] =
+      await Promise.all([
+        AsyncStorageBg.getItem(BG_STORAGE_KEYS.SELECTED_LOCATION),
+        AsyncStorageBg.getItem(BG_STORAGE_KEYS.ENABLED_PRAYERS),
+        AsyncStorageBg.getItem(BG_STORAGE_KEYS.LANGUAGE),
+        AsyncStorageBg.getItem(BG_STORAGE_KEYS.USE_PRAYER_SOUND),
+        AsyncStorageBg.getItem(BG_STORAGE_KEYS.ADHAN_VOICE),
+        AsyncStorageBg.getItem(BG_STORAGE_KEYS.ADHAN_FULL),
+      ]);
 
     const location = locationRaw || 'beirut';
     const language = languageRaw || 'en';
-    const usePrayerSound = useSoundRaw !== 'false'; // default true
+    const soundConfig = {
+      usePrayerSound: useSoundRaw !== 'false', // default true
+      adhanVoice: isKnownAdhanVoice(adhanVoiceRaw) ? adhanVoiceRaw : DEFAULT_ADHAN_VOICE,
+      adhanFullVersion: adhanFullRaw === 'true',
+    };
     const enabledPrayers = enabledPrayersRaw
       ? JSON.parse(enabledPrayersRaw)
       : { imsak: true, fajr: true, shuruq: true, dhuhr: true, asr: true, maghrib: true, isha: true, midnight: true };
@@ -112,7 +120,7 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
       locationData,
       enabledPrayers,
       language,
-      usePrayerSound,
+      soundConfig,
       NOTIF_ROLLING_WINDOW_DAYS
     );
     console.log(`[Background] Rescheduled ${scheduled.length} notifications`);

@@ -37,7 +37,11 @@ const Settings = ({
   updateUseArabicNumerals,
   requestAlarmPermission,
   usePrayerSound,
-  updateUsePrayerSound
+  updateUsePrayerSound,
+  adhanVoice,
+  updateAdhanVoice,
+  adhanFullVersion,
+  updateAdhanFullVersion
 }) => {
   const translations = TRANSLATIONS[language];
   const [settings, setSettings] = useSettings();
@@ -208,6 +212,10 @@ const Settings = ({
           styles={styles}
           usePrayerSound={usePrayerSound}
           updateUsePrayerSound={updateUsePrayerSound}
+          adhanVoice={adhanVoice}
+          updateAdhanVoice={updateAdhanVoice}
+          adhanFullVersion={adhanFullVersion}
+          updateAdhanFullVersion={updateAdhanFullVersion}
           alarmPermissionGranted={alarmPermissionGranted}
           onRequestAlarmPermission={handleRequestAlarmPermission}
           isBatteryOptimizationEnabled={isBatteryOptimizationEnabled}

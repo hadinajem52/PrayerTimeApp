@@ -1,3 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@raw/prayersound" />
+    tools:keep="@raw/adhan_adel_karbalai_cutted,@raw/adhan_adel_karbalai_full,@raw/adhan_ali_rabeii_cutted,@raw/adhan_ali_rabeii_full,@raw/adhan_hajj_ali_kaebi_cutted,@raw/adhan_hajj_ali_kaebi_full,@raw/adhan_hajj_mostapha_sarraf_cutted,@raw/adhan_hajj_mostapha_sarraf_full,@raw/adhan_hajj_ossama_karbalai_cutted,@raw/adhan_hajj_ossama_karbalai_full,@raw/adhan_imam_ridha_cutted,@raw/adhan_imam_ridha_full,@raw/adhan_seyyed_mostapha_ghalebi_cutted,@raw/adhan_seyyed_mostapha_ghalebi_full,@raw/adhan_sheikh_shibr_maela_cutted,@raw/adhan_sheikh_shibr_maela_full" />

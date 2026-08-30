@@ -4,7 +4,10 @@
  */
 
 // ── Android notification channel IDs ─────────────────────────────────────────
-export const NOTIF_CHANNEL_SOUND   = 'prayer-channel-sound-v2';
+// The adhan channels are generated per voice/variant - see constants/adhanConfig
+// and utils/notificationChannels. The LEGACY id is the retired single-sound
+// channel, kept only so the v3 migration can clean it up.
+export const NOTIF_CHANNEL_SOUND_LEGACY = 'prayer-channel-sound-v2';
 export const NOTIF_CHANNEL_DEFAULT = 'prayer-channel-default-v2';
 export const NOTIF_CHANNEL_BACKGROUND = 'prayer-channel-background-v1';
 
@@ -17,8 +20,10 @@ export const NOTIF_PRAYER_ID_PREFIX = 'prayer_';
 // ── Rolling scheduling window ────────────────────────────────────────────────
 export const NOTIF_ROLLING_WINDOW_DAYS = 7;
 
-// ── AsyncStorage key used to guard the one-time channel migration ────────────
+// ── AsyncStorage keys used to guard the one-time channel migrations ─────────
 export const NOTIF_MIGRATED_V2_KEY = 'notif_migrated_v2';
+// v3 moved every install off the single adhan channel onto per-voice channels.
+export const NOTIF_MIGRATED_V3_KEY = 'notif_migrated_v3';
 
 // ── AsyncStorage keys mirrored for the background event handler ─────────────
 export const BG_STORAGE_KEYS = {
@@ -26,6 +31,8 @@ export const BG_STORAGE_KEYS = {
   ENABLED_PRAYERS:   'enabledPrayers',
   LANGUAGE:          'language',
   USE_PRAYER_SOUND:  'usePrayerSound',
+  ADHAN_VOICE:       'adhanVoice',
+  ADHAN_FULL:        'adhanFullVersion',
 };
 
 export const BG_PRAYER_TIMES_KEY = 'updatedPrayerTimes';

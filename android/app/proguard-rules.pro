@@ -11,11 +11,11 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
-# Keep custom notification sounds
+# Keep custom notification sounds. The adhan sounds are looked up by name at
+# runtime (notifee channel sound / the settings preview player), so every member
+# of R$raw has to survive - naming them individually would go stale every time a
+# muezzin is added.
 -keep class **.R$raw { *; }
--keepclassmembers class **.R$raw {
-    public static final int prayersound;
-}
 
 # Keep raw resources
 -keep class com.hnjm123.ShiaPrayerLeb.R$raw { *; }

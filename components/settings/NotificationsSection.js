@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Switch, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import AdhanPicker from './AdhanPicker';
+import { getAdhanVoiceName } from '../../constants/adhanConfig';
 
 const NotificationsSection = ({
   settings,
@@ -10,11 +12,20 @@ const NotificationsSection = ({
   styles,
   usePrayerSound,
   updateUsePrayerSound,
+  adhanVoice,
+  updateAdhanVoice,
+  adhanFullVersion,
+  updateAdhanFullVersion,
   alarmPermissionGranted,
   onRequestAlarmPermission,
   isBatteryOptimizationEnabled,
   onDisableBatteryOptimization,
 }) => {
+  const [isVoicePickerVisible, setIsVoicePickerVisible] = useState(false);
+  const isRTL = language === 'ar';
+  const switchTrack = { false: '#767577', true: isDarkMode ? '#D4AF37' : '#059669' };
+  const thumb = (on) => (on ? (isDarkMode ? '#D4AF37' : '#059669') : '#f4f3f4');
+
   return (
     <>
       <Text
@@ -39,15 +50,91 @@ const NotificationsSection = ({
           <Switch
             value={usePrayerSound}
             onValueChange={updateUsePrayerSound}
-            trackColor={{ false: '#767577', true: isDarkMode ? '#D4AF37' : '#059669' }}
-            thumbColor={usePrayerSound ? (isDarkMode ? '#D4AF37' : '#059669') : '#f4f3f4'}
+            trackColor={switchTrack}
+            thumbColor={thumb(usePrayerSound)}
           />
         </View>
 
         <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
           {translations.prayerSoundDescription}
         </Text>
+
+        {/* Voice + length only mean anything while the adhan is switched on. */}
+        {usePrayerSound && (
+          <>
+            <TouchableOpacity
+              style={[
+                styles.adhanDropdown,
+                isDarkMode && styles.darkAdhanDropdown,
+                isRTL && styles.adhanDropdownRTL,
+              ]}
+              onPress={() => setIsVoicePickerVisible(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.adhanDropdownLabels}>
+                <Text
+                  style={[
+                    styles.settingLabel,
+                    isDarkMode && styles.darkSettingLabel,
+                    isRTL && styles.rtlText,
+                  ]}
+                >
+                  {translations.adhanVoiceSetting}
+                </Text>
+                <Text
+                  style={[
+                    styles.adhanDropdownValue,
+                    isDarkMode && styles.darkAdhanDropdownValue,
+                    isRTL && styles.rtlText,
+                  ]}
+                  numberOfLines={2}
+                >
+                  {getAdhanVoiceName(adhanVoice, language)}
+                </Text>
+              </View>
+              <Icon
+                name="chevron-down"
+                size={20}
+                color={isDarkMode ? '#D4AF37' : '#059669'}
+              />
+            </TouchableOpacity>
+
+            <View style={[styles.settingItem, isDarkMode && styles.darkSettingItem]}>
+              <Text
+                style={[
+                  styles.settingLabel,
+                  isDarkMode && styles.darkSettingLabel,
+                  isRTL && styles.rtlText,
+                ]}
+              >
+                {translations.adhanFullVersionSetting}
+              </Text>
+              <Switch
+                value={adhanFullVersion}
+                onValueChange={updateAdhanFullVersion}
+                trackColor={switchTrack}
+                thumbColor={thumb(adhanFullVersion)}
+              />
+            </View>
+
+            <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
+              {translations.adhanFullVersionDescription}
+            </Text>
+          </>
+        )}
       </View>
+
+      <AdhanPicker
+        visible={isVoicePickerVisible}
+        onClose={() => setIsVoicePickerVisible(false)}
+        selectedVoice={adhanVoice}
+        onSelectVoice={updateAdhanVoice}
+        useFullVersion={adhanFullVersion}
+        translations={translations}
+        isDarkMode={isDarkMode}
+        language={language}
+        styles={styles}
+      />
 
       {Platform.OS === 'android' && (
         <View style={[styles.section, isDarkMode && styles.darkSection]}>
