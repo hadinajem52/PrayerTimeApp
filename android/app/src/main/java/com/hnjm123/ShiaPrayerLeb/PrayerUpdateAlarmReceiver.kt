@@ -7,11 +7,15 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.hnjm123.ShiaPrayerLeb.workers.PrayerTimeUpdateWorker
 import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 class PrayerUpdateAlarmReceiver : BroadcastReceiver() {
 
@@ -22,7 +26,18 @@ class PrayerUpdateAlarmReceiver : BroadcastReceiver() {
 
         Log.d(TAG, "Alarm triggered; enqueueing update worker")
 
-        val work = OneTimeWorkRequestBuilder<PrayerTimeUpdateWorker>().build()
+        // Without a network constraint the worker ran immediately even with no
+        // connection, failed, and burned its retries. Letting WorkManager hold it
+        // until the device is online means the update actually lands, and it
+        // survives reboots while it waits.
+        val work = OneTimeWorkRequestBuilder<PrayerTimeUpdateWorker>()
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
+            .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
             "alarm_prayer_time_update",
             ExistingWorkPolicy.REPLACE,

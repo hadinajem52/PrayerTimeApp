@@ -59,7 +59,6 @@ import { TRANSLATIONS } from './constants/translations/app';
 import {
   NOTIF_CHANNEL_SOUND_LEGACY,
   NOTIF_MIGRATED_V3_KEY,
-  NOTIF_PRAYER_ID_PREFIX,
 } from './constants/notificationConfig';
 import { DEFAULT_ADHAN_VOICE, adhanChannelId } from './constants/adhanConfig';
 import {
@@ -936,18 +935,11 @@ function MainApp() {
             : 'Default'
         );
 
-        // Cancel only prayer trigger notifications (keep other app triggers intact)
-        const triggers = await notifee.getTriggerNotifications();
-        const prayerIds = triggers
-          .map(tn => String(tn.notification?.id))
-          .filter(id => id && id.startsWith(NOTIF_PRAYER_ID_PREFIX));
-
-        if (prayerIds.length > 0) {
-          await cancelAllNotifications(prayerIds);
-        }
-
-        // A newer selection landed while we were cancelling - let that run win
-        // rather than rescheduling onto a channel the user has moved off.
+        // No cancel-then-recreate here any more: scheduleRollingNotifications
+        // reconciles in place, rewriting only what changed and pruning orphans
+        // afterwards. The old order left a window - roughly 56 alarms cancelled
+        // before any were re-created - where the process dying meant the user
+        // got no notifications until they next opened the app.
         if (isStale()) return;
 
         // Reschedule with the new channel selection
@@ -972,7 +964,7 @@ function MainApp() {
     };
     rescheduleForSoundChange();
   }, [settings.usePrayerSound, settings.adhanVoice, settings.adhanFullVersion, isSettingsLoaded,
-      selectedLocation, enabledPrayers, isDataAvailable, cancelAllNotifications, scheduleRollingNotifications]);
+      selectedLocation, enabledPrayers, isDataAvailable, scheduleRollingNotifications]);
 
   // Rating functionality
   const checkAndShowRating = useCallback(async () => {

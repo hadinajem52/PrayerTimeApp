@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import notifee, { TriggerType, AndroidImportance } from '@notifee/react-native';
+import notifee, { TriggerType, AndroidImportance, AndroidNotificationSetting } from '@notifee/react-native';
 import moment from 'moment-hijri';
 import { usePrayerTimes } from '../components/PrayerTimesProvider';
 import { TRANSLATIONS } from '../constants/translations/notifications';
@@ -17,6 +17,33 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure helpers – no hooks, safe to call from onBackgroundEvent
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Pick the strongest alarm type the OS will actually let us use.
+ *
+ * From Android 14 (targetSdk 33+) SCHEDULE_EXACT_ALARM is denied by default, and
+ * the user can revoke it at any time. When that happens every
+ * createTriggerNotification call throws, and the old code only logged it - so
+ * the app looked healthy while the user silently received nothing.
+ *
+ * Falling back to an inexact alarm means the adhan may land a few minutes late,
+ * which is vastly better than never arriving. Settings still surfaces the
+ * permission prompt so users can restore exact timing.
+ */
+export async function resolveAlarmType() {
+  const EXACT = { allowWhileIdle: true, exact: true, alarmClock: true };
+  const INEXACT = { allowWhileIdle: true, exact: false };
+  try {
+    const settings = await notifee.getNotificationSettings();
+    if (settings?.android?.alarm === AndroidNotificationSetting.DISABLED) {
+      console.warn('[Notification] Exact alarms not permitted - falling back to inexact');
+      return INEXACT;
+    }
+  } catch (e) {
+    console.warn('[Notification] Could not read alarm settings, assuming exact:', e);
+  }
+  return EXACT;
+}
 
 /**
  * Translate a notification key, with optional param interpolation.
@@ -85,12 +112,24 @@ export async function schedulePrayerNotificationsRaw(
   if (!locationData || !enabledPrayers) return [];
 
   const channelId = await resolveNotificationChannel(soundConfig, language);
+  const alarmType = await resolveAlarmType();
 
-  // Snapshot existing scheduled IDs upfront to skip duplicates
+  // Snapshot what is already scheduled, keeping the details we need to tell a
+  // still-correct entry from a stale one.
   const existing = await notifee.getTriggerNotifications();
-  const existingIds = new Set(existing.map(n => String(n.notification.id)));
+  const existingById = new Map();
+  for (const entry of existing) {
+    const id = String(entry.notification?.id ?? '');
+    if (!id.startsWith(NOTIF_PRAYER_ID_PREFIX)) continue;
+    existingById.set(id, {
+      timestamp: entry.trigger?.timestamp,
+      channelId: entry.notification?.android?.channelId,
+    });
+  }
 
+  const desiredIds = new Set();
   const scheduledIds = [];
+  let rewritten = 0;
   const prayerKeys = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
   const isPrayer = key => ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].includes(key);
 
@@ -107,10 +146,23 @@ export async function schedulePrayerNotificationsRaw(
       if (!enabledPrayers[prayer] || !dayData[prayer]) continue;
 
       const notifId = `${NOTIF_PRAYER_ID_PREFIX}${dateStr}_${prayer}`;
-      if (existingIds.has(notifId)) continue;
-
       const prayerTime = parsePrayerTimeStatic(dayData[prayer], targetDate);
       if (prayerTime <= new Date()) continue; // skip past times
+
+      desiredIds.add(notifId);
+
+      // Only rewrite when something actually changed. Comparing the timestamp
+      // is what lets corrected prayer data, a timezone change or a manual clock
+      // change take effect - the old code skipped on id alone, so a scheduled
+      // notification kept its original time forever.
+      const current = existingById.get(notifId);
+      const unchanged = current
+        && current.timestamp === prayerTime.getTime()
+        && current.channelId === channelId;
+      if (unchanged) {
+        scheduledIds.push(notifId);
+        continue;
+      }
 
       const prayerName = translateNotification(language, prayer);
       const body = isPrayer(prayer)
@@ -120,11 +172,7 @@ export async function schedulePrayerNotificationsRaw(
       const trigger = {
         type: TriggerType.TIMESTAMP,
         timestamp: prayerTime.getTime(),
-        alarmManager: {
-          allowWhileIdle: true,
-          exact: true,
-          alarmClock: true,
-        },
+        alarmManager: alarmType,
       };
 
       const notification = {
@@ -142,17 +190,32 @@ export async function schedulePrayerNotificationsRaw(
       };
 
       try {
+        // Same id replaces in place, so an existing notification is never
+        // absent even for an instant.
         await notifee.createTriggerNotification(notification, trigger);
         scheduledIds.push(notifId);
-        existingIds.add(notifId); // prevent intra-loop duplicates
-        console.log(`[Notification] Scheduled ${prayer} on ${dateStr} → ${prayerTime.toLocaleTimeString()}`);
+        if (current) rewritten++;
       } catch (err) {
         console.error(`[Notification] Failed to schedule ${prayer} on ${dateStr}:`, err);
       }
     }
   }
 
-  console.log(`[Notification] Total scheduled: ${scheduledIds.length} over ${days} days`);
+  // Drop anything left over - past days, or prayers the user has since turned
+  // off. Done last so there is no window where nothing is scheduled.
+  let removed = 0;
+  for (const id of existingById.keys()) {
+    if (desiredIds.has(id)) continue;
+    try {
+      await notifee.cancelTriggerNotification(id);
+      removed++;
+    } catch (_) { }
+  }
+
+  console.log(
+    `[Notification] ${scheduledIds.length} scheduled over ${days} days ` +
+    `(${rewritten} rewritten, ${removed} removed, ${alarmType.exact ? 'exact' : 'INEXACT'} alarms)`
+  );
   return scheduledIds;
 }
 
@@ -179,10 +242,9 @@ export async function scheduleNightlyRefreshTrigger() {
   const trigger = {
     type: TriggerType.TIMESTAMP,
     timestamp: midnight.getTime(),
-    alarmManager: {
-      allowWhileIdle: true,
-      exact: true,
-    },
+    // The rolling window depends entirely on this firing, so it must survive a
+    // revoked exact-alarm permission too.
+    alarmManager: await resolveAlarmType(),
   };
 
   // This notification will be invisible to the user (MIN importance, no sound,
@@ -251,7 +313,7 @@ export const useNotificationScheduler = (language, soundConfig = {}) => {
       const trigger = {
         type: TriggerType.TIMESTAMP,
         timestamp: prayerTime.getTime(),
-        alarmManager: { allowWhileIdle: true, exact: true, alarmClock: true },
+        alarmManager: await resolveAlarmType(),
       };
 
       await notifee.createTriggerNotification(
