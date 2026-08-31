@@ -18,7 +18,7 @@ export const ADHAN_VOICES = [
   },
   {
     id: 'sheikh_shibr_maela',
-    name: { en: 'Imam Ali Shrine - Sheikh Shibr Maela', ar: 'حرم الإمام علي - الشيخ شبر معلى' },
+    name: { en: 'Imam Ali Shrine - Sheikh Shibr Maela', ar: 'حرم الإمام علي - الشيخ شبر معله' },
   },
   {
     id: 'adel_karbalai',
@@ -58,9 +58,14 @@ export function adhanSoundName(voiceId, useFullVersion) {
  * A channel's sound is immutable once Android has created it, so every
  * voice/variant pair needs its own channel. Bump the suffix if the underlying
  * audio ever changes so existing installs pick the new file up.
+ *
+ * v4: adhan_imam_ridha_cutted.ogg was re-encoded - it had shipped with the
+ * master's cover art muxed in as a Theora video track, which made Android play
+ * it silently. Installs on the default voice are still holding a v3 channel
+ * bound to that file, so the id has to move for them to hear anything.
  */
 export function adhanChannelId(voiceId, useFullVersion) {
-  return `prayer-sound-${voiceId}-${useFullVersion ? 'full' : 'cutted'}-v3`;
+  return `prayer-sound-${voiceId}-${useFullVersion ? 'full' : 'cutted'}-v4`;
 }
 
 /** Every channel id this module can produce starts with this. */

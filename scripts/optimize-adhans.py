@@ -66,7 +66,7 @@ BITRATE = '48k'
 def _measure(src):
     """Pass 1: ask loudnorm what the trimmed mono signal actually measures."""
     out = subprocess.run(
-        ['ffmpeg', '-hide_banner', '-i', src, '-ac', '1',
+        ['ffmpeg', '-hide_banner', '-i', src, '-map', '0:a:0', '-ac', '1',
          '-af', f'{TRIM},loudnorm=I={TARGET_I}:TP={TARGET_TP}:LRA={TARGET_LRA}:print_format=json',
          '-f', 'null', '-'],
         capture_output=True, text=True,
@@ -89,6 +89,11 @@ def encode(src, dst):
     )
     subprocess.run(
         ['ffmpeg', '-y', '-v', 'error', '-i', src,
+         # Several masters carry embedded cover art, which ffmpeg's default
+         # stream selection happily maps into the Ogg as a Theora video track.
+         # Android then opens the file, sees video on stream 0, and plays
+         # nothing. Take the audio track only, and leave the tags behind.
+         '-map', '0:a:0', '-map_metadata', '-1', '-vn',
          '-ac', '1',
          '-af', f'{TRIM},{normalize},{LIMITER}',
          '-c:a', 'libopus', '-b:a', BITRATE, '-application', 'audio', '-vbr', 'on',

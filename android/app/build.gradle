@@ -30,10 +30,6 @@ android {
     versionCode 70
     versionName "3.4"
     }
-     lint {
-        disable 'ExpiredTargetSdkVersion'
-        abortOnError false
-    }
     signingConfigs {
         debug {
             storeFile file("@hhhhjjj__ShiaPrayerLeb.jks")
@@ -51,6 +47,16 @@ android {
     
     lint {
         baseline = file("lint-baseline.xml")
+        disable 'ExpiredTargetSdkVersion'
+        abortOnError false
+        // lintVitalRelease and the generateReleaseLintModel tasks it pulls in
+        // across ~28 modules were 58s of a 2m22s bundleRelease - the single
+        // biggest slice. Lint produces nothing that ends up in the AAB, so
+        // skipping it here yields a byte-identical artifact.
+        // Run it deliberately instead: ./gradlew :app:lintRelease
+        // Re-enable for a one-off check with:
+        //   ./gradlew bundleRelease -Pandroid.checkReleaseLint=true
+        checkReleaseBuilds (findProperty('android.checkReleaseLint')?.toBoolean() ?: false)
     }
     
     buildTypes {
