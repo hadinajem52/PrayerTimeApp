@@ -18,8 +18,11 @@ Pipeline per file:
                               update doesn't quietly turn everyone's adhan
                               down. Two-pass, because single-pass loudnorm
                               guesses and can miss the target by 2-3 dB.)
-  - Opus @ 48 kbps           (the 320 kbps masters are transcodes with a hard
-                              16 kHz brick wall, so there is no detail to keep)
+  - Opus @ 48 kbps,          (the 320 kbps masters are transcodes with a hard
+    12 kHz cutoff,            16 kHz brick wall, and the recitation itself is
+    40 ms frames              already gone by ~10 kHz, so there is no detail to
+                              keep up there. See CUTOFF/FRAME_MS below for the
+                              measurements behind those two.)
 
 Usage:  python scripts/optimize-adhans.py [--dry-run]
 
@@ -62,6 +65,44 @@ TARGET_LRA = 11.0
 LIMITER = 'alimiter=limit=0.708:level=false'   # 0.708 ~= -3 dBFS
 BITRATE = '48k'
 
+# Two settings that take ~20% off the audio for no audible cost. Both were
+# picked by measurement rather than taste: candidates were scored against the
+# normalised PCM using mel log-spectral distance over the audible band (<=12
+# kHz), with the currently shipping files scored the same way as the baseline to
+# beat. A setting was only accepted if it landed inside the 0.43-0.63 dB spread
+# those shipping files already occupy.
+#
+# CUTOFF: these recitations are dead above ~10 kHz (measured content bandwidth
+# 7.7-10.4 kHz at -40 dB, and at most 0.016% of total energy sits above 12 kHz -
+# it is MP3 quantisation noise, not signal). Fullband Opus was spending bits
+# coding that noise. Capping the encoder at 12 kHz scored 0.50 dB against the
+# master where the shipping files score 0.51 dB, i.e. slightly *better* than
+# today, because the freed bits move into the band people actually hear.
+#
+# FRAME_MS: 20 ms frames pay packet overhead 50 times a second. At 40 ms the
+# files lose another ~15% for +0.13 dB, which is far below audibility and still
+# in the same range as the current encode. The risk with long frames is
+# pre-echo on transients, so that was measured separately on the loudest 5% of
+# spectral-flux frames: the transient score tracks the overall score with the
+# same ~0.07 dB gap at every setting, so nothing is smearing. 60 ms measured
+# identical to 40 ms on both size and quality, so 40 ms is used - same benefit,
+# finer time resolution, and the more common frame size in the wild.
+CUTOFF = '12000'
+FRAME_MS = '40'
+
+# Every voice but one lands within +0.10 dB of its old score at 48k, which is
+# inside the spread the shipping files already occupy (0.43-0.63 dB). imam_ridha
+# is the exception: it is the noisiest master of the eight, unconstrained VBR was
+# already spending 69.8 kbps on it against the 48k target, and at 48k it comes
+# out at 0.94 dB (cutted) / 0.74 dB (full) - outside that spread and close to
+# where 32 kbps sits, which is where artefacts start being findable. 64k puts it
+# back at 0.57 / 0.46, i.e. no worse than today, and costs ~0.6 MB of the saving.
+# Cheaper settings were tried first: 56k+40ms only reached 0.71, and buying
+# parity with 20 ms frames instead gave back the entire saving on this voice.
+BITRATE_OVERRIDES = {
+    'imam_ridha': '64k',
+}
+
 
 def _measure(src):
     """Pass 1: ask loudnorm what the trimmed mono signal actually measures."""
@@ -77,7 +118,7 @@ def _measure(src):
     return json.loads(out[start:end])
 
 
-def encode(src, dst):
+def encode(src, dst, bitrate=BITRATE):
     m = _measure(src)
     # Pass 2: feed the measurements back so loudnorm corrects exactly rather
     # than guessing from a look-ahead window.
@@ -96,7 +137,8 @@ def encode(src, dst):
          '-map', '0:a:0', '-map_metadata', '-1', '-vn',
          '-ac', '1',
          '-af', f'{TRIM},{normalize},{LIMITER}',
-         '-c:a', 'libopus', '-b:a', BITRATE, '-application', 'audio', '-vbr', 'on',
+         '-c:a', 'libopus', '-b:a', bitrate, '-application', 'audio', '-vbr', 'on',
+         '-cutoff', CUTOFF, '-frame_duration', FRAME_MS,
          dst],
         check=True,
     )
@@ -147,7 +189,7 @@ def main():
             sound_names.append(name)
             dst = os.path.join(OUT_DIR, f'{name}.ogg')
             if not dry_run:
-                encode(src, dst)
+                encode(src, dst, BITRATE_OVERRIDES.get(voice_id, BITRATE))
             src_mb = os.path.getsize(src) / 1048576
             out_mb = os.path.getsize(dst) / 1048576 if os.path.exists(dst) else 0
             total_src += src_mb
