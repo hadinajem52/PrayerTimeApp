@@ -59,6 +59,7 @@ export const TRANSLATIONS = {
     countdownNotification: "Prayer Countdown",
     countdownNotificationSetting: "Show Countdown in Notifications",
     countdownNotificationDescription: "Keep a permanent notification showing the time remaining until the next prayer",
+    countdownNotificationRequirement: "Android 16 or newer is required to show it in the status bar. On older versions it appears in the notification panel only.",
   },
   ar: {
     settings: "الإعدادات",
@@ -120,5 +121,6 @@ export const TRANSLATIONS = {
     countdownNotification: "العد التنازلي للصلاة",
     countdownNotificationSetting: "إظهار العد التنازلي في الإشعارات",
     countdownNotificationDescription: "إبقاء إشعار دائم يعرض الوقت المتبقي حتى الصلاة القادمة",
+    countdownNotificationRequirement: "يتطلب إظهاره في شريط الحالة أندرويد 16 أو أحدث. في الإصدارات الأقدم يظهر في لوحة الإشعارات فقط.",
   },
 };

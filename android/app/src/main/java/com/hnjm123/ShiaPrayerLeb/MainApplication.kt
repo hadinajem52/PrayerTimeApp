@@ -26,6 +26,7 @@ class MainApplication : Application(), ReactApplication {
             // Packages that cannot be autolinked yet can be added manually here
             packages.add(UpdateModulePackage())
             packages.add(WidgetUpdateModulePackage())
+            packages.add(LiveCountdownModulePackage())
             return packages
           }
 
