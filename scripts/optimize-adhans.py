@@ -107,20 +107,24 @@ def write_keep_rules(sound_names):
     res/raw sounds are referenced only by name from JS, so the resource shrinker
     cannot see them. Regenerate the keep rules here so they always match the
     audio that was just written.
+
+    The filename matters. Metro emits its own res/raw/keep.xml naming the icon
+    font assets, and the resource merger lets that generated copy win over
+    anything src/main/res/raw contributes - so a file called keep.xml here is
+    silently replaced and the sounds get shrunk away. keep_adhan_sounds.xml is a
+    name Metro never writes, so both files survive into the merged resources.
+    AGP's ToolsAttributeUsageRecorder walks every *.xml under res/raw and reads
+    tools:keep off any <resources> root, so the name is free to be anything.
+
+    values/ is not an option: tools:keep on a <resources> element there is
+    dropped when the file is compiled into resources.arsc, and the rules with it.
     """
     keep = ','.join(f'@raw/{n}' for n in sound_names)
 
-    with io.open(os.path.join(OUT_DIR, 'keep.xml'), 'w', encoding='utf-8') as f:
+    with io.open(os.path.join(OUT_DIR, 'keep_adhan_sounds.xml'), 'w', encoding='utf-8') as f:
         f.write('<?xml version="1.0" encoding="utf-8"?>\n'
                 '<resources xmlns:tools="http://schemas.android.com/tools"\n'
                 f'    tools:keep="{keep}" />\n')
-
-    values_dir = os.path.join(os.path.dirname(OUT_DIR), 'values')
-    with io.open(os.path.join(values_dir, 'keep_resources.xml'), 'w', encoding='utf-8') as f:
-        f.write('<?xml version="1.0" encoding="utf-8"?>\n'
-                '<resources xmlns:tools="http://schemas.android.com/tools"\n'
-                f'    tools:keep="{keep}">\n'
-                '</resources>\n')
 
 
 def main():

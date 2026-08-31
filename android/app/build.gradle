@@ -27,8 +27,8 @@ android {
         applicationId 'com.hnjm123.ShiaPrayerLeb'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion 
-    versionCode 70
-    versionName "3.4"
+    versionCode 75
+    versionName "3.5.3"
     }
     signingConfigs {
         debug {
@@ -65,8 +65,15 @@ android {
         }
         release {
             signingConfig signingConfigs.release
-            // TEMP: disable resource shrinking to verify custom notification sound inclusion
-            shrinkResources false
+            // Metro writes its own res/raw/keep.xml listing the icon-font assets,
+            // and it lands on the same resource path as the adhan keep.xml this
+            // project generates - Metro's copy wins and the sounds lose their
+            // keep rule, which is what made shrinking eat them before. The list
+            // in res/values/keep_resources.xml carries the same rules from a
+            // path Metro never writes to, so both survive and shrinking is safe.
+            // Verify after changing: the release AAB must still contain 16
+            // base/res/raw/adhan_*.ogg entries.
+            shrinkResources true
             minifyEnabled true
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)

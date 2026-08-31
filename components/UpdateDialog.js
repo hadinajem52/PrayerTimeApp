@@ -1,23 +1,19 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, BackHandler } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { moderateScale } from 'react-native-size-matters';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 export const ForcedUpdateDialog = ({ visible, title, message, onUpdate }) => {
-  useFocusEffect(
-    React.useCallback(() => {
-      const onBackPress = () => {
-        if (visible) {
-          return true;
-        }
-        return false;
-      };
-
-      BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
-    }, [visible])
-  );
+  // Swallow the hardware back button so a forced update cannot be dismissed.
+  // This used to be useFocusEffect, which needs a NavigationContainer this app
+  // has never had - it threw the moment the dialog rendered. Plain useEffect is
+  // equivalent here (there is one screen, so it is always the focused one), and
+  // the subscription's own remove() replaces BackHandler.removeEventListener,
+  // which no longer exists as of React Native 0.72.
+  React.useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => visible);
+    return () => subscription.remove();
+  }, [visible]);
 
   return (
     <Modal
