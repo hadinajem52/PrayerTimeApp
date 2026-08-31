@@ -1,100 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Static fallback preview for devices below API 31, which ignore
+     android:previewLayout. Mirrors the real widget layout. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="250dp"
     android:height="110dp"
     android:viewportWidth="250"
     android:viewportHeight="110">
-    
-    <!-- Widget Background -->
-    <path android:fillColor="#222222" 
-          android:pathData="M16,0h218a16,16 0 0 1 16,16v78a16,16 0 0 1 -16,16H16a16,16 0 0 1 -16,-16V16a16,16 0 0 1 16,-16z" />
-    
-    <!-- Widget Border -->
-    <path android:strokeWidth="1" 
-          android:strokeColor="#444444" 
-          android:fillColor="#00000000" 
-          android:pathData="M16.5,0.5h217a15.5,15.5 0 0 1 15.5,15.5v77a15.5,15.5 0 0 1 -15.5,15.5H16.5A15.5,15.5 0 0 1 1,93V16A15.5,15.5 0 0 1 16.5,0.5z" />
-    
-    <!-- Title Text Placeholder (Light Blue) -->
-    <rect android:fillColor="#66CCFF"
-          x="95"
-          y="12"
-          width="60"
-          height="10"
-          rx="2"
-          ry="2" />
-    
-    <!-- Prayer Name Text Placeholder (White) -->
-    <rect android:fillColor="#FFFFFF"
-          x="110"
-          y="26"
-          width="30"
-          height="12"
-          rx="2"
-          ry="2" />
-    
-    <!-- Prayer Time Text Placeholder (Orange) -->
-    <rect android:fillColor="#FFA500"
-          x="105"
-          y="42"
-          width="40"
-          height="16"
-          rx="3"
-          ry="3" />
-    
-    <!-- Countdown Text Placeholder (Light Blue) -->
-    <rect android:fillColor="#66CCFF"
-          x="100"
-          y="62"
-          width="50"
-          height="10"
-          rx="2"
-          ry="2" />
-    
-    <!-- Progress Bar Background -->
-    <rect android:fillColor="#333333"
-          x="20"
-          y="76"
-          width="210"
-          height="6"
-          rx="3"
-          ry="3" />
-    
-    <!-- Progress Bar Fill (35% progress) -->
-    <rect android:fillColor="#FFA500"
-          x="20"
-          y="76"
-          width="73.5"
-          height="6"
-          rx="3"
-          ry="3" />
-    
-    <!-- City Name Background Pill -->
-    <rect android:fillColor="#333333"
-          x="90"
-          y="88"
-          width="70"
-          height="16"
-          rx="8"
-          ry="8" />
-    
-    <!-- City Name Text Placeholder (Orange) -->
-    <rect android:fillColor="#FFA500"
-          x="115"
-          y="92"
-          width="20"
-          height="8"
-          rx="2"
-          ry="2" />
-    
-    <!-- Prayer Icon Placeholder -->
-    <circle android:fillColor="#FFA500"
-            cx="30"
-            cy="30"
-            r="8" />
-    
-    <!-- Small decorative moon/sun icon -->
-    <path android:fillColor="#66CCFF"
-          android:pathData="M26,26a4,4 0 0 1 8,0a4,4 0 0 1 -8,0z" />
+
+    <!-- Card background -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M16,0h218a16,16 0 0 1 16,16v78a16,16 0 0 1 -16,16h-218a16,16 0 0 1 -16,-16v-78a16,16 0 0 1 16,-16z" />
+
+    <!-- Card border -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#CCE0FF"
+        android:strokeWidth="1"
+        android:pathData="M16,0.5h218a15.5,15.5 0 0 1 15.5,15.5v78a15.5,15.5 0 0 1 -15.5,15.5h-218a15.5,15.5 0 0 1 -15.5,-15.5v-78a15.5,15.5 0 0 1 15.5,-15.5z" />
+
+    <!-- Title: "next prayer" -->
+    <path
+        android:fillColor="#007AFF"
+        android:pathData="M99.5,13h51a4.5,4.5 0 0 1 4.5,4.5v0a4.5,4.5 0 0 1 -4.5,4.5h-51a4.5,4.5 0 0 1 -4.5,-4.5v-0a4.5,4.5 0 0 1 4.5,-4.5z" />
+
+    <!-- Prayer name -->
+    <path
+        android:fillColor="#333333"
+        android:pathData="M108,29h34a3,3 0 0 1 3,3v7a3,3 0 0 1 -3,3h-34a3,3 0 0 1 -3,-3v-7a3,3 0 0 1 3,-3z" />
+
+    <!-- Prayer time -->
+    <path
+        android:fillColor="#007AFF"
+        android:pathData="M97,47h56a4,4 0 0 1 4,4v10a4,4 0 0 1 -4,4h-56a4,4 0 0 1 -4,-4v-10a4,4 0 0 1 4,-4z" />
+
+    <!-- Countdown -->
+    <path
+        android:fillColor="#007AFF"
+        android:pathData="M105,69h40a5,5 0 0 1 5,5v0a5,5 0 0 1 -5,5h-40a5,5 0 0 1 -5,-5v0a5,5 0 0 1 5,-5z" />
+
+    <!-- Progress track -->
+    <path
+        android:fillColor="#E6F0FF"
+        android:pathData="M23,84h204a3,3 0 0 1 3,3v0a3,3 0 0 1 -3,3h-204a3,3 0 0 1 -3,-3v0a3,3 0 0 1 3,-3z" />
+
+    <!-- Progress fill (65%) -->
+    <path
+        android:fillColor="#007AFF"
+        android:pathData="M23,84h130.5a3,3 0 0 1 3,3v0a3,3 0 0 1 -3,3h-130.5a3,3 0 0 1 -3,-3v0a3,3 0 0 1 3,-3z" />
+
+    <!-- City pill -->
+    <path
+        android:fillColor="#E6F0FF"
+        android:pathData="M97,92h56a7,7 0 0 1 7,7v0a7,7 0 0 1 -7,7h-56a7,7 0 0 1 -7,-7v0a7,7 0 0 1 7,-7z" />
+
+    <!-- City name -->
+    <path
+        android:fillColor="#007AFF"
+        android:pathData="M115,96h20a3,3 0 0 1 3,3v0a3,3 0 0 1 -3,3h-20a3,3 0 0 1 -3,-3v0a3,3 0 0 1 3,-3z" />
 
 </vector>

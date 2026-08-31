@@ -6,6 +6,7 @@
     android:targetCellWidth="2"
     android:targetCellHeight="1"
     android:previewImage="@drawable/widget_preview_small"
+    android:previewLayout="@layout/prayer_widget_small_preview"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="900000"
     android:widgetCategory="home_screen"
