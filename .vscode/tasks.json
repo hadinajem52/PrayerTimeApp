@@ -14,6 +14,67 @@
 			"problemMatcher": [],
 			"label": "npm: android",
 			"detail": "expo run:android"
+		},
+		{
+			"label": "android: build release AAB",
+			"detail": "gradlew bundleRelease, then verify the sounds and fonts survived",
+			"type": "shell",
+			"command": "pwsh",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/build-aab.ps1"
+			],
+			"windows": {
+				"options": {
+					"shell": {
+						"executable": "pwsh.exe",
+						"args": [
+							"-NoProfile",
+							"-Command"
+						]
+					}
+				}
+			},
+			"group": "build",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"clear": true
+			}
+		},
+		{
+			"label": "android: re-encode adhan sounds",
+			"detail": "Re-run the Opus pipeline over audio-sources/ and regenerate the keep rules",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"${workspaceFolder}/scripts/optimize-adhans.py"
+			],
+			"group": "build",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "android: subset icon fonts",
+			"detail": "Regenerate assets/fonts/ from @expo/vector-icons - run after adding an icon",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"${workspaceFolder}/scripts/subset-icon-fonts.py"
+			],
+			"group": "build",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
 		}
 	]
 }
