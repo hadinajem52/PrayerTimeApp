@@ -1,4 +1,4 @@
-import notifee, { AndroidImportance, TriggerType } from '@notifee/react-native';
+import notifee, { AndroidImportance, AndroidStyle, TriggerType } from '@notifee/react-native';
 import { NativeModules } from 'react-native';
 import {
   NOTIF_CHANNEL_COUNTDOWN,
@@ -32,6 +32,20 @@ import {
  */
 
 const { LiveCountdown } = NativeModules;
+
+/**
+ * The target prayer time, formatted for the bold/large line shown when the
+ * notification is expanded. A fixed clock time rather than a duration, so it
+ * never goes stale between refreshes - unlike a "time remaining" figure, it
+ * doesn't need re-posting every minute to stay accurate.
+ */
+function formatBigTime(date, language) {
+  const hours = date.getHours();
+  const displayHours = hours % 12 || 12;
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const period = hours >= 12 ? (language === 'ar' ? 'م' : 'PM') : (language === 'ar' ? 'ص' : 'AM');
+  return `${displayHours}:${minutes} ${period}`;
+}
 
 /**
  * Next prayer from `now`, rolling over to tomorrow's first once today's have all
@@ -117,6 +131,11 @@ export async function showCountdownNotification(locationData, language = 'en', n
       showChronometer: true,
       chronometerDirection: 'down',
       pressAction: { id: 'default' },
+      // Expanded view only: the same info, in bold/large text.
+      style: {
+        type: AndroidStyle.BIGTEXT,
+        text: `${body}\n<b><big>${formatBigTime(next.time, language)}</big></b>`,
+      },
     },
   });
 

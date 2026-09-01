@@ -152,11 +152,6 @@ const NotificationsSection = ({
         <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
           {translations.countdownNotificationDescription}
         </Text>
-
-        {/* Only Android 16 lets a third-party app put text in the status bar. */}
-        <Text style={[styles.description, isDarkMode && styles.darkDescription]}>
-          {translations.countdownNotificationRequirement}
-        </Text>
       </View>
 
       <AdhanPicker
