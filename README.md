@@ -56,7 +56,6 @@ A comprehensive React Native/Expo application providing accurate Islamic prayer 
 - **UI Components:** React Native Vector Icons, Linear Gradient
 - **Notifications:** Notifee for reliable cross-platform notifications
 - **Location & Maps:** React Native WebView for Qibla integration
-- **Backend Services:** Firebase (Remote Config)
 - **Build System:** EAS Build (Expo Application Services)
 - **Data Processing:** Python script with pdfplumber for prayer times extraction
 
@@ -155,7 +154,6 @@ ShiaPrayerLeb/
 ├── .github/workflows/       # GitHub Actions workflows
 ├── App.js                   # Main app component
 ├── app.json                 # Expo configuration
-├── firebase.js              # Firebase configuration
 ├── package.json             # Dependencies and scripts
 └── extract_prayer_times.py  # Prayer times data extraction script
 ```
@@ -166,7 +164,6 @@ ShiaPrayerLeb/
 - **Location Permissions:** Only used for Qibla direction finding
 - **Camera Access:** Required for AR Qibla finder feature
 - **Notification Permissions:** Optional, for prayer reminders
-- **Firebase Integration:** Used only for remote configuration
 
 ## 🤝 Contributing
 

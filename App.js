@@ -36,8 +36,6 @@ import Settings from './components/Settings';
 import CalendarView from './components/Calendar';
 import SkeletonLoader from './components/SkeletonLoader';
 import { AnimationUtils } from './utils/animations';
-import { UpdateManager } from './components/UpdateManager';
-import './firebase';
 import MonthTransitionNotice from './components/MonthTransitionNotice';
 import { toArabicNumerals } from './utils/timeFormatters';
 import { PrayerTimesProvider, usePrayerTimes } from './components/PrayerTimesProvider';
@@ -1054,9 +1052,6 @@ function MainApp() {
       ]}
     >
       <StatusBar translucent backgroundColor="transparent" />
-      <UpdateManager language={language} />
-
-
 
       <Text style={[styles.header, isDarkMode && styles.darkHeader]}>
         {TRANSLATIONS[language].prayerTimes}
