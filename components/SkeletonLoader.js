@@ -8,13 +8,24 @@ const SkeletonLoader = ({ isDarkMode }) => {
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    // Held so it can be stopped: this loop never ends on its own, and the
+    // skeleton unmounts the moment prayer data arrives. A native-driven loop
+    // left running past that keeps driving animated nodes the unmount has
+    // already torn down, which surfaces as JSApplicationIllegalArgumentException
+    // out of NativeAnimatedNodesManager.
+    const loop = Animated.loop(
       Animated.timing(animatedValue, {
         toValue: 1,
         duration: 1500,
         useNativeDriver: true,
       })
-    ).start();
+    );
+    loop.start();
+
+    return () => {
+      loop.stop();
+      animatedValue.stopAnimation();
+    };
   }, [animatedValue]);
 
   const shimmerTranslate = animatedValue.interpolate({

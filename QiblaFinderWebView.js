@@ -15,6 +15,7 @@ import { WebView } from 'react-native-webview';
 import { moderateScale } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 import LocationServicesDialogBox from 'react-native-android-location-services-dialog-box';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) => {
   const webViewRef = useRef(null);
@@ -469,7 +470,26 @@ const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) =>
             </TouchableOpacity>
           )}
 
-          {/* WebView */}
+          {/* WebView. Boundaried because constructing the native view throws on
+              devices whose system WebView is missing or mid-update, which the
+              WebView's own onError never sees. */}
+          <ErrorBoundary
+            fallback={() => (
+              <View style={styles.errorContainer}>
+                <Icon name="alert-circle-outline" size={moderateScale(50)} color="#F44336" />
+                <Text style={[styles.errorText, isDarkMode && styles.darkText]}>
+                  {language === 'ar'
+                    ? 'تعذر فتح باحث القبلة. قد يكون متصفح النظام (WebView) قيد التحديث.'
+                    : 'Could not open the Qibla finder. The system WebView may be updating.'}
+                </Text>
+                <TouchableOpacity style={styles.retryButton} onPress={onClose}>
+                  <Text style={styles.retryButtonText}>
+                    {language === 'ar' ? 'إغلاق' : 'Close'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          >
           <WebView
             ref={webViewRef}
             source={{ uri: qiblaFinderUrl }}
@@ -499,6 +519,7 @@ const QiblaFinderWebView = ({ isDarkMode = false, language = 'en', onClose }) =>
             allowsFullscreenVideo={true}
             allowsBackForwardNavigationGestures={false}
           />
+          </ErrorBoundary>
         </View>
 
         {/* Instructions */}

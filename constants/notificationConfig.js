@@ -26,6 +26,12 @@ export const NOTIF_PRAYER_ID_PREFIX = 'prayer_';
 // ── Rolling scheduling window ────────────────────────────────────────────────
 export const NOTIF_ROLLING_WINDOW_DAYS = 7;
 
+// ── Mirror of what is currently scheduled ───────────────────────────────────
+// { [notificationId]: { timestamp, channelId } }. Stands in for the fields the
+// scheduler used to read back out of notifee.getTriggerNotifications(), which
+// cannot be called safely - see utils/scheduledTriggerStore.
+export const NOTIF_SCHEDULE_META_KEY = 'notif_schedule_meta_v1';
+
 // ── AsyncStorage keys used to guard the one-time channel migrations ─────────
 export const NOTIF_MIGRATED_V2_KEY = 'notif_migrated_v2';
 // v3 moved every install off the single adhan channel onto per-voice channels.

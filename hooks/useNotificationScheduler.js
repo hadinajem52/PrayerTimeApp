@@ -13,6 +13,7 @@ import {
   resolveNotificationChannel,
   ensureBackgroundChannel,
 } from '../utils/notificationChannels';
+import { readScheduleMeta, writeScheduleMeta } from '../utils/scheduledTriggerStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure helpers – no hooks, safe to call from onBackgroundEvent
@@ -116,19 +117,27 @@ export async function schedulePrayerNotificationsRaw(
 
   // Snapshot what is already scheduled, keeping the details we need to tell a
   // still-correct entry from a stale one.
-  const existing = await notifee.getTriggerNotifications();
+  //
+  // The ids come from getTriggerNotificationIds() rather than
+  // getTriggerNotifications(): the latter unparcels every stored notification
+  // natively, which crashes the process on Android 16 for any row written under
+  // an earlier platform. See utils/scheduledTriggerStore for the full story.
+  const existingIds = (await notifee.getTriggerNotificationIds())
+    .map(String)
+    .filter(id => id.startsWith(NOTIF_PRAYER_ID_PREFIX));
+  const meta = await readScheduleMeta();
   const existingById = new Map();
-  for (const entry of existing) {
-    const id = String(entry.notification?.id ?? '');
-    if (!id.startsWith(NOTIF_PRAYER_ID_PREFIX)) continue;
-    existingById.set(id, {
-      timestamp: entry.trigger?.timestamp,
-      channelId: entry.notification?.android?.channelId,
-    });
+  for (const id of existingIds) {
+    // No mirrored entry (first pass after upgrading to this version) counts as
+    // changed, so it is rewritten once and picked up by the mirror below.
+    if (meta[id]) existingById.set(id, meta[id]);
   }
 
   const desiredIds = new Set();
   const scheduledIds = [];
+  // Rebuilt from scratch each pass so the mirror can never outlive what is
+  // actually scheduled.
+  const nextMeta = {};
   let rewritten = 0;
   const prayerKeys = ['imsak', 'fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha', 'midnight'];
   const isPrayer = key => ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].includes(key);
@@ -161,6 +170,7 @@ export async function schedulePrayerNotificationsRaw(
         && current.channelId === channelId;
       if (unchanged) {
         scheduledIds.push(notifId);
+        nextMeta[notifId] = current;
         continue;
       }
 
@@ -194,6 +204,7 @@ export async function schedulePrayerNotificationsRaw(
         // absent even for an instant.
         await notifee.createTriggerNotification(notification, trigger);
         scheduledIds.push(notifId);
+        nextMeta[notifId] = { timestamp: prayerTime.getTime(), channelId };
         if (current) rewritten++;
       } catch (err) {
         console.error(`[Notification] Failed to schedule ${prayer} on ${dateStr}:`, err);
@@ -202,15 +213,19 @@ export async function schedulePrayerNotificationsRaw(
   }
 
   // Drop anything left over - past days, or prayers the user has since turned
-  // off. Done last so there is no window where nothing is scheduled.
+  // off. Done last so there is no window where nothing is scheduled. Driven off
+  // the ids notifee actually reports rather than the mirror, so a row the
+  // mirror never knew about still gets pruned.
   let removed = 0;
-  for (const id of existingById.keys()) {
+  for (const id of existingIds) {
     if (desiredIds.has(id)) continue;
     try {
       await notifee.cancelTriggerNotification(id);
       removed++;
     } catch (_) { }
   }
+
+  await writeScheduleMeta(nextMeta);
 
   console.log(
     `[Notification] ${scheduledIds.length} scheduled over ${days} days ` +
@@ -297,8 +312,8 @@ export const useNotificationScheduler = (language, soundConfig = {}) => {
     try {
       setIsOperationInProgress(true);
       const standardizedId = `${NOTIF_PRAYER_ID_PREFIX}${moment(prayerTime).format('YYYYMMDD')}_${prayerKey}`;
-      const existing = await notifee.getTriggerNotifications();
-      if (existing.some(n => n.notification.id === standardizedId)) {
+      const existingIds = await notifee.getTriggerNotificationIds();
+      if (existingIds.includes(standardizedId)) {
         return standardizedId;
       }
       if (prayerTime <= new Date()) return null;

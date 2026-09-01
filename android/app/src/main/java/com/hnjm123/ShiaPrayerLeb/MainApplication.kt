@@ -1,6 +1,7 @@
 package com.hnjm123.ShiaPrayerLeb
 
 import android.app.Application
+import android.content.Context
 import android.content.res.Configuration
 import androidx.work.WorkManager
 import com.facebook.react.PackageList
@@ -41,6 +42,14 @@ class MainApplication : Application(), ReactApplication {
   
   override val reactHost: ReactHost
     get() = ReactNativeHostWrapper.createReactHost(applicationContext, reactNativeHost)
+
+  // Earliest code in the process, ahead of every ContentProvider - including
+  // notifee's InitProvider. The trigger store has to be dealt with before
+  // notifee can open it. See NotifeeParcelGuard.
+  override fun attachBaseContext(base: Context) {
+    super.attachBaseContext(base)
+    NotifeeParcelGuard.purgeIfPlatformChanged(base)
+  }
 
   override fun onCreate() {
     super.onCreate()
